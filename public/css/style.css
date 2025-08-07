@@ -1,0 +1,969 @@
+/* General Body & Typography */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+h1, h2, h3 {
+    line-height: 1.2;
+}
+
+/* Header */
+header {
+    background: #fff;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+/* Main Content */
+main {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Upload Page Styles - Full Width Canvas Layout */
+.upload-container {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    background: none;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    position: relative;
+}
+
+.upload-left {
+    background: #ffffff;
+    background-image: radial-gradient(circle, #e0e0e0 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-position: 0 0;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    width: 50vw;
+    max-width: 50vw;
+    box-sizing: border-box;
+    min-height: 100vh;
+    border-right: 1px solid #e1e5e9;
+}
+
+.upload-right {
+    background: #f8f9fa;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    width: 50vw;
+    max-width: 50vw;
+    box-sizing: border-box;
+}
+
+/* Override main padding for upload page */
+body.upload-page main {
+    padding: 0;
+    max-width: none;
+    margin: 0;
+}
+
+body.upload-page header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+body.upload-page .upload-container {
+    margin-top: 80px; /* Account for fixed header */
+    height: calc(100vh - 80px);
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.description-section {
+    padding: 0;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.description-section textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.5;
+    color: #333;
+    background: transparent;
+    padding: 15px;
+    min-height: 120px;
+    border-radius: 8px;
+}
+
+.description-section textarea::placeholder {
+    color: #999;
+}
+
+.picker-section {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.picker-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    cursor: pointer;
+    position: relative;
+    background: #ffffff;
+    transition: border-color 0.2s;
+}
+
+.picker-item:hover {
+    border-color: #333;
+}
+
+
+
+.picker-label {
+    flex: 1;
+    font-size: 16px;
+    color: #333;
+}
+
+.picker-arrow {
+    font-size: 18px;
+    color: #999;
+    margin-left: 10px;
+}
+
+.picker-item select,
+.picker-item input[type="text"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+}
+
+.picker-item input[type="text"] {
+    opacity: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding-left: 60px;
+    font-size: 16px;
+    color: #333;
+}
+
+.picker-item input[type="text"]::placeholder {
+    color: #999;
+}
+
+.title-section {
+    padding: 0;
+    border: 1px solid #e1e5e9;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.title-section input {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    background: transparent;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.title-section input::placeholder {
+    color: #999;
+    font-weight: normal;
+}
+
+.content-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+}
+
+.image-upload-area {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+}
+
+.workspace-controls {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 5;
+}
+
+.workspace-controls label {
+    font-size: 14px;
+    color: #666;
+    margin-right: 5px;
+}
+
+.workspace-controls input[type="color"] {
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.workspace-controls input[type="range"] {
+    width: 80px;
+}
+
+.image-preview {
+    max-width: 80%;
+    max-height: 80%;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.image-preview:hover {
+    transform: scale(1.02);
+}
+
+.image-upload-area input[type="file"] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+.camera-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    pointer-events: all;
+    z-index: 1000;
+    text-align: center;
+}
+
+.camera-overlay .camera-icon {
+    width: 60px;
+    height: 60px;
+    opacity: 0.6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #ccc;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    margin-bottom: 8px;
+    transition: opacity 0.2s ease;
+    position: relative;
+}
+
+.camera-overlay:hover .camera-icon {
+    opacity: 0.8;
+}
+
+.camera-overlay p {
+    margin: 0;
+    color: #666;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.camera-overlay .camera-icon::before {
+    content: '';
+    width: 28px;
+    height: 20px;
+    border: 2px solid #666;
+    border-radius: 4px;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: transparent;
+}
+
+.camera-overlay .camera-icon::after {
+    content: '';
+    width: 12px;
+    height: 12px;
+    background: #666;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+}
+
+/* Camera lens highlight */
+.camera-overlay .camera-icon {
+    background: rgba(255, 255, 255, 0.9);
+}
+
+.camera-overlay .camera-icon:before {
+    box-shadow: inset 0 0 0 1px rgba(102, 102, 102, 0.3);
+}
+
+.upload-placeholder p {
+    margin: 0;
+    color: #999;
+    font-size: 16px;
+}
+
+/* Poetry Creation Styles */
+
+.poetry-canvas {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+
+.poetry-toolbar {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px 15px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 5;
+}
+
+.poetry-toolbar label {
+    font-size: 14px;
+    color: #666;
+}
+
+.poetry-toolbar input[type="color"] {
+    width: 40px;
+    height: 30px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn-small:hover {
+    background: #0056b3;
+}
+
+.poetry-workspace {
+    width: 100%;
+    height: 100%;
+    border: none;
+    border-radius: 0;
+    position: relative;
+    background: transparent;
+    overflow: hidden;
+}
+
+
+
+.poetry-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #999;
+    text-align: center;
+    font-style: italic;
+    margin: 0;
+}
+
+.draggable-text {
+    position: absolute;
+    padding: 8px 12px;
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    cursor: move;
+    user-select: none;
+    min-width: 120px;
+    min-height: 35px;
+    font-size: 16px;
+    line-height: 1.4;
+    transition: none;
+}
+
+/* Text boxes are completely transparent with no hover effects */
+
+/* Delete artwork button styling */
+.delete-artwork-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+    z-index: 10;
+    color: #dc3545;
+}
+
+.delete-artwork-btn:hover {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.artwork-card:hover .delete-artwork-btn {
+    opacity: 1;
+}
+
+.draggable-text .delete-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 20px;
+    height: 20px;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 12px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.draggable-text:hover .delete-btn {
+    display: flex;
+}
+
+.draggable-text:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.submit-section {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 15;
+}
+
+.btn-primary {
+    background: #333;
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 140px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.btn-primary:hover {
+    background: #000;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Location Picker Styles */
+.location-selectors {
+    display: flex;
+    gap: 10px;
+}
+
+.location-selectors select {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    font-size: 14px;
+    color: #333;
+}
+
+.location-selectors select:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .upload-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+    
+    .upload-left {
+        padding: 20px;
+        gap: 15px;
+        max-height: 40vh;
+        overflow-y: auto;
+    }
+    
+    .upload-right {
+        height: 60vh;
+    }
+    
+    .description-section textarea {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+    
+    .location-selectors {
+        flex-direction: column;
+    }
+    
+    .canvas-controls,
+    .poetry-toolbar {
+        position: relative;
+        top: auto;
+        left: auto;
+        margin-bottom: 15px;
+    }
+}
+
+/* Gallery & Artwork Cards */
+.gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.artwork-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.artwork-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px burdensome-shadow-rgba;
+}
+
+.artwork-card img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+}
+
+.artwork-card .blurred {
+    filter: blur(10px);
+    transition: filter 0.3s ease-in-out;
+}
+
+.artwork-card:hover .blurred {
+    filter: blur(0);
+}
+
+.artwork-card .artwork-info {
+    padding: 1rem;
+}
+
+.artwork-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.artwork-card p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Poetry preview styling */
+.poetry-preview {
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+}
+
+.poetry-snippet {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #2c3e50;
+    text-align: center;
+    font-style: italic;
+    max-width: 100%;
+    word-wrap: break-word;
+    position: relative;
+    z-index: 1;
+}
+
+.poetry-preview::before {
+    content: '"';
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    font-size: 48px;
+    color: rgba(44, 62, 80, 0.1);
+    font-family: 'Georgia', serif;
+    z-index: 0;
+}
+
+.poetry-preview::after {
+    content: '"';
+    position: absolute;
+    bottom: 10px;
+    right: 15px;
+    font-size: 48px;
+    color: rgba(44, 62, 80, 0.1);
+    font-family: 'Georgia', serif;
+    z-index: 0;
+}
+
+/* Profile Page Specifics */
+.profile-container {
+    max-width: 900px;
+    margin: 2rem auto;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.profile-avatar-container {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    margin-right: 20px;
+    cursor: pointer;
+}
+
+.profile-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    transition: opacity 0.3s ease;
+}
+
+.avatar-upload-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    color: white;
+    font-size: 12px;
+    text-align: center;
+}
+
+.profile-avatar-container:hover .avatar-upload-overlay {
+    opacity: 1;
+}
+
+.profile-avatar-container:hover .profile-avatar {
+    opacity: 0.7;
+}
+
+.profile-info {
+    flex-grow: 1;
+}
+
+.profile-info h2 {
+    margin: 0;
+    font-size: 2em;
+}
+
+.profile-info p {
+    margin: 5px 0 0;
+    color: #666;
+}
+
+.profile-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Tabs */
+.tabs {
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 20px;
+}
+
+.tab-link {
+    background: none;
+    border: none;
+    padding: 15px 20px;
+    cursor: pointer;
+    font-size: 1em;
+    color: #666;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-link.active {
+    color: #000;
+    border-bottom-color: #333;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.section-divider {
+    border-top: 1px solid #eee;
+    margin: 30px 0;
+}
+
+/* Artwork Detail Page */
+.artwork-detail-container {
+    max-width: 700px;
+    margin: 2rem auto;
+    padding: 1rem;
+}
+
+#artwork-image-container img {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.artwork-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.artwork-description h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.8em;
+}
+
+.artwork-description p {
+    margin: 0;
+    font-size: 1.1em;
+    color: #555;
+}
+
+.collect-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 8px;
+}
+
+.collect-btn svg {
+    stroke: #888;
+    fill: none;
+    transition: all 0.2s ease;
+    width: 24px;
+    height: 24px;
+}
+
+.collect-btn:hover svg {
+    stroke: #666;
+}
+
+.collect-btn.collected svg {
+    fill: #ffd700;
+    stroke: #ffd700;
+}
+
+.artwork-inspiration {
+    margin: 1.5rem 0;
+}
+
+.artwork-inspiration h3 {
+    margin-bottom: 0.5rem;
+}
+
+.artwork-inspiration p {
+    font-size: 1em;
+    line-height: 1.6;
+    color: #333;
+}
+
+.artwork-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #888;
+    font-size: 0.9em;
+}
+
+.artist-info-footer {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#artist-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.artist-details {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.artist-details span {
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.btn.btn-secondary {
+    background-color: #eee;
+    color: #333;
+    padding: 5px 15px;
+    font-size: 0.9em;
+}
+
+/* Buttons & Forms */
+.btn {
+    display: inline-block;
+    background: #333;
+    color: #fff;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+#auth-container form {
+    display: flex;
+    gap: 0.5rem;
+}

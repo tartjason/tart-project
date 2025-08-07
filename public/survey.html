@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Your Portfolio - Tart</title>
+    <link rel="stylesheet" href="css/style.css?v=1.1">
+    <link rel="stylesheet" href="css/survey.css">
+</head>
+<body>
+    <header>
+        <h1>Create Your Portfolio</h1>
+    </header>
+
+    <main>
+        <div class="container">
+            <form id="survey-form">
+                <!-- Step 1: Artwork Medium Selection -->
+                <div id="step-1" class="survey-step active">
+                    <h2>What kind of artwork do you create?</h2>
+                    <div class="medium-options">
+                        <div class="medium-option" data-medium="painting">
+                            <div class="medium-icon">🎨</div>
+                            <h3>Painting</h3>
+                        </div>
+                        <div class="medium-option" data-medium="photography">
+                            <div class="medium-icon">📷</div>
+                            <h3>Photography</h3>
+                        </div>
+                        <div class="medium-option" data-medium="poetry">
+                            <div class="medium-icon">✍️</div>
+                            <h3>Poetry</h3>
+                        </div>
+                        <div class="medium-option" data-medium="furniture">
+                            <div class="medium-icon">🪑</div>
+                            <h3>Furniture</h3>
+                        </div>
+                        <div class="medium-option" data-medium="multi-medium">
+                            <div class="medium-icon">🎭</div>
+                            <h3>Multi-Medium</h3>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 2rem;">
+                        <button type="button" class="btn next-btn" disabled>Next</button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Feature Selection -->
+                <div id="step-2" class="survey-step">
+                    <h2>Choose your portfolio features</h2>
+                    <div class="feature-options">
+                        <div class="feature-group mandatory">
+                            <h3>Essential Pages (included by default)</h3>
+                            <div class="feature-item selected" data-feature="home">
+                                <input type="checkbox" checked disabled>
+                                <label>Home</label>
+                            </div>
+                            <div class="feature-item selected" data-feature="about">
+                                <input type="checkbox" checked disabled>
+                                <label>About</label>
+                            </div>
+                            <div class="feature-item selected" data-feature="works">
+                                <input type="checkbox" checked disabled>
+                                <label>Works</label>
+                                <div class="sub-options">
+                                    <label>Organize works by:</label>
+                                    <div class="radio-group">
+                                        <input type="radio" name="works-organization" value="theme" id="theme">
+                                        <label for="theme">Theme</label>
+                                        <input type="radio" name="works-organization" value="year" id="year">
+                                        <label for="year">Year</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="feature-group optional">
+                            <h3>Optional Pages</h3>
+                            <div class="feature-item" data-feature="commission">
+                                <input type="checkbox">
+                                <label>Commission</label>
+                            </div>
+                            <div class="feature-item" data-feature="exhibition">
+                                <input type="checkbox">
+                                <label>Exhibition</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn">Next</button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Homepage Layout Selection -->
+                <div id="step-3" class="survey-step">
+                    <h2>Choose Your Homepage Layout</h2>
+                    <div class="layout-options">
+                        <div class="layout-option" data-layout="grid" data-page="homepage">
+                            <div class="layout-preview homepage-grid-preview">
+                                <div class="preview-header">
+                                    <div class="preview-logo">Logo</div>
+                                    <div class="preview-nav">
+                                        <span class="active">Home</span>
+                                        <span>About</span>
+                                        <span>Works</span>
+                                    </div>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="homepage-grid">
+                                        <div class="grid-item"></div>
+                                        <div class="grid-item"></div>
+                                        <div class="grid-item"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3>Grid Layout</h3>
+                            <p>Clean grid display of your works</p>
+                        </div>
+                        <div class="layout-option" data-layout="split" data-page="homepage">
+                            <div class="layout-preview homepage-split-preview">
+                                <div class="preview-header">
+                                    <div class="preview-logo">Artist Name</div>
+                                    <div class="preview-nav">
+                                        <span class="active">Home</span>
+                                        <span>About</span>
+                                        <span>Works</span>
+                                    </div>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="split-layout">
+                                        <div class="split-image"></div>
+                                        <div class="split-text">
+                                            <div class="title-line"></div>
+                                            <div class="desc-line"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3>Split Layout</h3>
+                            <p>Featured work with description</p>
+                        </div>
+                        <div class="layout-option" data-layout="hero" data-page="homepage">
+                            <div class="layout-preview homepage-hero-preview">
+                                <div class="preview-header">
+                                    <div class="preview-logo">Artist Name</div>
+                                    <div class="preview-nav">
+                                        <span class="active">Home</span>
+                                        <span>About</span>
+                                        <span>Works</span>
+                                    </div>
+                                </div>
+                                <div class="preview-content hero-content">
+                                    <div class="hero-text">
+                                        <div class="hero-title"></div>
+                                        <div class="hero-subtitle"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3>Hero Layout</h3>
+                            <p>Full-screen immersive experience</p>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn" disabled>Next</button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Works Organization Details -->
+                <div id="step-4" class="survey-step">
+                    <h2>Organize Your Works</h2>
+                    <div class="organization-details">
+                        <div id="year-organization" class="organization-input" style="display: none;">
+                            <h3>Enter the years you want to showcase</h3>
+                            <p>Enter years separated by commas (e.g., 2020, 2021, 2022, 2023)</p>
+                            <textarea id="years-input" placeholder="2020, 2021, 2022, 2023" rows="3"></textarea>
+                            <div class="preview-nav">
+                                <h4>Navigation Preview:</h4>
+                                <div class="nav-preview">
+                                    <span class="nav-item">Personal Works ▼</span>
+                                    <div class="dropdown-preview" id="years-dropdown">
+                                        <!-- Years will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="theme-organization" class="organization-input" style="display: none;">
+                            <h3>Enter your themes/categories</h3>
+                            <p>Enter themes separated by commas (e.g., Portraits, Landscapes, Abstract)</p>
+                            <textarea id="themes-input" placeholder="Portraits, Landscapes, Abstract, Street Photography" rows="3"></textarea>
+                            <div class="preview-nav">
+                                <h4>Navigation Preview:</h4>
+                                <div class="nav-preview">
+                                    <span class="nav-item">Personal Works ▼</span>
+                                    <div class="dropdown-preview" id="themes-dropdown">
+                                        <!-- Themes will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn" disabled>Next</button>
+                    </div>
+                </div>
+
+                <!-- Step 5: Works Page Layout Selection -->
+                <div id="step-5" class="survey-step">
+                    <h2>Choose Your Works Page Layout</h2>
+                    <div class="layout-options">
+                        <div class="layout-option" data-layout="grid" data-page="works">
+                            <div class="layout-preview works-grid-preview">
+                                <div class="preview-header">
+                                    <div class="preview-logo">Portfolio</div>
+                                    <div class="preview-nav">
+                                        <span>Home</span>
+                                        <span>About</span>
+                                        <span class="active">Works</span>
+                                    </div>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="works-grid">
+                                        <div class="work-item"></div>
+                                        <div class="work-item"></div>
+                                        <div class="work-item"></div>
+                                        <div class="work-item"></div>
+                                        <div class="work-item"></div>
+                                        <div class="work-item"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3>Grid Layout</h3>
+                            <p>Display multiple works in a clean grid</p>
+                        </div>
+                        <div class="layout-option" data-layout="single" data-page="works">
+                            <div class="layout-preview works-single-preview">
+                                <div class="preview-header">
+                                    <div class="preview-logo">Portfolio</div>
+                                    <div class="preview-nav">
+                                        <span>Home</span>
+                                        <span>About</span>
+                                        <span class="active">Works</span>
+                                    </div>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="single-work">
+                                        <div class="work-image"></div>
+                                        <div class="work-details">
+                                            <div class="work-title"></div>
+                                            <div class="work-description"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3>Single Work Focus</h3>
+                            <p>Feature one work prominently with details</p>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn" disabled>Next</button>
+                    </div>
+                </div>
+
+                <!-- Step 6: About Page Layout Selection -->
+                <div id="step-6" class="survey-step">
+                    <h2>Choose Your About Page Layout</h2>
+                    <div class="layout-options">
+                        <div class="layout-option" data-layout="split" data-page="about">
+                            <div class="layout-preview about-split-preview">
+                                <div class="preview-header">
+                                    <div class="preview-logo">Portfolio</div>
+                                    <div class="preview-nav">
+                                        <span>Home</span>
+                                        <span class="active">About</span>
+                                        <span>Works</span>
+                                    </div>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="about-split">
+                                        <div class="about-photo"></div>
+                                        <div class="about-content">
+                                            <div class="about-title"></div>
+                                            <div class="about-line"></div>
+                                            <div class="about-line short"></div>
+                                            <div class="about-sections">
+                                                <div class="section-block"></div>
+                                                <div class="section-block"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3>Split Layout</h3>
+                            <p>Side-by-side photo and content</p>
+                        </div>
+                        <div class="layout-option" data-layout="vertical" data-page="about">
+                            <div class="layout-preview about-vertical-preview">
+                                <div class="preview-header">
+                                    <div class="preview-logo">Portfolio</div>
+                                    <div class="preview-nav">
+                                        <span>Home</span>
+                                        <span class="active">About</span>
+                                        <span>Works</span>
+                                    </div>
+                                </div>
+                                <div class="preview-content">
+                                    <div class="about-vertical">
+                                        <div class="about-photo-center"></div>
+                                        <div class="about-title-center"></div>
+                                        <div class="about-bio">
+                                            <div class="bio-line"></div>
+                                            <div class="bio-line short"></div>
+                                        </div>
+                                        <div class="about-sections-vertical">
+                                            <div class="section-item"></div>
+                                            <div class="section-item"></div>
+                                            <div class="section-item"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <h3>Vertical Layout</h3>
+                            <p>Stacked content flowing down</p>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn" disabled>Next</button>
+                    </div>
+                </div>
+
+                <!-- Step 7: About Page Section Selection -->
+                <div id="step-7" class="survey-step">
+                    <h2>Choose Your About Page Sections</h2>
+                    <p>Select which sections you'd like to include in your About page:</p>
+                    <div class="section-options">
+                        <div class="section-group">
+                            <h3>Essential Information</h3>
+                            <div class="section-item" data-section="biography">
+                                <input type="checkbox" checked disabled>
+                                <label>Biography (included by default)</label>
+                            </div>
+                            <div class="section-item" data-section="contactInfo">
+                                <input type="checkbox" id="contact-info">
+                                <label for="contact-info">Contact Info</label>
+                            </div>
+                        </div>
+                        
+                        <div class="section-group">
+                            <h3>Professional Background</h3>
+                            <div class="section-item" data-section="education">
+                                <input type="checkbox" id="education">
+                                <label for="education">Education</label>
+                            </div>
+                            <div class="section-item" data-section="workExperience">
+                                <input type="checkbox" id="work-experience">
+                                <label for="work-experience">Work Experience</label>
+                            </div>
+                        </div>
+                        
+                        <div class="section-group">
+                            <h3>Recognition & Achievements</h3>
+                            <div class="section-item" data-section="selectedExhibition">
+                                <input type="checkbox" id="selected-exhibition">
+                                <label for="selected-exhibition">Selected Exhibition</label>
+                            </div>
+                            <div class="section-item" data-section="selectedPress">
+                                <input type="checkbox" id="selected-press">
+                                <label for="selected-press">Selected Press</label>
+                            </div>
+                            <div class="section-item" data-section="selectedAwards">
+                                <input type="checkbox" id="selected-awards">
+                                <label for="selected-awards">Selected Awards & Grants</label>
+                            </div>
+                            <div class="section-item" data-section="recentlyFeatured">
+                                <input type="checkbox" id="recently-featured">
+                                <label for="recently-featured">Recently Featured in</label>
+                            </div>
+                        </div>
+                        
+                        <div class="section-group">
+                            <h3>Projects & Talks</h3>
+                            <div class="section-item" data-section="selectedProjects">
+                                <input type="checkbox" id="selected-projects">
+                                <label for="selected-projects">Selected Projects/Artist Talks</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn">Next</button>
+                    </div>
+                </div>
+
+                <!-- Dynamic steps for additional features will be inserted here -->
+                
+                <!-- Logo Upload Step (will be dynamically numbered) -->
+                <div id="step-logo" class="survey-step">
+                    <h2>Add Your Logo</h2>
+                    <div class="logo-upload-section">
+                        <div class="upload-option">
+                            <div class="upload-area" id="logo-upload-area">
+                                <div class="upload-placeholder">
+                                    <div class="upload-icon">+</div>
+                                    <p>Click to upload your logo</p>
+                                    <small>PNG, JPG, SVG (max 2MB)</small>
+                                </div>
+                                <input type="file" id="logo-input" accept="image/*" style="display: none;">
+                            </div>
+                            <div class="logo-preview" id="logo-preview" style="display: none;">
+                                <img id="logo-preview-img" alt="Logo preview">
+                                <button type="button" class="btn-small remove-logo">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn">Next</button>
+                    </div>
+                </div>
+
+                <!-- Website Preview Step (will be dynamically numbered) -->
+                <div id="step-preview" class="survey-step">
+                    <h2>Preview Your Website</h2>
+                    <div class="preview-section">
+                        <div class="preview-container">
+                            <div class="preview-header">
+                                <span class="preview-url">yourportfolio.tart.art</span>
+                                <div class="preview-controls">
+                                    <button type="button" class="btn" id="revert-preview">Revert</button>
+                                </div>
+                            </div>
+                            <div class="preview-frame" id="website-preview">
+                                <!-- Website preview will be generated here -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn">Customize Style</button>
+                    </div>
+                </div>
+
+                <!-- Style Customization Step (will be dynamically numbered) -->
+                <div id="step-style" class="survey-step">
+                    <h2>Customize Your Style</h2>
+                    <div class="style-customization">
+                        <div class="style-controls">
+                            <div class="control-group">
+                                <label for="font-size">Font Size</label>
+                                <input type="range" id="font-size" min="12" max="24" value="16">
+                                <span class="value-display" id="font-size-value">16px</span>
+                            </div>
+                            
+                            <div class="control-group">
+                                <label for="text-color">Text Color</label>
+                                <input type="color" id="text-color" value="#333333">
+                            </div>
+                            
+                            <div class="control-group">
+                                <label for="theme-color">Theme Color</label>
+                                <input type="color" id="theme-color" value="#007bff">
+                            </div>
+                        </div>
+                        
+                        <div class="style-preview">
+                            <div class="preview-container">
+                                <div class="preview-frame" id="style-preview">
+                                    <!-- Live style preview will be shown here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn prev-btn">Previous</button>
+                        <button type="button" class="btn next-btn">Complete Setup</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script src="js/survey.js"></script>
+</body>
+</html>

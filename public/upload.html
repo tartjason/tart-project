@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Artwork - Tart</title>
+    <link rel="stylesheet" href="css/style.css?v=1.1">
+</head>
+<body class="upload-page">
+    <header>
+        <h1>Upload New Artwork</h1>
+        <nav>
+            <a href="/account.html" class="btn">Back to Profile</a>
+            <a href="/" class="btn">Home</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="upload-container">
+            <!-- Left Column - Workspace -->
+            <div class="upload-left">
+                <!-- Image Upload Section (for non-poetry mediums) -->
+                <div id="image-upload-section" class="content-section" style="display: flex;">
+                    <div class="image-upload-area">
+                        <div class="workspace-controls">
+                            <button type="button" id="add-background-btn" class="btn-small">+ Add Background</button>
+                            <div id="background-controls" style="display: none; margin-left: 15px;">
+                                <label for="bg-color">Color:</label>
+                                <input type="color" id="bg-color" value="#ffffff">
+                            </div>
+                        </div>
+                        <input type="file" id="artwork-image" accept="image/*" required style="display: none;">
+                        <div class="upload-placeholder"></div>
+                        <div class="camera-overlay" id="camera-trigger">
+                            <div class="camera-icon"></div>
+                            <p>Click camera icon to add your image</p>
+                        </div>
+                        <div id="image-preview-container" style="display: none;"></div>
+                        <div id="background-container" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- Poetry Creation Section (for poetry medium) -->
+                <div id="poetry-creation-section" class="content-section" style="display: none;">
+                    <div class="poetry-canvas">
+                        <div class="poetry-toolbar">
+                            <label for="text-color">Text Color:</label>
+                            <input type="color" id="text-color" value="#000000">
+                            <button type="button" id="add-text-box" class="btn-small">+ Add Text</button>
+                            <span style="margin-left: 20px; color: #666; font-size: 14px;">Click and drag text boxes to arrange your poetry</span>
+                        </div>
+                        <div id="poetry-workspace" class="poetry-workspace">
+                            <p class="poetry-hint">Click "+ Add Text" to create text boxes for your poetry.<br>Drag them around to arrange your composition.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right Column - Form -->
+            <div class="upload-right">
+                <form id="upload-form" novalidate>
+                    <!-- Title Input -->
+                    <div class="title-section">
+                        <input type="text" id="title" placeholder="Artwork Title" required>
+                    </div>
+
+                    <!-- Description Text Area -->
+                    <div class="description-section">
+                        <textarea id="description" placeholder="Description (optional) - Share your inspiration or story behind this artwork..." rows="6"></textarea>
+                    </div>
+
+                    <!-- Medium and Location Pickers -->
+                    <div class="picker-section">
+                        <div class="picker-item" id="medium-picker">
+                            <span class="picker-label">Pick medium</span>
+                            <span class="picker-arrow">›</span>
+                            <select id="medium" required>
+                                <option value="">Select medium</option>
+                                <option value="painting">Painting</option>
+                                <option value="photography">Photography</option>
+                                <option value="poetry">Poetry</option>
+                                <option value="furniture">Furniture</option>
+                            </select>
+                        </div>
+                        
+                        <div class="picker-item" id="location-picker">
+                            <span class="picker-label" id="location-label">Select location</span>
+                            <div class="location-selectors" style="display: flex; gap: 8px; margin-top: 10px;">
+                                <select id="country" required style="flex: 1; height: 40px; opacity: 1; position: relative; background: white; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; font-size: 14px; color: #333;">
+                                    <option value="">Select Country</option>
+                                    <option value="United States">United States</option>
+                                    <option value="Canada">Canada</option>
+                                    <option value="United Kingdom">United Kingdom</option>
+                                    <option value="France">France</option>
+                                    <option value="Germany">Germany</option>
+                                    <option value="Italy">Italy</option>
+                                    <option value="Spain">Spain</option>
+                                    <option value="Japan">Japan</option>
+                                    <option value="China">China</option>
+                                    <option value="Australia">Australia</option>
+                                    <option value="Brazil">Brazil</option>
+                                    <option value="India">India</option>
+                                    <option value="Mexico">Mexico</option>
+                                    <option value="Netherlands">Netherlands</option>
+                                    <option value="Sweden">Sweden</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <input type="text" id="city" placeholder="Enter City" required style="flex: 1; height: 40px; opacity: 1; position: relative; background: white; border: 1px solid #ddd; padding: 8px 12px; border-radius: 4px; font-size: 14px; color: #333; box-sizing: border-box;">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Publish Button - Fixed Position -->
+            <div class="submit-section">
+                <button type="button" id="upload-form-btn" class="btn-primary">Publish Artwork</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/upload-clean.js"></script> 
+</body>
+</html>

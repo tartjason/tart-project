@@ -1,0 +1,16 @@
+{
+  "name": "tart-project",
+  "version": "1.0.0",
+  "description": "A platform for artists to showcase their work.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^6.0.0",
+    "multer": "^2.0.2"
+  }
+}

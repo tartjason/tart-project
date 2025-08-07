@@ -1,0 +1,53 @@
+.main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.artist-name h1 {
+    font-size: 1.5rem;
+    color: #555;
+}
+
+.main-nav a {
+    margin-left: 1.5rem;
+    text-decoration: none;
+    color: #555;
+}
+
+.split-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 4rem auto;
+    gap: 4rem;
+}
+
+.split-left {
+    flex: 1;
+}
+
+.split-left img {
+    width: 100%;
+    height: auto;
+}
+
+.split-right {
+    flex: 1;
+    padding-left: 2rem;
+}
+
+.split-right h2 {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.split-right p {
+    font-size: 1.2rem;
+    color: #666;
+}

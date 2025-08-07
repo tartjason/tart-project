@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Account - Tart</title>
+    <link rel="stylesheet" href="css/style.css?v=1.1">
+</head>
+<body>
+    <header>
+        <h1>My Profile</h1>
+        <nav>
+            <a href="/" class="btn">Home</a>
+            <a href="#" id="logout-btn" class="btn">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="profile-container">
+            <section class="profile-header">
+                <div class="profile-avatar-container">
+                    <img src="/assets/default-avatar.png" alt="Artist Avatar" class="profile-avatar" id="profile-avatar">
+                    <div class="avatar-upload-overlay">
+                        <span>Click to change</span>
+                    </div>
+                    <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
+                </div>
+                <div class="profile-info">
+                    <h2 id="artist-name">Artist Name</h2>
+                    <p id="artist-id">@username</p>
+                    <p id="artist-connections">0 Connections</p>
+                </div>
+                <div class="profile-actions">
+                     <a href="/upload.html" class="btn">Upload Artwork</a>
+                     <a href="/survey.html" class="btn">Portfolio Website</a>
+                </div>
+            </section>
+
+            <div class="section-divider"></div>
+
+            <section class="profile-content">
+                <div class="tabs">
+                    <button class="tab-link active" onclick="openTab(event, 'gallery')">Gallery</button>
+                    <button class="tab-link" onclick="openTab(event, 'collection')">Collection</button>
+                </div>
+
+                <div id="gallery" class="tab-content active">
+                    <h3>My Artworks</h3>
+                    <div id="artist-artworks-container" class="gallery"></div>
+                </div>
+
+                <div id="collection" class="tab-content">
+                    <div id="artist-collection-container" class="artworks-grid">
+                        <!-- Collected artworks will be loaded here -->
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="js/account.js"></script>
+</body>
+</html>

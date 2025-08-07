@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artwork Details</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/" class="btn">Home</a>
+            <a href="/account.html" class="btn">My Account</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="artwork-detail-container">
+            <!-- Artwork Image will be loaded here -->
+            <div id="artwork-image-container"></div>
+
+            <div class="artwork-meta">
+                <div class="artwork-description">
+                    <h2 id="artwork-title"></h2>
+                </div>
+                <button id="collect-btn" class="collect-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                </button>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <div class="artwork-inspiration">
+                <h3>Description</h3>
+                <p id="artwork-inspiration-text"></p>
+            </div>
+
+            <div class="section-divider"></div>
+
+            <div class="artwork-footer">
+                <div class="artwork-origin">
+                    <p id="artwork-time"></p>
+                    <p id="artwork-location"></p>
+                </div>
+                <div class="artist-info-footer">
+                    <a href="#" id="artist-link">
+                        <img src="/assets/default-avatar.png" alt="Artist Avatar" id="artist-avatar">
+                    </a>
+                    <div class="artist-details">
+                        <span id="artist-name"></span>
+                        <button id="follow-btn" class="btn btn-secondary">Follow</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/artwork.js"></script>
+</body>
+</html>
