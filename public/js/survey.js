@@ -38,13 +38,17 @@ class PortfolioSurvey {
                 fontSize: 16,
                 textColor: '#333333',
                 themeColor: '#007bff'
-            }
+            },
+            selectedArtworks: []
         };
         
         // Initialize basic step order (will be expanded after feature selection)
         this.stepOrder = ['step-1', 'step-2'];
         this.totalSteps = 2;
         
+        // Index for single-focus selected artworks preview
+        this.currentSelectedWorkIndex = 0;
+
         this.init();
     }
     
@@ -311,6 +315,14 @@ class PortfolioSurvey {
             
             // Re-setup global functions
             this.setupGlobalFunctions();
+
+            // Hide works side panel on revert
+            const sidePanel = document.getElementById('works-side-panel');
+            if (sidePanel) sidePanel.style.display = 'none';
+
+            // Remove side layout columns
+            const layoutContainer = document.getElementById('preview-layout');
+            if (layoutContainer) layoutContainer.classList.remove('has-side');
         }
     }
     
@@ -363,19 +375,20 @@ class PortfolioSurvey {
         // Setup function to open user's real gallery
         const self = this;
         
-        // Function to open user's gallery and fetch their uploaded artworks
-        window.openUserGallery = function() {
-            // Fetch artworks from the logged-in user's gallery
-            console.log('Fetching artworks from logged-in user\'s gallery...');
-            
-            // API call to get artworks from the user's account page gallery
-            // This assumes the user is already logged in and we can access their gallery
+        // Deprecated: modal-based gallery (openUserGallery/displayUserArtworks) removed
+        // in favor of inline right-side gallery rendering (loadSideGallery/renderSideGallery).
+        
+        // Load user's artworks into the right-side gallery panel (no modal)
+        window.loadSideGallery = function() {
+            const sideContainer = document.getElementById('works-side-gallery');
+            if (!sideContainer) return;
+            sideContainer.innerHTML = '<div style="color:#666;">Loading your gallery...</div>';
+            const token = localStorage.getItem('token');
             fetch('/api/artworks/user', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Include authentication headers if needed
-                    // 'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+                    'x-auth-token': token || ''
                 },
                 credentials: 'include' // Include cookies for session-based auth
             })
@@ -387,7 +400,7 @@ class PortfolioSurvey {
             })
             .then(artworks => {
                 console.log('User artworks fetched:', artworks);
-                self.displayUserArtworks(artworks);
+                window.renderSideGallery(artworks);
             })
             .catch(error => {
                 console.error('Error fetching user artworks:', error);
@@ -396,11 +409,83 @@ class PortfolioSurvey {
             });
         };
         
-        // Function to display user's artworks for selection
-        window.displayUserArtworks = function(artworks) {
-            // This will show the user's real artworks in a selection interface
-            // TODO: Implement artwork selection UI
-            console.log('Displaying user artworks:', artworks);
+
+        // Render artworks into the side gallery panel with inline selection
+        window.renderSideGallery = function(artworks) {
+            const sideContainer = document.getElementById('works-side-gallery');
+            if (!sideContainer) return;
+            if (!Array.isArray(artworks) || artworks.length === 0) {
+                sideContainer.innerHTML = '<div style="color:#666; padding:8px 0;">No artworks found in your gallery yet.</div>';
+                return;
+            }
+
+            // Build grid
+            sideContainer.innerHTML = '';
+            const grid = document.createElement('div');
+            grid.style.cssText = 'display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:12px;';
+            sideContainer.appendChild(grid);
+
+            const preselected = new Set((self.surveyData.selectedArtworks || []).map(a => a._id));
+
+            artworks.forEach(a => {
+                const id = a._id;
+                const isSelected = id && preselected.has(id);
+                const tile = document.createElement('div');
+                tile.className = 'side-artwork-tile';
+                tile.dataset.id = id || '';
+                tile.style.cssText = `position:relative; border:2px solid ${isSelected ? '#007bff' : '#eee'}; border-radius:10px; overflow:hidden; cursor:pointer; background:#fff;`;
+                tile.innerHTML = `
+                    <div style="position:absolute; top:6px; left:6px; z-index:2; background:${isSelected ? '#007bff' : 'rgba(255,255,255,0.9)'}; color:${isSelected ? '#fff' : '#333'}; font-size:12px; padding:2px 6px; border-radius:6px;">${isSelected ? 'Selected' : 'Select'}</div>
+                    <div style="width:100%; padding-top:100%; background:#f5f5f5; position:relative;">
+                        ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">` : `
+                            <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#999;">${(a.title||'Untitled')}</div>
+                        `}
+                    </div>
+                `;
+                grid.appendChild(tile);
+            });
+
+            // Delegate click handling
+            sideContainer.onclick = (e) => {
+                const tile = e.target.closest('.side-artwork-tile');
+                if (!tile) return;
+                const id = tile.dataset.id;
+                if (!id) return;
+
+                const currently = new Set((self.surveyData.selectedArtworks || []).map(a => a._id));
+                if (currently.has(id)) currently.delete(id); else currently.add(id);
+                // Persist selection in the order of artworks as rendered
+                const ordered = artworks.filter(a => a._id && currently.has(a._id));
+                self.surveyData.selectedArtworks = ordered;
+                self.currentSelectedWorkIndex = 0;
+
+                // Update tile UI quickly
+                const badge = tile.querySelector('div');
+                const nowSelected = currently.has(id);
+                tile.style.borderColor = nowSelected ? '#007bff' : '#eee';
+                if (badge) {
+                    badge.textContent = nowSelected ? 'Selected' : 'Select';
+                    badge.style.background = nowSelected ? '#007bff' : 'rgba(255,255,255,0.9)';
+                    badge.style.color = nowSelected ? '#fff' : '#333';
+                }
+
+                // Refresh main works preview
+                self.updateWorksPreview();
+            };
+        };
+
+        // Navigation for selected artworks (single focus)
+        window.prevSelectedWork = function() {
+            const n = (self.surveyData.selectedArtworks || []).length;
+            if (!n) return;
+            self.currentSelectedWorkIndex = (self.currentSelectedWorkIndex - 1 + n) % n;
+            self.updateWorksPreview();
+        };
+        window.nextSelectedWork = function() {
+            const n = (self.surveyData.selectedArtworks || []).length;
+            if (!n) return;
+            self.currentSelectedWorkIndex = (self.currentSelectedWorkIndex + 1) % n;
+            self.updateWorksPreview();
         };
 
     }
@@ -688,6 +773,18 @@ class PortfolioSurvey {
                         const content = this.createWorksPreview();
                         previewContent.innerHTML = content;
                         dropdown.style.display = 'none';
+
+                        // Ensure side panel is visible and label is synced
+                        const sidePanel = document.getElementById('works-side-panel');
+                        if (sidePanel) sidePanel.style.display = 'block';
+                        const layoutLabel = document.getElementById('works-side-layout-label');
+                        if (layoutLabel) {
+                            const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
+                            layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
+                        }
+                        const layoutContainer = document.getElementById('preview-layout');
+                        if (layoutContainer) layoutContainer.classList.add('has-side');
+                        if (window.loadSideGallery) window.loadSideGallery();
                     });
                 });
             }
@@ -731,6 +828,22 @@ class PortfolioSurvey {
                 // Re-setup navigation for single work view
                 if (page === 'works') {
                     this.setupWorkNavigation();
+                    const sidePanel = document.getElementById('works-side-panel');
+                    if (sidePanel) sidePanel.style.display = 'block';
+                    const layoutLabel = document.getElementById('works-side-layout-label');
+                    if (layoutLabel) {
+                        const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
+                        layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
+                    }
+                    // Apply two-column layout and load side gallery
+                    const layoutContainer = document.getElementById('preview-layout');
+                    if (layoutContainer) layoutContainer.classList.add('has-side');
+                    if (window.loadSideGallery) window.loadSideGallery();
+                } else {
+                    const sidePanel = document.getElementById('works-side-panel');
+                    if (sidePanel) sidePanel.style.display = 'none';
+                    const layoutContainer = document.getElementById('preview-layout');
+                    if (layoutContainer) layoutContainer.classList.remove('has-side');
                 }
             });
         });
@@ -756,6 +869,10 @@ class PortfolioSurvey {
         
         // Add new event listeners
         const setupNewListeners = () => {
+            // If we're showing selected artworks UI, rely on window.prevSelectedWork/window.nextSelectedWork wired via inline handlers.
+            const selectedContainer = document.getElementById('selected-artworks-container');
+            if (selectedContainer) return;
+
             const prevButtons = document.querySelectorAll('.prev-work-btn');
             const nextButtons = document.querySelectorAll('.next-work-btn');
             
@@ -804,13 +921,31 @@ class PortfolioSurvey {
     updateWorksPreview() {
         // Target the specific preview content area within the website preview
         const previewFrame = document.getElementById('website-preview');
-        const previewContent = previewFrame ? previewFrame.querySelector('.preview-content') : null;
+        // In our generated HTML, the container has id="preview-content" (not a class)
+        const previewContent = previewFrame
+            ? (previewFrame.querySelector('#preview-content') || document.getElementById('preview-content'))
+            : document.getElementById('preview-content');
         
         if (previewContent) {
             const content = this.createWorksPreview();
             previewContent.innerHTML = content;
             // Re-setup navigation after content update
             this.setupWorkNavigation();
+
+            // Update works side panel layout label if present
+            const layoutLabel = document.getElementById('works-side-layout-label');
+            if (layoutLabel) {
+                const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
+                layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
+            }
+
+            // Ensure side panel is visible while on Works
+            const sidePanel = document.getElementById('works-side-panel');
+            if (sidePanel) sidePanel.style.display = 'block';
+
+            // Ensure two-column layout is applied
+            const layoutContainer = document.getElementById('preview-layout');
+            if (layoutContainer) layoutContainer.classList.add('has-side');
         }
     }
     
@@ -954,42 +1089,45 @@ class PortfolioSurvey {
     }
     
     createWorksSelectionInterface() {
-        const { layouts } = this.surveyData;
+        const { layouts, selectedArtworks } = this.surveyData;
         const worksLayout = layouts.works || 'grid';
-        
-        return `
-            <div style="padding: 60px 40px; text-align: center; min-height: 500px;">
-                <div style="max-width: 600px; margin: 0 auto;">
-                    <h2 style="font-size: 2rem; margin-bottom: 20px; color: #333;">Select Your Artworks</h2>
-                    <p style="color: #666; font-size: 1.1rem; line-height: 1.6; margin-bottom: 40px;">
-                        Choose artworks from your Tart gallery to display in your portfolio.
-                        Selected artworks will be shown in <strong>${worksLayout === 'grid' ? 'grid layout' : 'single focus layout'}</strong>.
-                    </p>
-                    
-                    <!-- Gallery Selection Area -->
-                    <div id="works-gallery-selection" style="border: 2px dashed #ddd; border-radius: 12px; padding: 60px 40px; background: #fafafa; cursor: pointer; transition: all 0.3s ease;" 
-                         onclick="window.openUserGallery && window.openUserGallery()" 
-                         onmouseover="this.style.borderColor='#007bff'; this.style.backgroundColor='#f8f9ff'" 
-                         onmouseout="this.style.borderColor='#ddd'; this.style.backgroundColor='#fafafa'">
-                        
-                        <div style="font-size: 3rem; color: #ccc; margin-bottom: 20px;">🖼️</div>
-                        
-                        <button type="button" style="background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 6px; font-size: 1rem; cursor: pointer; transition: background-color 0.2s;" 
-                                onmouseover="this.style.backgroundColor='#0056b3'" 
-                                onmouseout="this.style.backgroundColor='#007bff'">
-                            Browse My Gallery
-                        </button>
-                    </div>
-                    
-                    <!-- Selected Artworks Preview -->
-                    <div id="selected-artworks-preview" style="margin-top: 40px; display: none;">
-                        <h3 style="font-size: 1.2rem; margin-bottom: 20px; color: #333;">Selected Artworks</h3>
-                        <div id="selected-artworks-container" style="display: ${worksLayout === 'grid' ? 'grid' : 'flex'}; ${worksLayout === 'grid' ? 'grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;' : 'justify-content: center; align-items: center;'}">
-                            <!-- Selected artworks will be displayed here -->
-                        </div>
-                        <p style="color: #666; font-size: 0.9rem; margin-top: 20px;">Layout: ${worksLayout === 'grid' ? 'Grid View' : 'Single Focus View'}</p>
-                    </div>
+        const hasSelection = Array.isArray(selectedArtworks) && selectedArtworks.length > 0;
+
+        const gridItems = (selectedArtworks || []).map(a => `
+            <div style="background:#fff;">
+                ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
+                    <div style=\"display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;\">${(a.title||'Untitled')}</div>
+                `}
+                <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.title || 'Untitled'}</div>
+            </div>
+        `).join('');
+
+        const idx = Math.min(this.currentSelectedWorkIndex || 0, Math.max(0, (selectedArtworks || []).length - 1));
+        const focus = hasSelection ? selectedArtworks[idx] : null;
+        const singleFocus = focus ? `
+            <div style="position:relative; display:flex; align-items:center; justify-content:center; min-height:60vh;">
+                <button class="prev-work-btn" onclick="window.prevSelectedWork && window.prevSelectedWork()" aria-label="Previous" style="position:absolute; left:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;">&lt;</button>
+                <div class="artwork-content" style="max-width: min(80vw, 960px);">
+                    ${focus.imageUrl ? `<img src="${focus.imageUrl}" alt="${(focus.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; max-width:100%; max-height:70vh; width:auto; height:auto; margin:0 auto;">` : `
+                        <div style=\"text-align:center; color:#999;\">${(focus.title||'Untitled')}</div>
+                    `}
+                    <div style="text-align:center; margin-top:12px; color:#7a2ea6; font-size:0.9rem;">${focus.title || 'Untitled'}</div>
                 </div>
+                <button class="next-work-btn" onclick="window.nextSelectedWork && window.nextSelectedWork()" aria-label="Next" style="position:absolute; right:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;">&gt;</button>
+            </div>
+        ` : '';
+
+        const selectedSection = hasSelection ? `
+            <div id="selected-artworks-preview" style="margin-top:0;">
+                <div id="selected-artworks-container" style="${worksLayout === 'grid' ? 'display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;' : 'display:block;'}">
+                    ${worksLayout === 'grid' ? gridItems : singleFocus}
+                </div>
+            </div>
+        ` : '';
+
+        return `
+            <div style="padding: 0; min-height: 500px;">
+                ${hasSelection ? selectedSection : `<div style="text-align:center; color:#999; padding-top:40px;">No artworks selected yet. Use the panel on the right to add artworks.</div>`}
             </div>
         `;
     }

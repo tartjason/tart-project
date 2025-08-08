@@ -427,16 +427,27 @@
                 <div id="step-preview" class="survey-step">
                     <h2>Preview Your Website</h2>
                     <div class="preview-section">
-                        <div class="preview-container">
-                            <div class="preview-header">
-                                <span class="preview-url">yourportfolio.tart.art</span>
-                                <div class="preview-controls">
-                                    <button type="button" class="btn" id="revert-preview">Revert</button>
+                            <div id="preview-layout" class="preview-layout">
+                            <div class="preview-main">
+                                <div class="preview-container">
+                                    <div class="preview-header">
+                                        <span class="preview-url">yourportfolio.tart.art</span>
+                                        <div class="preview-controls">
+                                            <button type="button" class="btn" id="revert-preview">Revert</button>
+                                        </div>
+                                    </div>
+                                    <div class="preview-frame" id="website-preview">
+                                        <!-- Website preview will be generated here -->
+                                    </div>
                                 </div>
                             </div>
-                            <div class="preview-frame" id="website-preview">
-                                <!-- Website preview will be generated here -->
-                            </div>
+                             <aside class="preview-side" id="works-side-panel" style="display: none;">
+                                 <div class="side-card">
+                                    <div id="works-side-gallery" class="side-gallery">
+                                        <div style="color:#666;">Loading your gallery...</div>
+                                    </div>
+                                 </div>
+                             </aside>
                         </div>
                     </div>
                     <div class="step-navigation">

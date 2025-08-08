@@ -116,6 +116,20 @@ router.delete('/:id', auth, async (req, res) => {
     }
 });
 
+// @route   GET api/artworks/user
+// @desc    Get artworks uploaded by the authenticated user
+// @access  Private
+router.get('/user', auth, async (req, res) => {
+    try {
+        const artworks = await Artwork.find({ artist: req.artist.id })
+            .sort({ date: -1 });
+        return res.json(artworks);
+    } catch (err) {
+        console.error('Error fetching user artworks:', err.message);
+        return res.status(500).send('Server Error');
+    }
+});
+
 // @route   GET api/artworks/:id
 // @desc    Get a single artwork by ID
 // @access  Public

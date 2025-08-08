@@ -304,6 +304,55 @@
     position: relative;
 }
 
+ /* Preview two-column layout with right side panel */
+ .preview-layout {
+     display: grid;
+     grid-template-columns: 1fr;
+     gap: 20px;
+ }
+ 
+ .preview-layout.has-side {
+     grid-template-columns: 1fr 320px;
+ }
+
+.preview-main { min-width: 0; }
+
+.preview-side { position: relative; }
+
+.side-card {
+    position: sticky;
+    top: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.side-title { margin: 0 0 8px 0; font-size: 1.1rem; color: #333; }
+ .side-desc { color: #666; font-size: 0.95rem; line-height: 1.4; margin-bottom: 12px; }
+ 
+ .side-gallery {
+     max-height: 70vh;
+     overflow: auto;
+     margin-top: 8px;
+ }
+
+.btn.primary {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 14px;
+    cursor: pointer;
+}
+.btn.primary:hover { background-color: #0056b3; }
+
+@media (max-width: 768px) {
+    .preview-layout { grid-template-columns: 1fr; }
+    .preview-side { order: -1; }
+}
+
 /* Step 5: Style Customization Styles */
 .style-customization {
     display: grid;
@@ -940,17 +989,11 @@
 }
 
 .dropdown-preview .dropdown-item:last-child {
-    border-bottom: none;
+border-bottom: none;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .style-customization {
-        grid-template-columns: 1fr;
-    }
-    
-    .medium-options {
-        flex-direction: column;
+/* Res.preview-section {
+margin: 2rem 0;
         align-items: center;
     }
     
@@ -959,12 +1002,21 @@
     }
     
     .layout-options {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .layout-option {
-        width: 100%;
-        max-width: 400px;
-    }
 }
+    
+.medium-option {
+    width: 200px;
+}
+    
+.layout-options {
+    flex-direction: column;
+    align-items: center;
+}
+    
+.layout-option {
+    width: 100%;
+    max-width: 400px;
+}
+}*/
+
+/* Added closing comment to prevent CSS parsing issues */
