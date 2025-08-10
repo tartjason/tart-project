@@ -22,7 +22,7 @@ const websiteStateSchema = new Schema({
         },
         layouts: {
             homepage: { type: String, enum: ['grid', 'split', 'hero'] },
-            about: { type: String, enum: ['standard', 'timeline', 'minimal'] },
+            about: { type: String, enum: ['split', 'vertical'] },
             works: { type: String, enum: ['grid', 'single'] },
             commission: String,
             exhibition: String
@@ -116,6 +116,11 @@ const websiteStateSchema = new Schema({
         default: false
     },
     publishedUrl: String,
+    
+    // Compiled site data
+    compiledJsonPath: String,
+    compiledAt: Date,
+    surveyCompleted: { type: Boolean, default: false },
     
     // Metadata
     lastModified: {

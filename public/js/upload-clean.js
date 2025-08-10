@@ -321,7 +321,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function createTextBox() {
         const textBox = document.createElement('div');
         textBox.className = 'draggable-text';
-        textBox.contentEditable = true;
+        // Start non-editable; enable editing on double-click
+        textBox.contentEditable = false;
         textBox.textContent = 'Your text here...';
         textBox.style.cssText = `
             position: absolute;
@@ -331,13 +332,20 @@ document.addEventListener('DOMContentLoaded', () => {
             outline: none;
             box-shadow: none;
             cursor: move;
-            user-select: text;
+            user-select: none;
             min-width: 120px;
             min-height: 35px;
             font-size: 16px;
             line-height: 1.4;
             color: #000000;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
         `;
+        
+        // Not in edit mode initially
+        textBox.dataset.editing = 'false';
         
 
         
@@ -356,16 +364,26 @@ document.addEventListener('DOMContentLoaded', () => {
         
         poetryWorkspace.appendChild(textBox);
         poetryTextBoxes.push(textBox);
-        textBox.focus();
         
-        // Select all text on first focus for easy replacement
-        setTimeout(() => {
-            const range = document.createRange();
-            range.selectNodeContents(textBox);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-        }, 10);
+        // Hide the hint once a text box is added
+        const hint = poetryWorkspace.querySelector('.poetry-hint');
+        if (hint) hint.style.display = 'none';
+        
+        // Make the text box draggable within the poetry workspace
+        makeDraggable(textBox, poetryWorkspace);
+        
+        // Focus only if editable
+        if (textBox.isContentEditable) {
+            textBox.focus();
+            // Select all text on first focus for easy replacement
+            setTimeout(() => {
+                const range = document.createRange();
+                range.selectNodeContents(textBox);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }, 10);
+        }
     }
 
 
@@ -375,23 +393,14 @@ document.addEventListener('DOMContentLoaded', () => {
         let startX, startY, initialX, initialY;
         
         element.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('delete-btn') || e.target.classList.contains('delete-image-btn')) return;
+            // Safely ignore clicks on delete buttons; text nodes have no classList
+            const tgt = e.target;
+            const isDeleteBtn = (tgt && tgt.classList && (tgt.classList.contains('delete-btn') || tgt.classList.contains('delete-image-btn')));
+            if (isDeleteBtn) return;
             
-            // For textboxes, only allow dragging when clicking near the border/outline
+            // For textboxes, allow dragging anywhere unless currently editing
             if (element.classList.contains('draggable-text')) {
-                const rect = element.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const clickY = e.clientY - rect.top;
-                const borderThreshold = 8; // 8px border area for dragging
-                
-                // Check if click is within border area (not in the center text area)
-                const isNearBorder = clickX < borderThreshold || 
-                                   clickX > rect.width - borderThreshold ||
-                                   clickY < borderThreshold || 
-                                   clickY > rect.height - borderThreshold;
-                
-                if (!isNearBorder) {
-                    // Click is in text area, don't start dragging
+                if (element.dataset.editing === 'true') {
                     return;
                 }
             }
@@ -418,6 +427,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                element.style.cursor = 'move';
+            }
+        });
+
+        // Touch support for mobile/tablet
+        element.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            if (!touch) return;
+            
+            // For textboxes, allow dragging anywhere unless currently editing
+            if (element.classList.contains('draggable-text') && element.dataset.editing === 'true') {
+                return;
+            }
+            
+            isDragging = true;
+            startX = touch.clientX;
+            startY = touch.clientY;
+            const rect = element.getBoundingClientRect();
+            const parentRect = container.getBoundingClientRect();
+            initialX = rect.left - parentRect.left;
+            initialY = rect.top - parentRect.top;
+            element.style.cursor = 'grabbing';
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const touch = e.touches[0];
+            if (!touch) return;
+            e.preventDefault();
+            const deltaX = touch.clientX - startX;
+            const deltaY = touch.clientY - startY;
+            element.style.left = (initialX + deltaX) + 'px';
+            element.style.top = (initialY + deltaY) + 'px';
+            element.style.transform = 'none';
+        }, { passive: false });
+
+        document.addEventListener('touchend', () => {
             if (isDragging) {
                 isDragging = false;
                 element.style.cursor = 'move';
@@ -758,11 +807,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup advanced text editing capabilities
     function setupAdvancedTextEditing(textBox) {
         let isEditing = false;
+        // Ensure dataset reflects editing state
+        textBox.dataset.editing = 'false';
         
         // Double-click to enter edit mode with cursor placement
         textBox.addEventListener('dblclick', (e) => {
             e.stopPropagation();
             isEditing = true;
+            textBox.dataset.editing = 'true';
+            textBox.contentEditable = true;
             textBox.style.cursor = 'text';
             textBox.style.userSelect = 'text';
             
@@ -803,6 +856,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Exit edit mode on blur
         textBox.addEventListener('blur', () => {
             isEditing = false;
+            textBox.dataset.editing = 'false';
+            textBox.contentEditable = false;
             textBox.style.cursor = 'move';
             textBox.style.userSelect = 'none';
         });

@@ -1,0 +1,12 @@
+<div style="text-align: center; margin-bottom: 40px;">
+    <div style="padding: 10px;">
+        <h1 contenteditable="true" id="grid-home-title-1" style="font-size: 2.5rem; margin-bottom: 10px; color: #333; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">{{title}}</h1>
+    </div>
+    <div style="padding: 10px;">
+        <p contenteditable="true" id="grid-home-subtitle-1" style="color: #666; font-size: 1.2rem; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">{{subtitle}}</p>
+    </div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
+    {{works_grid_items}}
+</div>
+<div id="restore-buttons" style="text-align: center; margin-top: 20px;"></div>

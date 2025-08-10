@@ -442,6 +442,8 @@ body.upload-page .upload-container {
     position: relative;
     background: transparent;
     overflow: hidden;
+    /* Improve drag on touch devices */
+    touch-action: none;
 }
 
 

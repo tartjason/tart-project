@@ -1,0 +1,78 @@
+<div class="single-artwork-container" style="padding: 60px 40px; text-align: center; min-height: 500px; display: flex; flex-direction: column; justify-content: center;">
+      <!-- Navigation Container -->
+      <div style="display: flex; align-items: center; justify-content: center; gap: 40px;">
+          <!-- Left Arrow -->
+          <button class="prev-work-btn" style="background: none; border: 2px solid #333; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: #333; transition: all 0.2s;">
+              ←
+          </button>
+          
+          <!-- Featured Artwork -->
+          <div class="artwork-content" style="max-width: 500px; transition: opacity 0.3s ease;">
+              <div style="height: 400px; width: 400px; border-radius: 8px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 20px;" data-style="{{single_work_style}}">{{single_work_content}}</div>
+              <p style="color: #999; margin: 0; font-size: 1rem; text-align: center;">{{single_index}} of {{single_total}}</p>
+          </div>
+          
+          <!-- Right Arrow -->
+          <button class="next-work-btn" style="background: none; border: 2px solid #333; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: #333; transition: all 0.2s;">
+              →
+          </button>
+      </div>
+  </div>
+  <style>
+      .prev-work-btn,
+      .next-work-btn {
+          position: relative;
+          overflow: hidden;
+          transition: all 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
+          will-change: transform, background-color;
+      }
+      
+      .prev-work-btn:not([disabled]):hover,
+      .next-work-btn:not([disabled]):hover {
+          background-color: #f8f9fa;
+          transform: scale(1.1);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      
+      .prev-work-btn:not([disabled]):active,
+      .next-work-btn:not([disabled]):active {
+          transform: scale(0.98);
+          transition-duration: 0.1s;
+      }
+      
+      .prev-work-btn[disabled],
+      .next-work-btn[disabled] {
+          opacity: 0.25;
+          cursor: not-allowed;
+          border-color: #999 !important;
+          transform: none !important;
+      }
+      
+      .artwork-content {
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          will-change: opacity, transform;
+      }
+      
+      /* Animation for sliding effect */
+      .artwork-slide-enter {
+          opacity: 0;
+          transform: translateX(20px);
+      }
+      
+      .artwork-slide-enter-active {
+          opacity: 1;
+          transform: translateX(0);
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      
+      .artwork-slide-exit {
+          opacity: 1;
+          transform: translateX(0);
+      }
+      
+      .artwork-slide-exit-active {
+          opacity: 0;
+          transform: translateX(-20px);
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+  </style>

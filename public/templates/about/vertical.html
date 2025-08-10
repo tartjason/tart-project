@@ -1,0 +1,17 @@
+<div style="padding: 60px 40px; max-width: 800px; margin: 0 auto; font-family: 'Georgia', serif;">
+    <!-- Artist Photo -->
+    <div style="text-align: center; margin-bottom: 50px;">
+        <div onclick="window.uploadImage('vertical-about-photo-1')" style="width: 300px; height: 400px; background: linear-gradient(135deg, #f5f1eb, #e8ddd4); border-radius: 8px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #999; font-size: 16px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;" onmouseover="this.style.opacity='0.8'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'" id="vertical-about-photo-1">Artist Photo</div>
+        <p style="text-align: center; margin-top: 10px; color: #999; font-size: 12px;">Click to upload photo</p>
+    </div>
+    
+    <!-- Bio Section -->
+    <div style="margin-bottom: 50px;">
+        <h2 contenteditable="true" style="font-size: 2rem; margin-bottom: 25px; color: #333; font-weight: 300; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">About Me</h2>
+        <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; margin-bottom: 20px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">Growing up surrounded by art instilled a deep appreciation for creative expression and the power of visual storytelling. Through my work, I explore themes of identity, memory, and the intersection between the personal and universal.</p>
+        <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.</p>
+    </div>
+    
+    <!-- Selected Sections -->
+    {{about_sections_html}}
+</div>

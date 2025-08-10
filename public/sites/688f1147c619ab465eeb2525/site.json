@@ -1,0 +1,103 @@
+{
+  "surveyData": {
+    "features": {
+      "home": true,
+      "about": true,
+      "works": true,
+      "worksOrganization": "year",
+      "commission": false,
+      "exhibition": false
+    },
+    "layouts": {
+      "homepage": "hero",
+      "about": "split",
+      "works": "grid",
+      "commission": null,
+      "exhibition": null
+    },
+    "worksDetails": {
+      "years": [
+        2020
+      ],
+      "themes": []
+    },
+    "aboutSections": {
+      "education": false,
+      "workExperience": false,
+      "recentlyFeatured": false,
+      "selectedExhibition": false,
+      "selectedPress": false,
+      "selectedAwards": false,
+      "selectedProjects": false,
+      "contactInfo": true
+    },
+    "style": {
+      "fontSize": 16,
+      "textColor": "#333333",
+      "themeColor": "#007bff"
+    },
+    "medium": "photography",
+    "logo": null
+  },
+  "content": {
+    "homepage": {},
+    "about": {
+      "contactInfo": {},
+      "education": [],
+      "workExperience": [],
+      "exhibitions": [],
+      "press": [],
+      "awards": [],
+      "projects": []
+    },
+    "works": {
+      "selectedArtworks": []
+    },
+    "commission": {
+      "process": []
+    },
+    "exhibition": {
+      "upcomingExhibitions": [],
+      "pastExhibitions": []
+    }
+  },
+  "customStyles": {},
+  "mediumPlaceholders": {
+    "title": "Visual Storytelling",
+    "subtitle": "Capturing moments that matter",
+    "description": "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary.",
+    "works": [
+      {
+        "title": "Street Photography Series",
+        "year": "2024",
+        "cleanContent": "Digital",
+        "morandiStyle": "background: #8a9a9a;",
+        "brightMorandiStyle": "background: #c0c8c8;"
+      },
+      {
+        "title": "Portrait Collection",
+        "year": "2024",
+        "cleanContent": "Film",
+        "morandiStyle": "background: #b5b5b5;",
+        "brightMorandiStyle": "background: #d0d0d0;"
+      },
+      {
+        "title": "Nature Studies",
+        "year": "2023",
+        "cleanContent": "Landscape",
+        "morandiStyle": "background: #a8b5a8;",
+        "brightMorandiStyle": "background: #c8d0c8;"
+      }
+    ],
+    "featured": {
+      "cleanContent": "Featured Photo",
+      "morandiStyle": "background: #8a9a9a;"
+    },
+    "hero": {
+      "cleanContent": "Latest Shot",
+      "morandiStyle": "background: #9aa5aa;"
+    }
+  },
+  "generatedAt": "2025-08-10T04:32:37.810Z",
+  "version": 2
+}

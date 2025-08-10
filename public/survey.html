@@ -329,7 +329,7 @@
                     </div>
                     <div class="step-navigation">
                         <button type="button" class="btn prev-btn">Previous</button>
-                        <button type="button" class="btn next-btn" disabled>Next</button>
+                        <button type="button" class="btn next-btn">Next</button>
                     </div>
                 </div>
 
@@ -419,13 +419,13 @@
                     </div>
                     <div class="step-navigation">
                         <button type="button" class="btn prev-btn">Previous</button>
-                        <button type="button" class="btn next-btn">Next</button>
+                        <button type="button" class="btn next-btn">Generate Preview</button>
                     </div>
                 </div>
 
                 <!-- Website Preview Step (will be dynamically numbered) -->
-                <div id="step-preview" class="survey-step">
-                    <h2>Preview Your Website</h2>
+                <div  id="step-preview" class="survey-step">
+                   <h2>Preview Your Website</h2>
                     <div class="preview-section">
                             <div id="preview-layout" class="preview-layout">
                             <div class="preview-main">
@@ -451,8 +451,7 @@
                         </div>
                     </div>
                     <div class="step-navigation">
-                        <button type="button" class="btn prev-btn">Previous</button>
-                        <button type="button" class="btn next-btn">Customize Style</button>
+                        <button type="button" class="btn" id="open-style-tool">Customize Style</button>
                     </div>
                 </div>
 
@@ -487,8 +486,8 @@
                         </div>
                     </div>
                     <div class="step-navigation">
-                        <button type="button" class="btn prev-btn">Previous</button>
-                        <button type="button" class="btn next-btn">Complete Setup</button>
+                        <button type="button" class="btn" id="back-to-preview">Back to Preview</button>
+                        <button type="button" class="btn" id="close-style-tool">Close</button>
                     </div>
                 </div>
             </form>

@@ -39,7 +39,8 @@ class PortfolioSurvey {
                 textColor: '#333333',
                 themeColor: '#007bff'
             },
-            selectedArtworks: []
+            selectedArtworks: [],
+            worksSelections: {}
         };
         
         // Initialize basic step order (will be expanded after feature selection)
@@ -48,6 +49,20 @@ class PortfolioSurvey {
         
         // Index for single-focus selected artworks preview
         this.currentSelectedWorkIndex = 0;
+        // Current works subpage key (year/theme)
+        this.currentWorksFilter = null;
+        
+        // Template loading state
+        this.templatesLoaded = false;
+        this._templatesLoadingPromise = null;
+        this.templates = {
+            home: { grid: '', split: '', hero: '' },
+            works: { grid: '', single: '' },
+            about: { split: '', vertical: '' }
+        };
+        // Compiled data cache (from server-side JSON)
+        this.mediumPlaceholders = null;
+        this._compiled = null;
 
         this.init();
     }
@@ -62,7 +77,45 @@ class PortfolioSurvey {
         this.setupWebsitePreview();
         this.setupStyleCustomization();
         this.setupNavigation();
+        this.loadTemplates();
         this.generateStepOrder();
+        
+        // Try loading an existing draft and jump directly to preview
+        this.tryLoadDraftAndJumpToPreview();
+
+        // Wire preview/style tool navigation (outside of survey wizard)
+        const openStyleBtn = document.getElementById('open-style-tool');
+        if (openStyleBtn) {
+            openStyleBtn.addEventListener('click', () => {
+                // Hide all steps, then show style tool
+                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                const styleEl = document.getElementById('step-style');
+                if (styleEl) styleEl.classList.add('active');
+                this.updateStylePreview();
+            });
+        }
+
+        const backToPreviewBtn = document.getElementById('back-to-preview');
+        if (backToPreviewBtn) {
+            backToPreviewBtn.addEventListener('click', async () => {
+                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                const previewEl = document.getElementById('step-preview');
+                if (previewEl) previewEl.classList.add('active');
+                await this.ensureTemplatesLoaded();
+                await this.generateWebsitePreview();
+            });
+        }
+
+        const closeStyleBtn = document.getElementById('close-style-tool');
+        if (closeStyleBtn) {
+            closeStyleBtn.addEventListener('click', async () => {
+                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                const previewEl = document.getElementById('step-preview');
+                if (previewEl) previewEl.classList.add('active');
+                await this.ensureTemplatesLoaded();
+                await this.generateWebsitePreview();
+            });
+        }
     }
     
     setupMediumSelection() {
@@ -110,22 +163,27 @@ class PortfolioSurvey {
     }
     
     setupNavigation() {
-        // Next buttons
+        // Next buttons (ignore preview/style tool sections)
         document.querySelectorAll('.next-btn').forEach(btn => {
+            const stepEl = btn.closest('.survey-step');
+            if (stepEl && (stepEl.id === 'step-preview' || stepEl.id === 'step-style')) return;
             btn.addEventListener('click', () => {
                 this.nextStep();
             });
         });
         
-        // Previous buttons
+        // Previous buttons (ignore preview/style tool sections)
         document.querySelectorAll('.prev-btn').forEach(btn => {
+            const stepEl = btn.closest('.survey-step');
+            if (stepEl && (stepEl.id === 'step-preview' || stepEl.id === 'step-style')) return;
             btn.addEventListener('click', () => {
                 this.prevStep();
             });
         });
     }
     
-    nextStep() {
+    // Deprecated: legacy navigation method retained for reference (not used)
+    async nextStepLegacy() {
         const currentStepElement = document.querySelector(`#step-${this.currentStep}`);
         
         if (this.currentStep === 1) {
@@ -156,13 +214,16 @@ class PortfolioSurvey {
         
         // Handle dynamic step validation
         const currentStepId = this.stepOrder[this.currentStep - 1];
+        // When leaving the Logo step, generate compiled JSON and mark survey complete
+        if (currentStepId === 'step-logo') {
+            await this.completeSurvey();
+        }
         if (currentStepId === 'step-preview') {
-            this.generateWebsitePreview();
+            await this.generateWebsitePreview();
         }
         
         if (currentStepId === 'step-style') {
             this.updateStylePreview();
-            this.completeSurvey();
             return;
         }
         
@@ -284,12 +345,39 @@ class PortfolioSurvey {
         });
     }
     
-    generateWebsitePreview() {
+    async generateWebsitePreview() {
         const previewFrame = document.getElementById('website-preview');
         
-        // Generate a mock website preview based on survey data
+        // Ensure templates are loaded
+        if (!this.templatesLoaded) {
+            if (previewFrame) {
+                previewFrame.innerHTML = '<div style="padding:40px; text-align:center; color:#999;">Loading templates...</div>';
+            }
+            await this.ensureTemplatesLoaded();
+        }
+
+        // If we have a compiled JSON path, prefer rendering from it
+        if (this.compiledJsonPath) {
+            try {
+                const res = await fetch(this.compiledJsonPath, { credentials: 'same-origin' });
+                if (res.ok) {
+                    const compiled = await res.json();
+                    this._compiled = compiled;
+                    if (compiled && compiled.surveyData) {
+                        // Merge minimally to preserve client-side session tweaks
+                        this.surveyData = { ...this.surveyData, ...compiled.surveyData };
+                    }
+                    this.mediumPlaceholders = (compiled && compiled.mediumPlaceholders) || null;
+                }
+            } catch (e) {
+                console.warn('Failed to fetch compiled JSON, falling back to local data:', e);
+            }
+        }
+
+        // Generate preview based on (possibly compiled) data
         const previewHTML = this.createPreviewHTML();
         previewFrame.innerHTML = previewHTML;
+        this.applyDataStyles(previewFrame);
         
         // Store the original layout if not already stored
         if (!this.originalLayout) {
@@ -316,18 +404,79 @@ class PortfolioSurvey {
             // Re-setup global functions
             this.setupGlobalFunctions();
 
+            // Re-apply data styles in reverted layout
+            this.applyDataStyles(previewFrame);
+
             // Hide works side panel on revert
             const sidePanel = document.getElementById('works-side-panel');
             if (sidePanel) sidePanel.style.display = 'none';
-
-            // Remove side layout columns
-            const layoutContainer = document.getElementById('preview-layout');
-            if (layoutContainer) layoutContainer.classList.remove('has-side');
         }
     }
     
+    // Template loader and renderer
+    async loadTemplates() {
+        if (this._templatesLoadingPromise) return this._templatesLoadingPromise;
+        const files = [
+            { key: ['home','grid'], url: '/templates/home/grid.html' },
+            { key: ['home','split'], url: '/templates/home/split.html' },
+            { key: ['home','hero'], url: '/templates/home/hero.html' },
+            { key: ['works','grid'], url: '/templates/works/grid.html' },
+            { key: ['works','single'], url: '/templates/works/single.html' },
+            { key: ['about','split'], url: '/templates/about/split.html' },
+            { key: ['about','vertical'], url: '/templates/about/vertical.html' }
+        ];
+        this._templatesLoadingPromise = Promise.all(files.map(async f => {
+            try {
+                const res = await fetch(f.url, { credentials: 'same-origin' });
+                if (!res.ok) throw new Error(`Failed to load ${f.url}`);
+                const txt = await res.text();
+                this.templates[f.key[0]][f.key[1]] = txt;
+            } catch (e) {
+                console.error('Template load error:', e);
+                this.templates[f.key[0]][f.key[1]] = '';
+            }
+        })).then(() => {
+            this.templatesLoaded = true;
+        }).finally(() => {
+            this._templatesLoadingPromise = null;
+        });
+        return this._templatesLoadingPromise;
+    }
+
+    ensureTemplatesLoaded() {
+        if (this.templatesLoaded) return Promise.resolve();
+        return this.loadTemplates();
+    }
+
+    applyDataStyles(root) {
+        try {
+            const scope = root && root.querySelectorAll ? root : document;
+            const elements = scope.querySelectorAll('[data-style]');
+            elements.forEach(el => {
+                const data = el.getAttribute('data-style');
+                if (!data) return;
+                const current = el.getAttribute('style') || '';
+                const separator = current && !current.trim().endsWith(';') ? '; ' : '';
+                el.setAttribute('style', current + separator + data);
+                el.removeAttribute('data-style');
+            });
+        } catch (err) {
+            console.error('applyDataStyles error:', err);
+        }
+    }
+
+    renderTemplate(template, data) {
+        if (!template) return '';
+        let out = template;
+        Object.entries(data || {}).forEach(([k, v]) => {
+            const re = new RegExp(`{{\s*${k}\s*}}`, 'g');
+            out = out.replace(re, v == null ? '' : String(v));
+        });
+        return out;
+    }
+
     setupGlobalFunctions() {
-        // Setup global image upload function
+        // Upload image into placeholder elements by id
         window.uploadImage = function(elementId) {
             const input = document.createElement('input');
             input.type = 'file';
@@ -372,16 +521,16 @@ class PortfolioSurvey {
             input.click();
         };
         
-        // Setup function to open user's real gallery
         const self = this;
-        
-        // Deprecated: modal-based gallery (openUserGallery/displayUserArtworks) removed
-        // in favor of inline right-side gallery rendering (loadSideGallery/renderSideGallery).
         
         // Load user's artworks into the right-side gallery panel (no modal)
         window.loadSideGallery = function() {
             const sideContainer = document.getElementById('works-side-gallery');
             if (!sideContainer) return;
+            if (!self.currentWorksFilter) {
+                sideContainer.innerHTML = '<div style="color:#666; padding:8px 0;">Choose a year/theme from Works to start selecting artworks.</div>';
+                return;
+            }
             sideContainer.innerHTML = '<div style="color:#666;">Loading your gallery...</div>';
             const token = localStorage.getItem('token');
             fetch('/api/artworks/user', {
@@ -425,7 +574,9 @@ class PortfolioSurvey {
             grid.style.cssText = 'display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:12px;';
             sideContainer.appendChild(grid);
 
-            const preselected = new Set((self.surveyData.selectedArtworks || []).map(a => a._id));
+            const folderKey = self.currentWorksFilter;
+            const folderSelection = (self.surveyData.worksSelections && self.surveyData.worksSelections[folderKey]) || [];
+            const preselected = new Set(folderSelection.map(a => a._id));
 
             artworks.forEach(a => {
                 const id = a._id;
@@ -452,11 +603,13 @@ class PortfolioSurvey {
                 const id = tile.dataset.id;
                 if (!id) return;
 
-                const currently = new Set((self.surveyData.selectedArtworks || []).map(a => a._id));
+                const currentArr = ((self.surveyData.worksSelections && self.surveyData.worksSelections[self.currentWorksFilter]) || []);
+                const currently = new Set(currentArr.map(a => a._id));
                 if (currently.has(id)) currently.delete(id); else currently.add(id);
                 // Persist selection in the order of artworks as rendered
                 const ordered = artworks.filter(a => a._id && currently.has(a._id));
-                self.surveyData.selectedArtworks = ordered;
+                if (!self.surveyData.worksSelections) self.surveyData.worksSelections = {};
+                self.surveyData.worksSelections[self.currentWorksFilter] = ordered;
                 self.currentSelectedWorkIndex = 0;
 
                 // Update tile UI quickly
@@ -476,13 +629,13 @@ class PortfolioSurvey {
 
         // Navigation for selected artworks (single focus)
         window.prevSelectedWork = function() {
-            const n = (self.surveyData.selectedArtworks || []).length;
+            const n = (self.getCurrentFolderSelection() || []).length;
             if (!n) return;
             self.currentSelectedWorkIndex = (self.currentSelectedWorkIndex - 1 + n) % n;
             self.updateWorksPreview();
         };
         window.nextSelectedWork = function() {
-            const n = (self.surveyData.selectedArtworks || []).length;
+            const n = (self.getCurrentFolderSelection() || []).length;
             if (!n) return;
             self.currentSelectedWorkIndex = (self.currentSelectedWorkIndex + 1) % n;
             self.updateWorksPreview();
@@ -588,97 +741,48 @@ class PortfolioSurvey {
     createGridHomePreview() {
         const { medium } = this.surveyData;
         const mediumContent = this.getMediumSpecificContent(medium);
-        
-        // Reverted to original simple grid layout
-        return `
-            <div style="text-align: center; margin-bottom: 40px;">
-                <div style="padding: 10px;">
-                    <h1 contenteditable="true" id="grid-home-title-1" style="font-size: 2.5rem; margin-bottom: 10px; color: #333; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${mediumContent.title}</h1>
-                </div>
-                <div style="padding: 10px;">
-                    <p contenteditable="true" id="grid-home-subtitle-1" style="color: #666; font-size: 1.2rem; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${mediumContent.subtitle}</p>
-                </div>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px;">
-                ${mediumContent.works.map(work => `
-                    <div style="${work.brightMorandiStyle}; height: 200px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px; border-radius: 8px; cursor: pointer; transition: transform 0.3s;">${work.cleanContent}</div>
-                `).join('')}
-            </div>
-            <div id="restore-buttons" style="text-align: center; margin-top: 20px;"></div>
-        `;
+        const worksItems = mediumContent.works.map(work => `
+            <div style="${work.brightMorandiStyle}; height: 200px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px; border-radius: 8px; cursor: pointer; transition: transform 0.3s;">${work.cleanContent}</div>
+        `).join('');
+        const tpl = this.templates.home.grid;
+        return this.renderTemplate(tpl, {
+            title: mediumContent.title,
+            subtitle: mediumContent.subtitle,
+            works_grid_items: worksItems
+        });
     }
     
     createSplitHomePreview() {
         const { medium } = this.surveyData;
         const mediumContent = this.getMediumSpecificContent(medium);
-        
-        // Clean split layout with photo on left, text on right
-        return `
-            <div style="display: flex; gap: 60px; align-items: center; min-height: 500px; padding: 60px 40px;">
-                <!-- Photo on Left -->
-                <div style="flex: 1;">
-                    <div onclick="window.uploadImage('split-home-photo-1')" style="${mediumContent.featured.morandiStyle}; height: 400px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #8a8a8a; font-size: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); cursor: pointer; transition: opacity 0.3s, transform 0.2s;" onmouseover="this.style.opacity='0.8'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'" id="split-home-photo-1">${mediumContent.featured.cleanContent}</div>
-                    <p style="text-align: center; margin-top: 10px; color: #999; font-size: 12px;">Click to upload image</p>
-                </div>
-                
-                <!-- Text on Right -->
-                <div style="flex: 1;">
-                    <div style="padding: 10px;">
-                        <h1 contenteditable="true" id="split-home-title-1" style="font-size: 2.5rem; margin-bottom: 20px; color: #333; line-height: 1.3; font-weight: normal; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${mediumContent.title}</h1>
-                    </div>
-                    <div style="padding: 10px;">
-                        <p contenteditable="true" id="split-home-description-1" style="color: #666; font-size: 1.2rem; line-height: 1.7; margin-bottom: 30px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${mediumContent.description}</p>
-                    </div>
-                    <div style="padding: 10px;">
-                        <p contenteditable="true" id="split-home-explore-1" style="color: #888; font-size: 1rem; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-                            Explore my collection of ${medium} works, each piece carefully crafted to capture the essence of light, color, and emotion.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `;
+        const tpl = this.templates.home.split;
+        return this.renderTemplate(tpl, {
+            split_feature_style: mediumContent.featured.morandiStyle,
+            split_feature_content: mediumContent.featured.cleanContent,
+            title: mediumContent.title,
+            description: mediumContent.description,
+            explore_text: `Explore my collection of ${medium} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
+        });
     }
     
     createHeroHomePreview() {
         const { medium } = this.surveyData;
         const mediumContent = this.getMediumSpecificContent(medium);
-        
-        // Full-width immersive hero image with minimal design
-        return `
-            <div style="min-height: 600px; display: flex; flex-direction: column; justify-content: center; text-align: center;">
-                <!-- Full-width Hero Image -->
-                <div onclick="window.uploadImage('hero-home-image-1')" style="${mediumContent.hero.morandiStyle}; height: 500px; width: 100%; margin-bottom: 50px; display: flex; align-items: center; justify-content: center; color: #8a8a8a; font-size: 20px; cursor: pointer; transition: opacity 0.3s, transform 0.2s; position: relative;" onmouseover="this.style.opacity='0.8'; this.querySelector('.upload-hint').style.display='block'" onmouseout="this.style.opacity='1'; this.querySelector('.upload-hint').style.display='none'" id="hero-home-image-1">
-                    ${mediumContent.hero.cleanContent}
-                    <div class="upload-hint" style="position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; display: none;">Click to upload image</div>
-                </div>
-                
-                <!-- Minimal Typography -->
-                <div style="padding: 0 40px;">
-                    <div style="padding: 10px;">
-                        <h1 contenteditable="true" id="hero-home-title-1" style="font-size: 4rem; margin-bottom: 15px; color: #333; font-weight: 300; line-height: 1.1; letter-spacing: -1px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-                            Capturing the Moment
-                        </h1>
-                    </div>
-                    <div style="padding: 10px;">
-                        <h2 contenteditable="true" id="hero-home-subtitle-1" style="font-size: 1.3rem; margin-bottom: 40px; color: #666; font-weight: 400; text-transform: uppercase; letter-spacing: 2px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-                            FOLLOW YOUR INSTINCTS.
-                        </h2>
-                    </div>
-                    
-                    <!-- Simple Description -->
-                    <div style="max-width: 700px; margin: 0 auto;">
-                        <div style="padding: 10px;">
-                            <p contenteditable="true" id="hero-home-description-1" style="color: #666; font-size: 1.1rem; line-height: 1.8; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-                                ${mediumContent.description} Each piece tells a story, capturing fleeting moments and transforming them into lasting memories through the power of visual art.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+        const tpl = this.templates.home.hero;
+        return this.renderTemplate(tpl, {
+            hero_style: mediumContent.hero.morandiStyle,
+            hero_content: mediumContent.hero.cleanContent,
+            title: mediumContent.title,
+            subtitle: mediumContent.subtitle,
+            hero_description: `${mediumContent.description} Each piece tells a story, capturing fleeting moments and transforming them into lasting memories through the power of visual art.`
+        });
     }
     
     getMediumSpecificContent(medium) {
+        // If compiled JSON provided placeholders, prefer them
+        if (this.mediumPlaceholders) {
+            return this.mediumPlaceholders;
+        }
         const mediumData = {
             painting: {
                 title: "Contemporary Painting Studio",
@@ -770,11 +874,32 @@ class PortfolioSurvey {
                         e.preventDefault();
                         const filter = filterItem.dataset.filter;
                         this.currentWorksFilter = filter;
+                        this.currentSelectedWorkIndex = 0;
+                        // Ensure per-folder selection is initialized empty
+                        if (!this.surveyData.worksSelections) this.surveyData.worksSelections = {};
+                        if (!Array.isArray(this.surveyData.worksSelections[filter])) {
+                            this.surveyData.worksSelections[filter] = [];
+                        }
+                        // Mark Works tab active
+                        navItems.forEach(nav => {
+                            nav.classList.remove('active');
+                            nav.style.color = '#333';
+                            nav.style.fontWeight = 'normal';
+                            nav.style.borderBottom = 'none';
+                        });
+                        if (worksNavItem) {
+                            worksNavItem.classList.add('active');
+                            worksNavItem.style.color = '#007bff';
+                            worksNavItem.style.fontWeight = 'bold';
+                            worksNavItem.style.borderBottom = '2px solid #007bff';
+                        }
                         const content = this.createWorksPreview();
                         previewContent.innerHTML = content;
+                        this.applyDataStyles(previewContent);
                         dropdown.style.display = 'none';
 
-                        // Ensure side panel is visible and label is synced
+                        // Ensure external side panel exists and is visible; sync label
+                        this.ensureExternalWorksSidePanel();
                         const sidePanel = document.getElementById('works-side-panel');
                         if (sidePanel) sidePanel.style.display = 'block';
                         const layoutLabel = document.getElementById('works-side-layout-label');
@@ -782,9 +907,8 @@ class PortfolioSurvey {
                             const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
                             layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
                         }
-                        const layoutContainer = document.getElementById('preview-layout');
-                        if (layoutContainer) layoutContainer.classList.add('has-side');
                         if (window.loadSideGallery) window.loadSideGallery();
+                        this.setupWorkNavigation();
                     });
                 });
             }
@@ -815,7 +939,16 @@ class PortfolioSurvey {
                 if (page === 'home') {
                     content = this.createHomePreview();
                 } else if (page === 'works') {
-                    this.currentWorkIndex = 0; // Reset to first work
+                    this.currentWorkIndex = 0; // Reset mock single index
+                    this.currentSelectedWorkIndex = 0; // Reset selected focus index
+                    if (!this.currentWorksFilter) {
+                        this.currentWorksFilter = this.ensureCurrentWorksFilter();
+                    }
+                    // Ensure per-folder selection is initialized empty
+                    if (!this.surveyData.worksSelections) this.surveyData.worksSelections = {};
+                    if (this.currentWorksFilter && !Array.isArray(this.surveyData.worksSelections[this.currentWorksFilter])) {
+                        this.surveyData.worksSelections[this.currentWorksFilter] = [];
+                    }
                     content = this.createWorksPreview();
                 } else if (page === 'about') {
                     content = this.createAboutPreview();
@@ -824,10 +957,12 @@ class PortfolioSurvey {
                 }
                 
                 previewContent.innerHTML = content;
+                this.applyDataStyles(previewContent);
                 
                 // Re-setup navigation for single work view
                 if (page === 'works') {
                     this.setupWorkNavigation();
+                    this.ensureExternalWorksSidePanel();
                     const sidePanel = document.getElementById('works-side-panel');
                     if (sidePanel) sidePanel.style.display = 'block';
                     const layoutLabel = document.getElementById('works-side-layout-label');
@@ -835,15 +970,11 @@ class PortfolioSurvey {
                         const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
                         layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
                     }
-                    // Apply two-column layout and load side gallery
-                    const layoutContainer = document.getElementById('preview-layout');
-                    if (layoutContainer) layoutContainer.classList.add('has-side');
+                    // Load side gallery
                     if (window.loadSideGallery) window.loadSideGallery();
                 } else {
                     const sidePanel = document.getElementById('works-side-panel');
                     if (sidePanel) sidePanel.style.display = 'none';
-                    const layoutContainer = document.getElementById('preview-layout');
-                    if (layoutContainer) layoutContainer.classList.remove('has-side');
                 }
             });
         });
@@ -929,6 +1060,7 @@ class PortfolioSurvey {
         if (previewContent) {
             const content = this.createWorksPreview();
             previewContent.innerHTML = content;
+            this.applyDataStyles(previewContent);
             // Re-setup navigation after content update
             this.setupWorkNavigation();
 
@@ -939,13 +1071,12 @@ class PortfolioSurvey {
                 layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
             }
 
-            // Ensure side panel is visible while on Works
+            // Ensure external side panel is visible while on Works
+            this.ensureExternalWorksSidePanel();
             const sidePanel = document.getElementById('works-side-panel');
             if (sidePanel) sidePanel.style.display = 'block';
-
-            // Ensure two-column layout is applied
-            const layoutContainer = document.getElementById('preview-layout');
-            if (layoutContainer) layoutContainer.classList.add('has-side');
+            // Reload side gallery after DOM replacement
+            if (window.loadSideGallery) window.loadSideGallery();
         }
     }
     
@@ -965,74 +1096,30 @@ class PortfolioSurvey {
     
     createAboutVerticalPreview() {
         const selectedSections = this.getSelectedAboutSections();
-        
-        return `
-            <div style="padding: 60px 40px; max-width: 800px; margin: 0 auto; font-family: 'Georgia', serif;">
-                <!-- Artist Photo -->
-                <div style="text-align: center; margin-bottom: 50px;">
-                    <div onclick="window.uploadImage('vertical-about-photo-1')" style="width: 300px; height: 400px; background: linear-gradient(135deg, #f5f1eb, #e8ddd4); border-radius: 8px; margin: 0 auto; display: flex; align-items: center; justify-content: center; color: #999; font-size: 16px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;" onmouseover="this.style.opacity='0.8'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'" id="vertical-about-photo-1">Artist Photo</div>
-                    <p style="text-align: center; margin-top: 10px; color: #999; font-size: 12px;">Click to upload photo</p>
+        const aboutSectionsHTML = selectedSections.map(section => `
+            <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
+                <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
+                <div contenteditable="true" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
+                    ${this.getAboutSectionContent(section)}
                 </div>
-                
-                <!-- Bio Section -->
-                <div style="margin-bottom: 50px;">
-                    <h2 contenteditable="true" style="font-size: 2rem; margin-bottom: 25px; color: #333; font-weight: 300; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">About Me</h2>
-                    <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; margin-bottom: 20px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">Growing up surrounded by art instilled a deep appreciation for creative expression and the power of visual storytelling. Through my work, I explore themes of identity, memory, and the intersection between the personal and universal.</p>
-                    <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.</p>
-                </div>
-                
-                <!-- Selected Sections -->
-                ${selectedSections.map(section => `
-                    <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
-                        <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
-                        <div contenteditable="true" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-                            ${this.getAboutSectionContent(section)}
-                        </div>
-                    </div>
-                `).join('')}
-                
-
             </div>
-        `;
+        `).join('');
+        const tpl = this.templates.about.vertical;
+        return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML });
     }
     
     createAboutSplitPreview() {
         const selectedSections = this.getSelectedAboutSections();
-        
-        return `
-            <div style="padding: 60px 40px; max-width: 1200px; margin: 0 auto; font-family: 'Georgia', serif;">
-                <div style="display: flex; gap: 60px; align-items: flex-start;">
-                    <!-- Left Side: Artist Photo -->
-                    <div style="flex: 0 0 350px; margin-right: 50px;">
-                        <div onclick="window.uploadImage('split-about-photo-1')" style="width: 100%; height: 450px; background: linear-gradient(135deg, #f5f1eb, #e8ddd4); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 16px; position: sticky; top: 20px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;" onmouseover="this.style.opacity='0.8'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'" id="split-about-photo-1">Artist Photo</div>
-                        <p style="text-align: center; margin-top: 10px; color: #999; font-size: 12px;">Click to upload photo</p>
-                    </div>
-                    
-                    <!-- Right Side: Content -->
-                    <div style="flex: 1;">
-                        <!-- Bio Section -->
-                        <div style="margin-bottom: 50px;">
-                            <h2 contenteditable="true" style="font-size: 2rem; margin-bottom: 25px; color: #333; font-weight: 300; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">About Me</h2>
-                            <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; margin-bottom: 20px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">I am a [Location]-based artist whose work explores the intersection of memory, identity, and visual narrative. My practice encompasses various mediums, each chosen for its ability to convey specific emotional and conceptual content.</p>
-                            <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; margin-bottom: 20px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">Through careful observation and traditional techniques, I create works that invite viewers to engage with both personal and universal themes. My background in art history informs my approach, allowing me to draw from classical traditions while developing a contemporary voice.</p>
-                            <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">Currently, I work primarily in [medium], finding this approach ideal for capturing the subtleties of light, atmosphere, and emotion that define my artistic vision.</p>
-                        </div>
-                        
-                        <!-- Selected Sections -->
-                        ${selectedSections.map(section => `
-                            <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
-                                <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
-                                <div contenteditable="true" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-                                    ${this.getAboutSectionContent(section)}
-                                </div>
-                            </div>
-                        `).join('')}
-                        
-
-                    </div>
+        const aboutSectionsHTML = selectedSections.map(section => `
+            <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
+                <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
+                <div contenteditable="true" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
+                    ${this.getAboutSectionContent(section)}
                 </div>
             </div>
-        `;
+        `).join('');
+        const tpl = this.templates.about.split;
+        return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML });
     }
     
     getSelectedAboutSections() {
@@ -1088,12 +1175,42 @@ class PortfolioSurvey {
         return this.createWorksSelectionInterface();
     }
     
+    // Helpers for works subpages (years/themes)
+    getCurrentWorksFolders() {
+        const { features, worksDetails } = this.surveyData;
+        if (!features || !features.worksOrganization) return [];
+        if (features.worksOrganization === 'year') return worksDetails.years || [];
+        if (features.worksOrganization === 'theme') return worksDetails.themes || [];
+        return [];
+    }
+    ensureCurrentWorksFilter() {
+        if (this.currentWorksFilter) return this.currentWorksFilter;
+        const folders = this.getCurrentWorksFolders();
+        return (folders && folders.length) ? folders[0] : null;
+    }
+    getCurrentFolderSelection() {
+        const key = this.currentWorksFilter || this.ensureCurrentWorksFilter();
+        if (!key) return [];
+        const map = this.surveyData.worksSelections || {};
+        return Array.isArray(map[key]) ? map[key] : [];
+    }
+    setCurrentFolderSelection(arr) {
+        const key = this.currentWorksFilter || this.ensureCurrentWorksFilter();
+        if (!key) return;
+        if (!this.surveyData.worksSelections) this.surveyData.worksSelections = {};
+        this.surveyData.worksSelections[key] = Array.isArray(arr) ? arr : [];
+    }
+    
     createWorksSelectionInterface() {
-        const { layouts, selectedArtworks } = this.surveyData;
+        const { layouts, features } = this.surveyData;
         const worksLayout = layouts.works || 'grid';
-        const hasSelection = Array.isArray(selectedArtworks) && selectedArtworks.length > 0;
+        const folder = this.currentWorksFilter || this.ensureCurrentWorksFilter();
+        this.currentWorksFilter = folder;
+        const selected = this.getCurrentFolderSelection();
+        const hasFolder = !!folder;
+        const hasSelection = Array.isArray(selected) && selected.length > 0;
 
-        const gridItems = (selectedArtworks || []).map(a => `
+        const gridItems = (selected || []).map(a => `
             <div style="background:#fff;">
                 ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
                     <div style=\"display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;\">${(a.title||'Untitled')}</div>
@@ -1102,8 +1219,8 @@ class PortfolioSurvey {
             </div>
         `).join('');
 
-        const idx = Math.min(this.currentSelectedWorkIndex || 0, Math.max(0, (selectedArtworks || []).length - 1));
-        const focus = hasSelection ? selectedArtworks[idx] : null;
+        const idx = Math.min(this.currentSelectedWorkIndex || 0, Math.max(0, (selected || []).length - 1));
+        const focus = hasSelection ? selected[idx] : null;
         const singleFocus = focus ? `
             <div style="position:relative; display:flex; align-items:center; justify-content:center; min-height:60vh;">
                 <button class="prev-work-btn" onclick="window.prevSelectedWork && window.prevSelectedWork()" aria-label="Previous" style="position:absolute; left:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;">&lt;</button>
@@ -1125,11 +1242,48 @@ class PortfolioSurvey {
             </div>
         ` : '';
 
+        const emptyMain = hasFolder
+            ? `<div style=\"text-align:center; color:#999; padding-top:40px;\">No artworks selected for “${folder}”. Use the side panel to add artworks.</div>`
+            : `<div style=\"text-align:center; color:#999; padding-top:40px;\">No ${features && features.worksOrganization === 'year' ? 'years' : 'themes'} configured. Go back to the Works step to add them, then choose a subpage from the Works menu.</div>`;
+
         return `
-            <div style="padding: 0; min-height: 500px;">
-                ${hasSelection ? selectedSection : `<div style="text-align:center; color:#999; padding-top:40px;">No artworks selected yet. Use the panel on the right to add artworks.</div>`}
+            <div id="works-main" style="min-height: 500px;">
+                ${hasSelection ? selectedSection : emptyMain}
             </div>
         `;
+    }
+
+    // Ensure external, fixed-position side panel exists for Works selection
+    ensureExternalWorksSidePanel() {
+        let panel = document.getElementById('works-side-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'works-side-panel';
+            panel.setAttribute('style', [
+                'position:fixed',
+                'right:16px',
+                'top:80px',
+                'bottom:16px',
+                'width:320px',
+                'background:#fff',
+                'border:1px solid #e5e5e5',
+                'border-radius:10px',
+                'box-shadow:0 6px 24px rgba(0,0,0,0.08)',
+                'padding:12px',
+                'overflow:auto',
+                'z-index:9999'
+            ].join('; ') + ';');
+            panel.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                    <div style="color:#555; font-weight:600;">Your TART gallery</div>
+                    <div style="color:#999; font-size:0.9rem;">Layout: <span id="works-side-layout-label">${(this.surveyData.layouts && this.surveyData.layouts.works) === 'single' ? 'single focus' : 'grid'}</span></div>
+                </div>
+                <div style="color:#666; font-size:12px; margin-bottom:10px;">Select works for this subpage from your TART gallery. Click tiles to add/remove.</div>
+                <div id="works-side-gallery"></div>
+            `;
+            document.body.appendChild(panel);
+        }
+        return panel;
     }
     
 
@@ -1137,19 +1291,11 @@ class PortfolioSurvey {
     createWorksGridPreview() {
         const { medium } = this.surveyData;
         const mediumContent = this.getMediumSpecificContent(medium);
-        
-        // Simple grid layout - images with titles only
-        return `
-            <div style="padding: 40px;">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px;">
-                    ${mediumContent.works.map(work => `
-                        <div style="cursor: pointer; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
-                            <div style="${work.brightMorandiStyle}; height: 250px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 16px;">${work.cleanContent}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
+        const worksItems = mediumContent.works.map(work => `
+            <div style="cursor: pointer; transition: transform 0.3s;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'"><div style="${work.brightMorandiStyle}; height: 250px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 16px;">${work.cleanContent}</div></div>
+        `).join('');
+        const tpl = this.templates.works.grid;
+        return this.renderTemplate(tpl, { works_grid_items: worksItems });
     }
     
     createWorksSinglePreview() {
@@ -1158,88 +1304,13 @@ class PortfolioSurvey {
         const currentIndex = this.currentWorkIndex || 0;
         const currentWork = mediumContent.works[currentIndex];
         const totalWorks = mediumContent.works.length;
-        
-        // Single artwork focus - centered image with navigation arrows
-        return `
-            <div class="single-artwork-container" style="padding: 60px 40px; text-align: center; min-height: 500px; display: flex; flex-direction: column; justify-content: center;">
-                <!-- Navigation Container -->
-                <div style="display: flex; align-items: center; justify-content: center; gap: 40px;">
-                    <!-- Left Arrow -->
-                    <button class="prev-work-btn" style="background: none; border: 2px solid #333; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: #333; transition: all 0.2s;">
-                        ←
-                    </button>
-                    
-                    <!-- Featured Artwork -->
-                    <div class="artwork-content" style="max-width: 500px; transition: opacity 0.3s ease;">
-                        <div style="${currentWork.brightMorandiStyle}; height: 400px; width: 400px; border-radius: 8px; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 20px;">${currentWork.cleanContent}</div>
-                        <p style="color: #999; margin: 0; font-size: 1rem; text-align: center;">${currentIndex + 1} of ${totalWorks}</p>
-                    </div>
-                    
-                    <!-- Right Arrow -->
-                    <button class="next-work-btn" style="background: none; border: 2px solid #333; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; color: #333; transition: all 0.2s;">
-                        →
-                    </button>
-                </div>
-            </div>
-            <style>
-                .prev-work-btn,
-                .next-work-btn {
-                    position: relative;
-                    overflow: hidden;
-                    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
-                    will-change: transform, background-color;
-                }
-                
-                .prev-work-btn:not([disabled]):hover,
-                .next-work-btn:not([disabled]):hover {
-                    background-color: #f8f9fa;
-                    transform: scale(1.1);
-                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-                }
-                
-                .prev-work-btn:not([disabled]):active,
-                .next-work-btn:not([disabled]):active {
-                    transform: scale(0.98);
-                    transition-duration: 0.1s;
-                }
-                
-                .prev-work-btn[disabled],
-                .next-work-btn[disabled] {
-                    opacity: 0.25;
-                    cursor: not-allowed;
-                    border-color: #999 !important;
-                    transform: none !important;
-                }
-                
-                .artwork-content {
-                    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                    will-change: opacity, transform;
-                }
-                
-                /* Animation for sliding effect */
-                .artwork-slide-enter {
-                    opacity: 0;
-                    transform: translateX(20px);
-                }
-                
-                .artwork-slide-enter-active {
-                    opacity: 1;
-                    transform: translateX(0);
-                    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                
-                .artwork-slide-exit {
-                    opacity: 1;
-                    transform: translateX(0);
-                }
-                
-                .artwork-slide-exit-active {
-                    opacity: 0;
-                    transform: translateX(-20px);
-                    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-            </style>
-        `;
+        const tpl = this.templates.works.single;
+        return this.renderTemplate(tpl, {
+            single_work_style: currentWork.brightMorandiStyle,
+            single_work_content: currentWork.cleanContent,
+            single_index: currentIndex + 1,
+            single_total: totalWorks
+        });
     }
     
     createStyledPreviewHTML() {
@@ -1293,7 +1364,7 @@ class PortfolioSurvey {
         }
         
         // Add final steps
-        this.stepOrder.push('step-logo', 'step-preview', 'step-style');
+        this.stepOrder.push('step-logo');
         this.totalSteps = this.stepOrder.length;
     }
     
@@ -1397,7 +1468,7 @@ class PortfolioSurvey {
         return false;
     }
     
-    nextStep() {
+    async nextStep() {
         const currentStepElement = document.querySelector(`#${this.stepOrder[this.currentStep - 1]}`);
         
         if (this.currentStep === 1) {
@@ -1430,13 +1501,16 @@ class PortfolioSurvey {
         
         // Handle dynamic step validation
         const currentStepId = this.stepOrder[this.currentStep - 1];
-        if (currentStepId === 'step-preview') {
-            this.generateWebsitePreview();
-        }
-        
-        if (currentStepId === 'step-style') {
-            this.updateStylePreview();
-            this.completeSurvey();
+        if (currentStepId === 'step-logo') {
+            // Finish survey: save + compile, then jump to preview (outside wizard)
+            await this.completeSurvey();
+            document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+            const previewEl = document.getElementById('step-preview');
+            if (previewEl) {
+                previewEl.classList.add('active');
+                await this.ensureTemplatesLoaded();
+                await this.generateWebsitePreview();
+            }
             return;
         }
         
@@ -1449,11 +1523,6 @@ class PortfolioSurvey {
         const nextStepElement = document.querySelector(`#${nextStepId}`);
         if (nextStepElement) {
             nextStepElement.classList.add('active');
-            
-            // Auto-generate preview when entering preview step
-            if (nextStepId === 'step-preview') {
-                this.generateWebsitePreview();
-            }
         }
     }
     
@@ -1472,8 +1541,35 @@ class PortfolioSurvey {
         prevStepElement.classList.add('active');
     }
     
-    completeSurvey() {
+    async completeSurvey() {
         console.log('Survey completed with data:', this.surveyData);
+        
+        // Persist survey data and compile JSON on the backend
+        const token = localStorage.getItem('token');
+        try {
+            // Save current survey data
+            await fetch('/api/website-state/survey', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token || ''
+                },
+                body: JSON.stringify(this.surveyData)
+            });
+
+            // Create/update compiled JSON for this user
+            const compileRes = await fetch('/api/website-state/compile', {
+                method: 'POST',
+                headers: { 'x-auth-token': token || '' }
+            });
+            if (compileRes.ok) {
+                const { compiledJsonPath } = await compileRes.json();
+                this.compiledJsonPath = compiledJsonPath;
+                console.log('Compiled JSON path:', compiledJsonPath);
+            }
+        } catch (err) {
+            console.warn('Saving/compiling survey draft failed:', err);
+        }
         
         const selectedFeatures = Object.keys(this.surveyData.features).filter(key => this.surveyData.features[key] === true);
         const selectedLayouts = Object.entries(this.surveyData.layouts).filter(([key, value]) => value !== null);
@@ -1481,7 +1577,44 @@ class PortfolioSurvey {
             this.surveyData.worksDetails.years.join(', ') : 
             this.surveyData.worksDetails.themes.join(', ');
         
-        alert(`Portfolio setup completed!\n\nMedium: ${this.surveyData.medium}\nFeatures: ${selectedFeatures.join(', ')}\nWorks Organization: ${this.surveyData.features.worksOrganization} (${worksDetails})\nLayouts Selected: ${selectedLayouts.length}\nLogo: ${this.surveyData.logo ? 'Uploaded' : 'Skipped'}\nStyle: Custom colors and font size applied`);
+        alert(`Portfolio setup completed!\n\nMedium: ${this.surveyData.medium}\nFeatures: ${selectedFeatures.join(', ')}\nWorks Organization: ${this.surveyData.features.worksOrganization} (${worksDetails})\nLayouts Selected: ${selectedLayouts.length}\nLogo: ${this.surveyData.logo ? 'Uploaded' : 'Skipped'}\nStyle: Custom colors and font size applied${this.compiledJsonPath ? `\nSaved draft: ${this.compiledJsonPath}` : ''}`);
+    }
+    
+    // Load existing WebsiteState and jump to preview if found
+    async tryLoadDraftAndJumpToPreview() {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/website-state', {
+                method: 'GET',
+                headers: { 'x-auth-token': token || '' }
+            });
+            if (!res.ok) return; // Not logged in or no draft; keep wizard
+            const state = await res.json();
+            if (!state || !state.surveyData) return;
+
+            // Only auto-jump when the user actually completed survey previously
+            if (!state.surveyCompleted && !state.compiledJsonPath) return;
+
+            // Merge saved survey data
+            this.surveyData = { ...this.surveyData, ...state.surveyData };
+            if (state.compiledJsonPath) this.compiledJsonPath = state.compiledJsonPath;
+            
+            // If logo is stored as a string path, normalize to { dataUrl }
+            if (this.surveyData.logo && typeof this.surveyData.logo === 'string') {
+                this.surveyData.logo = { dataUrl: this.surveyData.logo };
+            }
+
+            // Show preview directly (outside of wizard)
+            document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+            const previewEl = document.getElementById('step-preview');
+            if (previewEl) previewEl.classList.add('active');
+
+            // Ensure templates are ready and render
+            await this.ensureTemplatesLoaded();
+            await this.generateWebsitePreview();
+        } catch (err) {
+            console.warn('Draft load skipped:', err);
+        }
     }
 }
 

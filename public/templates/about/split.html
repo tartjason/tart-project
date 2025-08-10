@@ -1,0 +1,23 @@
+<div style="padding: 60px 40px; max-width: 1200px; margin: 0 auto; font-family: 'Georgia', serif;">
+    <div style="display: flex; gap: 60px; align-items: flex-start;">
+        <!-- Left Side: Artist Photo -->
+        <div style="flex: 0 0 350px; margin-right: 50px;">
+            <div onclick="window.uploadImage('split-about-photo-1')" style="width: 100%; height: 450px; background: linear-gradient(135deg, #f5f1eb, #e8ddd4); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #999; font-size: 16px; position: sticky; top: 20px; cursor: pointer; transition: opacity 0.3s, transform 0.2s;" onmouseover="this.style.opacity='0.8'; this.style.transform='scale(1.02)'" onmouseout="this.style.opacity='1'; this.style.transform='scale(1)'" id="split-about-photo-1">Artist Photo</div>
+            <p style="text-align: center; margin-top: 10px; color: #999; font-size: 12px;">Click to upload photo</p>
+        </div>
+        
+        <!-- Right Side: Content -->
+        <div style="flex: 1;">
+            <!-- Bio Section -->
+            <div style="margin-bottom: 50px;">
+                <h2 contenteditable="true" style="font-size: 2rem; margin-bottom: 25px; color: #333; font-weight: 300; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">About Me</h2>
+                <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; margin-bottom: 20px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">I am a [Location]-based artist whose work explores the intersection of memory, identity, and visual narrative. My practice encompasses various mediums, each chosen for its ability to convey specific emotional and conceptual content.</p>
+                <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; margin-bottom: 20px; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">Through careful observation and traditional techniques, I create works that invite viewers to engage with both personal and universal themes. My background in art history informs my approach, allowing me to draw from classical traditions while developing a contemporary voice.</p>
+                <p contenteditable="true" style="line-height: 1.7; color: #555; font-size: 1.1rem; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">Currently, I work primarily in [medium], finding this approach ideal for capturing the subtleties of light, atmosphere, and emotion that define my artistic vision.</p>
+            </div>
+            
+            <!-- Selected Sections -->
+            {{about_sections_html}}
+        </div>
+    </div>
+</div>
