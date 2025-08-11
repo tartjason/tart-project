@@ -245,6 +245,44 @@ router.post('/compile', auth, async (req, res) => {
     }
 });
 
+// @route   POST /api/website-state/start-over
+// @desc    Delete compiled JSON and reset survey flags
+// @access  Private
+router.post('/start-over', auth, async (req, res) => {
+    try {
+        const websiteState = await WebsiteState.findOne({ artist: req.artist.id });
+        if (!websiteState) {
+            return res.status(404).json({ msg: 'Website state not found' });
+        }
+
+        // Delete compiled JSON file if it exists
+        if (websiteState.compiledJsonPath) {
+            try {
+                const rel = websiteState.compiledJsonPath.startsWith('/')
+                    ? websiteState.compiledJsonPath.slice(1)
+                    : websiteState.compiledJsonPath;
+                const fullPath = path.join(__dirname, '..', 'public', rel);
+                if (fs.existsSync(fullPath)) {
+                    fs.unlinkSync(fullPath);
+                }
+            } catch (e) {
+                console.warn('Failed to delete compiled JSON:', e);
+            }
+        }
+
+        // Reset flags so user returns to survey
+        websiteState.compiledJsonPath = undefined;
+        websiteState.compiledAt = undefined;
+        websiteState.surveyCompleted = false;
+        await websiteState.save();
+
+        return res.json({ msg: 'Start over succeeded' });
+    } catch (error) {
+        console.error('Error starting over:', error);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 // @route   PATCH /api/website-state/content/:section
 // @desc    Update content for a specific section
 // @access  Private

@@ -9,20 +9,21 @@
       "exhibition": false
     },
     "layouts": {
-      "homepage": "hero",
-      "about": "split",
+      "homepage": "split",
+      "about": "vertical",
       "works": "grid",
       "commission": null,
       "exhibition": null
     },
     "worksDetails": {
       "years": [
-        2020
+        2020,
+        2021
       ],
       "themes": []
     },
     "aboutSections": {
-      "education": false,
+      "education": true,
       "workExperience": false,
       "recentlyFeatured": false,
       "selectedExhibition": false,
@@ -36,7 +37,7 @@
       "textColor": "#333333",
       "themeColor": "#007bff"
     },
-    "medium": "photography",
+    "medium": "furniture",
     "logo": null
   },
   "content": {
@@ -63,41 +64,41 @@
   },
   "customStyles": {},
   "mediumPlaceholders": {
-    "title": "Visual Storytelling",
-    "subtitle": "Capturing moments that matter",
-    "description": "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary.",
+    "title": "Functional Art",
+    "subtitle": "Where design meets craftsmanship",
+    "description": "I create furniture pieces that blend functionality with artistic expression, using sustainable materials and traditional techniques.",
     "works": [
       {
-        "title": "Street Photography Series",
+        "title": "Modern Oak Table",
         "year": "2024",
-        "cleanContent": "Digital",
-        "morandiStyle": "background: #8a9a9a;",
-        "brightMorandiStyle": "background: #c0c8c8;"
+        "cleanContent": "Handcrafted Oak",
+        "morandiStyle": "background: #c4a882;",
+        "brightMorandiStyle": "background: #e0c8a8;"
       },
       {
-        "title": "Portrait Collection",
+        "title": "Minimalist Bookshelf",
         "year": "2024",
-        "cleanContent": "Film",
-        "morandiStyle": "background: #b5b5b5;",
-        "brightMorandiStyle": "background: #d0d0d0;"
+        "cleanContent": "Walnut & Steel",
+        "morandiStyle": "background: #a08270;",
+        "brightMorandiStyle": "background: #d0b8a0;"
       },
       {
-        "title": "Nature Studies",
+        "title": "Ergonomic Chair",
         "year": "2023",
-        "cleanContent": "Landscape",
-        "morandiStyle": "background: #a8b5a8;",
-        "brightMorandiStyle": "background: #c8d0c8;"
+        "cleanContent": "Sustainable Pine",
+        "morandiStyle": "background: #b5a082;",
+        "brightMorandiStyle": "background: #d8c8a8;"
       }
     ],
     "featured": {
-      "cleanContent": "Featured Photo",
-      "morandiStyle": "background: #8a9a9a;"
+      "cleanContent": "Featured Piece",
+      "morandiStyle": "background: #a89082;"
     },
     "hero": {
-      "cleanContent": "Latest Shot",
-      "morandiStyle": "background: #9aa5aa;"
+      "cleanContent": "Latest Creation",
+      "morandiStyle": "background: #c4b082;"
     }
   },
-  "generatedAt": "2025-08-10T04:32:37.810Z",
-  "version": 2
+  "generatedAt": "2025-08-11T15:50:26.339Z",
+  "version": 4
 }
