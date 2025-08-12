@@ -9,9 +9,9 @@
       "exhibition": false
     },
     "layouts": {
-      "homepage": "grid",
+      "homepage": "hero",
       "about": "split",
-      "works": "grid",
+      "works": "single",
       "commission": null,
       "exhibition": null
     },
@@ -23,7 +23,7 @@
       "themes": []
     },
     "aboutSections": {
-      "education": true,
+      "education": false,
       "workExperience": false,
       "recentlyFeatured": false,
       "selectedExhibition": false,
@@ -37,7 +37,7 @@
       "textColor": "#333333",
       "themeColor": "#007bff"
     },
-    "medium": "photography",
+    "medium": "painting",
     "logo": null
   },
   "content": {
@@ -64,41 +64,41 @@
   },
   "customStyles": {},
   "mediumPlaceholders": {
-    "title": "Visual Storytelling",
-    "subtitle": "Capturing moments that matter",
-    "description": "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary.",
+    "title": "Contemporary Painting Studio",
+    "subtitle": "Exploring color, form, and emotion through paint",
+    "description": "My paintings explore the intersection of color and emotion, creating vibrant compositions that speak to the human experience.",
     "works": [
       {
-        "title": "Street Photography Series",
+        "title": "Abstract Composition #1",
         "year": "2024",
-        "cleanContent": "Digital",
-        "morandiStyle": "background: #8a9a9a;",
-        "brightMorandiStyle": "background: #c0c8c8;"
+        "cleanContent": "Oil on Canvas",
+        "morandiStyle": "background: #d9c7b7;",
+        "brightMorandiStyle": "background: #e8d7c7;"
       },
       {
-        "title": "Portrait Collection",
+        "title": "Urban Landscape",
         "year": "2024",
-        "cleanContent": "Film",
-        "morandiStyle": "background: #b5b5b5;",
-        "brightMorandiStyle": "background: #d0d0d0;"
+        "cleanContent": "Acrylic on Board",
+        "morandiStyle": "background: #b8a082;",
+        "brightMorandiStyle": "background: #d4c4a8;"
       },
       {
-        "title": "Nature Studies",
+        "title": "Portrait Study",
         "year": "2023",
-        "cleanContent": "Landscape",
-        "morandiStyle": "background: #a8b5a8;",
-        "brightMorandiStyle": "background: #c8d0c8;"
+        "cleanContent": "Mixed Media",
+        "morandiStyle": "background: #c9b7a6;",
+        "brightMorandiStyle": "background: #e0d0c0;"
       }
     ],
     "featured": {
-      "cleanContent": "Featured Photo",
-      "morandiStyle": "background: #8a9a9a;"
+      "cleanContent": "Featured Painting",
+      "morandiStyle": "background: #d9c7b7;"
     },
     "hero": {
-      "cleanContent": "Latest Shot",
-      "morandiStyle": "background: #9aa5aa;"
+      "cleanContent": "Latest Work",
+      "morandiStyle": "background: #e8ddd4;"
     }
   },
-  "generatedAt": "2025-08-12T03:13:43.088Z",
-  "version": 5
+  "generatedAt": "2025-08-12T14:31:04.462Z",
+  "version": 9
 }
