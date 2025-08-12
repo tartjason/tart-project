@@ -9,8 +9,8 @@
       "exhibition": false
     },
     "layouts": {
-      "homepage": "split",
-      "about": "vertical",
+      "homepage": "grid",
+      "about": "split",
       "works": "grid",
       "commission": null,
       "exhibition": null
@@ -37,7 +37,7 @@
       "textColor": "#333333",
       "themeColor": "#007bff"
     },
-    "medium": "furniture",
+    "medium": "photography",
     "logo": null
   },
   "content": {
@@ -64,41 +64,41 @@
   },
   "customStyles": {},
   "mediumPlaceholders": {
-    "title": "Functional Art",
-    "subtitle": "Where design meets craftsmanship",
-    "description": "I create furniture pieces that blend functionality with artistic expression, using sustainable materials and traditional techniques.",
+    "title": "Visual Storytelling",
+    "subtitle": "Capturing moments that matter",
+    "description": "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary.",
     "works": [
       {
-        "title": "Modern Oak Table",
+        "title": "Street Photography Series",
         "year": "2024",
-        "cleanContent": "Handcrafted Oak",
-        "morandiStyle": "background: #c4a882;",
-        "brightMorandiStyle": "background: #e0c8a8;"
+        "cleanContent": "Digital",
+        "morandiStyle": "background: #8a9a9a;",
+        "brightMorandiStyle": "background: #c0c8c8;"
       },
       {
-        "title": "Minimalist Bookshelf",
+        "title": "Portrait Collection",
         "year": "2024",
-        "cleanContent": "Walnut & Steel",
-        "morandiStyle": "background: #a08270;",
-        "brightMorandiStyle": "background: #d0b8a0;"
+        "cleanContent": "Film",
+        "morandiStyle": "background: #b5b5b5;",
+        "brightMorandiStyle": "background: #d0d0d0;"
       },
       {
-        "title": "Ergonomic Chair",
+        "title": "Nature Studies",
         "year": "2023",
-        "cleanContent": "Sustainable Pine",
-        "morandiStyle": "background: #b5a082;",
-        "brightMorandiStyle": "background: #d8c8a8;"
+        "cleanContent": "Landscape",
+        "morandiStyle": "background: #a8b5a8;",
+        "brightMorandiStyle": "background: #c8d0c8;"
       }
     ],
     "featured": {
-      "cleanContent": "Featured Piece",
-      "morandiStyle": "background: #a89082;"
+      "cleanContent": "Featured Photo",
+      "morandiStyle": "background: #8a9a9a;"
     },
     "hero": {
-      "cleanContent": "Latest Creation",
-      "morandiStyle": "background: #c4b082;"
+      "cleanContent": "Latest Shot",
+      "morandiStyle": "background: #9aa5aa;"
     }
   },
-  "generatedAt": "2025-08-11T15:50:26.339Z",
-  "version": 4
+  "generatedAt": "2025-08-12T03:13:43.088Z",
+  "version": 5
 }

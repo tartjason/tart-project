@@ -423,6 +423,26 @@ class PortfolioSurvey {
         
         // Setup global functions
         this.setupGlobalFunctions();
+
+        // If default page is Home and layout is grid, surface the works side panel
+        try {
+            const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
+            if (homeLayout === 'grid') {
+                // Track that we're showing the Home page
+                this.currentPreviewPage = 'home';
+                this.ensureExternalWorksSidePanel();
+                const sidePanel = document.getElementById('works-side-panel');
+                if (sidePanel) sidePanel.style.display = 'block';
+                const layoutLabel = document.getElementById('works-side-layout-label');
+                if (layoutLabel) {
+                    const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
+                    layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
+                }
+                if (window.loadSideGallery) window.loadSideGallery();
+            }
+        } catch (e) {
+            console.warn('Home grid side panel setup skipped:', e);
+        }
     }
     
     revertToOriginalLayout() {
@@ -561,7 +581,7 @@ class PortfolioSurvey {
         window.loadSideGallery = function() {
             const sideContainer = document.getElementById('works-side-gallery');
             if (!sideContainer) return;
-            if (!self.currentWorksFilter) {
+            if (self.currentPreviewPage !== 'home' && !self.currentWorksFilter) {
                 sideContainer.innerHTML = '<div style="color:#666; padding:8px 0;">Choose a year/theme from Works to start selecting artworks.</div>';
                 return;
             }
@@ -610,7 +630,10 @@ class PortfolioSurvey {
 
             const folderKey = self.currentWorksFilter;
             const folderSelection = (self.surveyData.worksSelections && self.surveyData.worksSelections[folderKey]) || [];
-            const preselected = new Set(folderSelection.map(a => a._id));
+            const isHome = self.currentPreviewPage === 'home';
+            const preselected = isHome
+                ? new Set(((self.surveyData.homeSelections) || []).map(a => a._id))
+                : new Set(folderSelection.map(a => a._id));
 
             artworks.forEach(a => {
                 const id = a._id;
@@ -637,18 +660,30 @@ class PortfolioSurvey {
                 const id = tile.dataset.id;
                 if (!id) return;
 
-                const currentArr = ((self.surveyData.worksSelections && self.surveyData.worksSelections[self.currentWorksFilter]) || []);
-                const currently = new Set(currentArr.map(a => a._id));
-                if (currently.has(id)) currently.delete(id); else currently.add(id);
-                // Persist selection in the order of artworks as rendered
-                const ordered = artworks.filter(a => a._id && currently.has(a._id));
-                if (!self.surveyData.worksSelections) self.surveyData.worksSelections = {};
-                self.surveyData.worksSelections[self.currentWorksFilter] = ordered;
-                self.currentSelectedWorkIndex = 0;
+                let nowSelected = false;
+                if (self.currentPreviewPage === 'home') {
+                    const currentArr = Array.isArray(self.surveyData.homeSelections) ? self.surveyData.homeSelections : [];
+                    const set = new Set(currentArr.map(a => a._id));
+                    if (set.has(id)) set.delete(id); else set.add(id);
+                    // Persist selection in the order of artworks as rendered
+                    const ordered = artworks.filter(a => a._id && set.has(a._id));
+                    self.surveyData.homeSelections = ordered;
+                    self.currentSelectedWorkIndex = 0;
+                    nowSelected = set.has(id);
+                } else {
+                    const currentArr = ((self.surveyData.worksSelections && self.surveyData.worksSelections[self.currentWorksFilter]) || []);
+                    const set = new Set(currentArr.map(a => a._id));
+                    if (set.has(id)) set.delete(id); else set.add(id);
+                    // Persist selection in the order of artworks as rendered
+                    const ordered = artworks.filter(a => a._id && set.has(a._id));
+                    if (!self.surveyData.worksSelections) self.surveyData.worksSelections = {};
+                    self.surveyData.worksSelections[self.currentWorksFilter] = ordered;
+                    self.currentSelectedWorkIndex = 0;
+                    nowSelected = set.has(id);
+                }
 
                 // Update tile UI quickly
                 const badge = tile.querySelector('div');
-                const nowSelected = currently.has(id);
                 tile.style.borderColor = nowSelected ? '#007bff' : '#eee';
                 if (badge) {
                     badge.textContent = nowSelected ? 'Selected' : 'Select';
@@ -656,8 +691,12 @@ class PortfolioSurvey {
                     badge.style.color = nowSelected ? '#fff' : '#333';
                 }
 
-                // Refresh main works preview
-                self.updateWorksPreview();
+                // Refresh preview depending on current page
+                if (self.currentPreviewPage === 'home') {
+                    self.updateHomePreview();
+                } else {
+                    self.updateWorksPreview();
+                }
             };
         };
 
@@ -773,16 +812,21 @@ class PortfolioSurvey {
     }
     
     createGridHomePreview() {
-        const { medium } = this.surveyData;
-        const mediumContent = this.getMediumSpecificContent(medium);
-        const worksItems = mediumContent.works.map(work => `
-            <div style="${work.brightMorandiStyle}; height: 200px; display: flex; align-items: center; justify-content: center; color: #888; font-size: 14px; border-radius: 8px; cursor: pointer; transition: transform 0.3s;">${work.cleanContent}</div>
-        `).join('');
         const tpl = this.templates.home.grid;
+        const selected = Array.isArray(this.surveyData.homeSelections) ? this.surveyData.homeSelections : [];
+        const hasSelection = selected.length > 0;
+        const gridItems = (selected || []).map(a => `
+            <div style="background:#fff;">
+                ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
+                    <div style=\"display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;\">${(a.title||'Untitled')}</div>
+                `}
+                <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.title || 'Untitled'}</div>
+            </div>
+        `).join('');
+        // Show an empty-state instruction until the user selects artworks via the side panel
+        const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected for Home page display. Use the side panel below to add artworks.</div>`;
         return this.renderTemplate(tpl, {
-            title: mediumContent.title,
-            subtitle: mediumContent.subtitle,
-            works_grid_items: worksItems
+            works_grid_items: hasSelection ? gridItems : emptyMsg
         });
     }
     
@@ -845,6 +889,8 @@ class PortfolioSurvey {
                 filterItems.forEach(filterItem => {
                     filterItem.addEventListener('click', (e) => {
                         e.preventDefault();
+                        // We are navigating to a Works subpage
+                        this.currentPreviewPage = 'works';
                         const filter = filterItem.dataset.filter;
                         this.currentWorksFilter = filter;
                         this.currentSelectedWorkIndex = 0;
@@ -910,8 +956,10 @@ class PortfolioSurvey {
                 let content = '';
                 
                 if (page === 'home') {
+                    this.currentPreviewPage = 'home';
                     content = this.createHomePreview();
                 } else if (page === 'works') {
+                    this.currentPreviewPage = 'works';
                     this.currentWorkIndex = 0; // Reset mock single index
                     this.currentSelectedWorkIndex = 0; // Reset selected focus index
                     if (!this.currentWorksFilter) {
@@ -945,7 +993,26 @@ class PortfolioSurvey {
                     }
                     // Load side gallery
                     if (window.loadSideGallery) window.loadSideGallery();
+                } else if (page === 'home') {
+                    // Show side panel only for Home grid layout
+                    const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
+                    if (homeLayout === 'grid') {
+                        this.ensureExternalWorksSidePanel();
+                        const sidePanel = document.getElementById('works-side-panel');
+                        if (sidePanel) sidePanel.style.display = 'block';
+                        const layoutLabel = document.getElementById('works-side-layout-label');
+                        if (layoutLabel) {
+                            const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
+                            layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
+                        }
+                        if (window.loadSideGallery) window.loadSideGallery();
+                    } else {
+                        const sidePanel = document.getElementById('works-side-panel');
+                        if (sidePanel) sidePanel.style.display = 'none';
+                    }
                 } else {
+                    // Any other page
+                    this.currentPreviewPage = page;
                     const sidePanel = document.getElementById('works-side-panel');
                     if (sidePanel) sidePanel.style.display = 'none';
                 }
@@ -1050,6 +1117,32 @@ class PortfolioSurvey {
             if (sidePanel) sidePanel.style.display = 'block';
             // Reload side gallery after DOM replacement
             if (window.loadSideGallery) window.loadSideGallery();
+        }
+    }
+    
+    updateHomePreview() {
+        // Refresh Home preview (used when selecting Home artworks from the side panel)
+        const previewFrame = document.getElementById('website-preview');
+        const previewContent = previewFrame
+            ? (previewFrame.querySelector('#preview-content') || document.getElementById('preview-content'))
+            : document.getElementById('preview-content');
+        if (previewContent) {
+            const content = this.createHomePreview();
+            previewContent.innerHTML = content;
+            this.applyDataStyles(previewContent);
+
+            // Maintain side panel visibility for Home grid
+            const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
+            if (homeLayout === 'grid') {
+                this.ensureExternalWorksSidePanel();
+                const sidePanel = document.getElementById('works-side-panel');
+                if (sidePanel) sidePanel.style.display = 'block';
+                const layoutLabel = document.getElementById('works-side-layout-label');
+                if (layoutLabel) {
+                    const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
+                    layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
+                }
+            }
         }
     }
     
