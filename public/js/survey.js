@@ -187,18 +187,57 @@ class PortfolioSurvey {
         });
     }
     
-    prevStep() {
-        if (this.currentStep > 1) {
-            // Hide current step
-            const currentStepElement = document.querySelector(`#step-${this.currentStep}`);
-            currentStepElement.classList.remove('active');
-            
-            // Show previous step
-            this.currentStep--;
-            const prevStepElement = document.querySelector(`#step-${this.currentStep}`);
-            if (prevStepElement) {
-                prevStepElement.classList.add('active');
+    setupLayoutSelection() {
+        // Handle all layout option selections
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.layout-option')) {
+                const option = e.target.closest('.layout-option');
+                const container = option.closest('.layout-options');
+                const page = option.dataset.page;
+                const layout = option.dataset.layout;
+                
+                // Remove selected class from siblings
+                container.querySelectorAll('.layout-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                
+                // Add selected class to clicked option
+                option.classList.add('selected');
+                
+                // Store layout choice
+                this.surveyData.layouts[page] = layout;
+                
+                // Enable next button
+                const nextBtn = option.closest('.survey-step').querySelector('.next-btn');
+                if (nextBtn) nextBtn.disabled = false;
             }
+        });
+    }
+    
+    setupWorksOrganization() {
+        const yearsInput = document.getElementById('years-input');
+        const themesInput = document.getElementById('themes-input');
+        const yearsDropdown = document.getElementById('years-dropdown');
+        const themesDropdown = document.getElementById('themes-dropdown');
+        
+        // Handle years input
+        if (yearsInput) {
+            yearsInput.addEventListener('input', () => {
+                const years = this.parseCommaSeparated(yearsInput.value);
+                this.surveyData.worksDetails.years = years;
+                this.updateDropdownPreview(yearsDropdown, years);
+                this.validateStep4();
+            });
+        }
+        
+        // Handle themes input
+        if (themesInput) {
+            themesInput.addEventListener('input', () => {
+                const themes = this.parseCommaSeparated(themesInput.value);
+                this.surveyData.worksDetails.themes = themes;
+                this.updateDropdownPreview(themesDropdown, themes);
+                this.validateStep4();
+            });
         }
     }
     
@@ -334,59 +373,6 @@ class PortfolioSurvey {
         this.totalSteps = this.stepOrder.length;
     }
     
-    setupLayoutSelection() {
-        // Handle all layout option selections
-        document.addEventListener('click', (e) => {
-            if (e.target.closest('.layout-option')) {
-                const option = e.target.closest('.layout-option');
-                const container = option.closest('.layout-options');
-                const page = option.dataset.page;
-                const layout = option.dataset.layout;
-                
-                // Remove selected class from siblings
-                container.querySelectorAll('.layout-option').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-                
-                // Add selected class to clicked option
-                option.classList.add('selected');
-                
-                // Store layout choice
-                this.surveyData.layouts[page] = layout;
-                
-                // Enable next button
-                const nextBtn = option.closest('.survey-step').querySelector('.next-btn');
-                if (nextBtn) nextBtn.disabled = false;
-            }
-        });
-    }
-    
-    setupWorksOrganization() {
-        const yearsInput = document.getElementById('years-input');
-        const themesInput = document.getElementById('themes-input');
-        const yearsDropdown = document.getElementById('years-dropdown');
-        const themesDropdown = document.getElementById('themes-dropdown');
-        
-        // Handle years input
-        if (yearsInput) {
-            yearsInput.addEventListener('input', () => {
-                const years = this.parseCommaSeparated(yearsInput.value);
-                this.surveyData.worksDetails.years = years;
-                this.updateDropdownPreview(yearsDropdown, years);
-                this.validateStep4();
-            });
-        }
-        
-        // Handle themes input
-        if (themesInput) {
-            themesInput.addEventListener('input', () => {
-                const themes = this.parseCommaSeparated(themesInput.value);
-                this.surveyData.worksDetails.themes = themes;
-                this.updateDropdownPreview(themesDropdown, themes);
-                this.validateStep4();
-            });
-        }
-    }
     
     showWorksOrganizationInput() {
         const yearOrg = document.getElementById('year-organization');
