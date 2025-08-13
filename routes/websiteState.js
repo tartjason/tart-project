@@ -11,6 +11,49 @@ router.use((req, res, next) => {
     next();
 });
 
+// Basic HTML sanitizer (avoid external deps). Strips <script> and inline event handlers.
+function sanitizeHtmlBasic(input) {
+    if (typeof input !== 'string') return input;
+    let out = input.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, '');
+    // remove on*="..." attributes
+    out = out.replace(/ on[a-zA-Z]+\s*=\s*"[^"]*"/g, '');
+    out = out.replace(/ on[a-zA-Z]+\s*=\s*'[^']*'/g, '');
+    out = out.replace(/ on[a-zA-Z]+\s*=\s*[^\s>]+/g, '');
+    return out;
+}
+
+function setByPath(target, dotPath, value) {
+    const parts = dotPath.split('.');
+    let obj = target;
+    for (let i = 0; i < parts.length - 1; i++) {
+        const key = parts[i];
+        if (obj[key] === undefined || obj[key] === null) obj[key] = {};
+        obj = obj[key];
+    }
+    obj[parts[parts.length - 1]] = value;
+}
+
+function isAllowedPath(pathStr) {
+    const allowed = new Set([
+        'homeContent.title',
+        'homeContent.subtitle',
+        'homeContent.description',
+        'homeContent.imageUrl',
+        'aboutContent.title',
+        'aboutContent.bio',
+        'aboutContent.imageUrl'
+    ]);
+    return allowed.has(pathStr);
+}
+
+function validateTypeForPath(pathStr, type) {
+    const htmlFields = new Set(['aboutContent.bio']);
+    const imageFields = new Set(['homeContent.imageUrl', 'aboutContent.imageUrl']);
+    if (htmlFields.has(pathStr)) return type === 'html';
+    if (imageFields.has(pathStr)) return type === 'imageUrl' || type === 'text';
+    return type === 'text';
+}
+
 // Helper: build medium-specific placeholder content (used for compiled JSON)
 function buildMediumPlaceholders(medium) {
     const mediumData = {
@@ -279,6 +322,9 @@ router.post('/compile', auth, async (req, res) => {
                 explore_text: `Explore my collection of ${medium || 'art'} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
             };
         }
+        // Merge persisted edits if present
+        const persistedHome = websiteState.homeContent || {};
+        homeContent = { ...homeContent, ...persistedHome };
 
         // Build aboutContent based on selected sections from survey and example content
         const aboutExample = buildAboutExampleSections();
@@ -289,12 +335,14 @@ router.post('/compile', auth, async (req, res) => {
                 selectedAboutSections[key] = aboutExample[key] || '';
             }
         });
-        const aboutContent = {
+        const baseAbout = {
             imageUrl: '',
             title: 'About Me',
             bio: 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.',
             ...selectedAboutSections
         };
+        const persistedAbout = websiteState.aboutContent || {};
+        const aboutContent = { ...baseAbout, ...persistedAbout };
 
         const compiled = {
             surveyData: surveyData,
@@ -321,6 +369,129 @@ router.post('/compile', auth, async (req, res) => {
         return res.json({ compiledJsonPath: websiteState.compiledJsonPath });
     } catch (error) {
         console.error('Error compiling site JSON:', error);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// @route   POST /api/website-state/update-content-batch
+// @desc    Batch update content by canonical JSON paths; optional compile
+// @access  Private
+router.post('/update-content-batch', auth, async (req, res) => {
+    try {
+        const { updates = [], version } = req.body || {};
+        const doCompile = String(req.query.compile || 'false') === 'true';
+
+        if (!Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({ msg: 'No updates provided' });
+        }
+
+        let websiteState = await WebsiteState.findOne({ artist: req.artist.id });
+        if (!websiteState) {
+            websiteState = new WebsiteState({ artist: req.artist.id });
+        }
+
+        // Optional optimistic concurrency
+        if (typeof version === 'number' && websiteState.version !== version) {
+            return res.status(409).json({ msg: 'Version conflict', serverVersion: websiteState.version });
+        }
+
+        for (const u of updates) {
+            const { path: p, type, value } = u || {};
+            if (!p || typeof p !== 'string') {
+                return res.status(400).json({ msg: 'Invalid update path' });
+            }
+            if (p.includes('[')) {
+                // Array index paths not yet supported in step 1
+                return res.status(400).json({ msg: `Array index paths not supported yet: ${p}` });
+            }
+            if (!isAllowedPath(p)) {
+                return res.status(400).json({ msg: `Path not allowed: ${p}` });
+            }
+            if (!validateTypeForPath(p, type)) {
+                return res.status(400).json({ msg: `Invalid type for path ${p}` });
+            }
+            let v = value;
+            if (type === 'html') v = sanitizeHtmlBasic(String(value ?? ''));
+
+            // Determine root object (homeContent/aboutContent)
+            if (p.startsWith('homeContent.')) {
+                if (!websiteState.homeContent) websiteState.homeContent = {};
+                setByPath(websiteState.homeContent, p.replace('homeContent.', ''), v);
+            } else if (p.startsWith('aboutContent.')) {
+                if (!websiteState.aboutContent) websiteState.aboutContent = {};
+                setByPath(websiteState.aboutContent, p.replace('aboutContent.', ''), v);
+            }
+        }
+
+        websiteState.version += 1;
+        await websiteState.save();
+
+        if (!doCompile) {
+            return res.json({ version: websiteState.version });
+        }
+
+        // Build compiled JSON (reuse compile logic inline)
+        const surveyData = websiteState.surveyData || {};
+        const medium = surveyData && surveyData.medium;
+        const layout = (surveyData.layouts && surveyData.layouts.homepage) || 'grid';
+        const mediumData = buildMediumPlaceholders(medium);
+        let homeContent = {};
+        if (layout === 'hero') {
+            homeContent = {
+                imageUrl: '',
+                title: mediumData.title || '',
+                subtitle: mediumData.subtitle || '',
+                description: mediumData.description || ''
+            };
+        } else if (layout === 'split') {
+            homeContent = {
+                imageUrl: '',
+                title: mediumData.title || '',
+                description: mediumData.description || '',
+                explore_text: `Explore my collection of ${medium || 'art'} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
+            };
+        }
+        homeContent = { ...homeContent, ...(websiteState.homeContent || {}) };
+
+        const aboutExample = buildAboutExampleSections();
+        const aboutSectionsCfg = (surveyData.aboutSections) || {};
+        const selectedAboutSections = {};
+        Object.keys(aboutSectionsCfg).forEach((key) => {
+            if (aboutSectionsCfg[key]) {
+                selectedAboutSections[key] = aboutExample[key] || '';
+            }
+        });
+        const baseAbout = {
+            imageUrl: '',
+            title: 'About Me',
+            bio: 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.',
+            ...selectedAboutSections
+        };
+        const aboutContent = { ...baseAbout, ...(websiteState.aboutContent || {}) };
+
+        const compiled = {
+            surveyData: surveyData,
+            content: websiteState.content || {},
+            customStyles: websiteState.customStyles || {},
+            homeContent,
+            aboutContent,
+            generatedAt: new Date().toISOString(),
+            version: websiteState.version
+        };
+
+        const outDir = path.join(__dirname, '..', 'public', 'sites', String(req.artist.id));
+        fs.mkdirSync(outDir, { recursive: true });
+        const outFile = path.join(outDir, 'site.json');
+        fs.writeFileSync(outFile, JSON.stringify(compiled, null, 2), 'utf8');
+
+        websiteState.compiledJsonPath = `/sites/${req.artist.id}/site.json`;
+        websiteState.compiledAt = new Date();
+        websiteState.surveyCompleted = true;
+        await websiteState.save();
+
+        return res.json({ compiled, version: websiteState.version, compiledJsonPath: websiteState.compiledJsonPath });
+    } catch (error) {
+        console.error('Error updating content batch:', error);
         return res.status(500).json({ msg: 'Server error' });
     }
 });

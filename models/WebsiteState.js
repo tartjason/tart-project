@@ -49,6 +49,19 @@ const websiteStateSchema = new Schema({
         }
     },
     
+    // Canonical editable content (path-based model)
+    homeContent: {
+        title: String,
+        subtitle: String,
+        description: String,
+        imageUrl: String
+    },
+    aboutContent: {
+        title: String,
+        bio: String, // rich text (HTML)
+        imageUrl: String
+    },
+
     // Editable content for each page
     content: {
         homepage: {
