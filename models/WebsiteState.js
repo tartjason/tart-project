@@ -54,6 +54,7 @@ const websiteStateSchema = new Schema({
         title: String,
         subtitle: String,
         description: String,
+        explore_text: String,
         imageUrl: String
     },
     aboutContent: {

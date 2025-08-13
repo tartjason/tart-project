@@ -38,6 +38,7 @@ function isAllowedPath(pathStr) {
         'homeContent.title',
         'homeContent.subtitle',
         'homeContent.description',
+        'homeContent.explore_text',
         'homeContent.imageUrl',
         'aboutContent.title',
         'aboutContent.bio',

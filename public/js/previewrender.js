@@ -674,7 +674,7 @@
       const aboutSectionsHTML = selectedSections.map(section => `
         <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
           <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
-          <div contenteditable="true" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
+          <div contenteditable="true" data-content-path="aboutContent.${section}" data-type="html" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
             ${this.getAboutSectionContent(section)}
           </div>
         </div>
@@ -683,7 +683,9 @@
       const compiledAbout = this._compiled && this._compiled.aboutContent;
       const imgUrl = compiledAbout && compiledAbout.imageUrl;
       const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
+      const aboutTitle = (compiledAbout && compiledAbout.title) || 'About Me';
+      const aboutBio = (compiledAbout && compiledAbout.bio) || 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.';
+      return this.renderTemplate(tpl, { about_title: aboutTitle, about_bio: aboutBio, about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
     }
 
     createAboutSplitPreview() {
@@ -691,7 +693,7 @@
       const aboutSectionsHTML = selectedSections.map(section => `
         <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
           <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
-          <div contenteditable="true" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
+          <div contenteditable="true" data-content-path="aboutContent.${section}" data-type="html" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
             ${this.getAboutSectionContent(section)}
           </div>
         </div>
@@ -700,7 +702,9 @@
       const compiledAbout = this._compiled && this._compiled.aboutContent;
       const imgUrl = compiledAbout && compiledAbout.imageUrl;
       const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
+      const aboutTitle = (compiledAbout && compiledAbout.title) || 'About Me';
+      const aboutBio = (compiledAbout && compiledAbout.bio) || 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.';
+      return this.renderTemplate(tpl, { about_title: aboutTitle, about_bio: aboutBio, about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
     }
 
     getSelectedAboutSections() {
@@ -841,4 +845,3 @@
   // Expose globally
   window.PreviewRenderer = PreviewRenderer;
 })();
-
