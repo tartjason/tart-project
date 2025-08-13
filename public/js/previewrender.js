@@ -226,7 +226,7 @@
                 element.style.backgroundPosition = 'center';
                 element.style.backgroundRepeat = 'no-repeat';
                 element.innerHTML = '';
-                if (elementId === 'hero-image') {
+                if (elementId === 'hero-image' || (typeof elementId === 'string' && elementId.indexOf('hero-home-image') === 0)) {
                   const overlay = document.createElement('div');
                   overlay.style.cssText = `position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);pointer-events:none;`;
                   element.appendChild(overlay);
@@ -460,10 +460,13 @@
       const { medium } = this.surveyData;
       const mediumContent = this.getCompiled(medium);
       const tpl = this.templates.home.split;
+      const imgUrl = mediumContent && mediumContent.imageUrl;
+      const splitStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
       return this.renderTemplate(tpl, {
         title: mediumContent.title,
         description: mediumContent.description,
-        explore_text: mediumContent.explore_text || `Explore my collection of ${medium} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
+        explore_text: mediumContent.explore_text || `Explore my collection of ${medium} works, each piece carefully crafted to capture the essence of light, color, and emotion.`,
+        split_feature_style: splitStyle
       });
     }
 
@@ -471,10 +474,13 @@
       const { medium } = this.surveyData;
       const mediumContent = this.getCompiled(medium);
       const tpl = this.templates.home.hero;
+      const imgUrl = mediumContent && mediumContent.imageUrl;
+      const heroStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
       return this.renderTemplate(tpl, {
         title: mediumContent.title,
         subtitle: mediumContent.subtitle,
-        hero_description: mediumContent.description
+        hero_description: mediumContent.description,
+        hero_style: heroStyle
       });
     }
 
@@ -520,6 +526,7 @@
               worksNavItem.style.borderBottom = '2px solid #007bff';
 
               previewContent.innerHTML = this.createWorksPreview();
+              this.applyDataStyles(previewContent);
               this.setupWorkNavigation();
               this.ensureExternalWorksSidePanel();
               const sidePanel = document.getElementById('works-side-panel');
@@ -553,16 +560,19 @@
 
           if (page === 'home') {
             previewContent.innerHTML = this.createHomePreview();
+            this.applyDataStyles(previewContent);
             const sidePanel = document.getElementById('works-side-panel');
             const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
             if (sidePanel) sidePanel.style.display = homeLayout === 'grid' ? 'block' : 'none';
             if (homeLayout === 'grid' && window.loadSideGallery) window.loadSideGallery();
           } else if (page === 'about') {
             previewContent.innerHTML = this.createAboutPreview();
+            this.applyDataStyles(previewContent);
             const sidePanel = document.getElementById('works-side-panel');
             if (sidePanel) sidePanel.style.display = 'none';
           } else if (page === 'works') {
             previewContent.innerHTML = this.createWorksPreview();
+            this.applyDataStyles(previewContent);
             this.setupWorkNavigation();
             this.ensureExternalWorksSidePanel();
             const sidePanel = document.getElementById('works-side-panel');
@@ -570,6 +580,7 @@
             if (window.loadSideGallery) window.loadSideGallery();
           } else {
             previewContent.innerHTML = `<div style="text-align: center; padding: 60px 0;"><h2>${page.charAt(0).toUpperCase() + page.slice(1)} Page</h2><p style="color: #666;">Content coming soon.</p></div>`;
+            this.applyDataStyles(previewContent);
             const sidePanel = document.getElementById('works-side-panel');
             if (sidePanel) sidePanel.style.display = 'none';
           }
@@ -626,6 +637,7 @@
       }
 
       // Keep side panel state consistent when on Works
+      this.applyDataStyles(previewContent);
       if (this.currentPreviewPage === 'works') {
         this.ensureExternalWorksSidePanel();
         const sidePanel = document.getElementById('works-side-panel');
@@ -640,6 +652,7 @@
       const previewContent = document.getElementById('preview-content');
       if (!previewContent) return;
       previewContent.innerHTML = this.createHomePreview();
+      this.applyDataStyles(previewContent);
       // Keep side panel behavior consistent: only show on Home when layout is grid
       const sidePanel = document.getElementById('works-side-panel');
       const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
@@ -667,7 +680,10 @@
         </div>
       `).join('');
       const tpl = this.templates.about.vertical;
-      return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML });
+      const compiledAbout = this._compiled && this._compiled.aboutContent;
+      const imgUrl = compiledAbout && compiledAbout.imageUrl;
+      const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
+      return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
     }
 
     createAboutSplitPreview() {
@@ -681,7 +697,10 @@
         </div>
       `).join('');
       const tpl = this.templates.about.split;
-      return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML });
+      const compiledAbout = this._compiled && this._compiled.aboutContent;
+      const imgUrl = compiledAbout && compiledAbout.imageUrl;
+      const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
+      return this.renderTemplate(tpl, { about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
     }
 
     getSelectedAboutSections() {

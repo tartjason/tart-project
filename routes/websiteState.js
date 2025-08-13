@@ -266,12 +266,14 @@ router.post('/compile', auth, async (req, res) => {
         let homeContent = {};
         if (layout === 'hero') {
             homeContent = {
+                imageUrl: '',
                 title: mediumData.title || '',
                 subtitle: mediumData.subtitle || '',
                 description: mediumData.description || ''
             };
         } else if (layout === 'split') {
             homeContent = {
+                imageUrl: '',
                 title: mediumData.title || '',
                 description: mediumData.description || '',
                 explore_text: `Explore my collection of ${medium || 'art'} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
@@ -288,6 +290,7 @@ router.post('/compile', auth, async (req, res) => {
             }
         });
         const aboutContent = {
+            imageUrl: '',
             title: 'About Me',
             bio: 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.',
             ...selectedAboutSections
