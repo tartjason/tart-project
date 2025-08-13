@@ -46,11 +46,6 @@
       title: "Contemporary Painting Studio",
       subtitle: "Exploring color, form, and emotion through paint",
       description: "My paintings explore the intersection of color and emotion, creating vibrant compositions that speak to the human experience.",
-      works: [
-        { title: "Abstract Composition #1", year: "2024", cleanContent: "Oil on Canvas", morandiStyle: "background: #d9c7b7;", brightMorandiStyle: "background: #e8d7c7;" },
-        { title: "Urban Landscape", year: "2024", cleanContent: "Acrylic on Board", morandiStyle: "background: #b8a082;", brightMorandiStyle: "background: #d4c4a8;" },
-        { title: "Portrait Study", year: "2023", cleanContent: "Mixed Media", morandiStyle: "background: #c9b7a6;", brightMorandiStyle: "background: #e0d0c0;" }
-      ],
       featured: { cleanContent: "Featured Painting", morandiStyle: "background: #d9c7b7;" },
       hero: { cleanContent: "Latest Work", morandiStyle: "background: #e8ddd4;" }
     },
@@ -58,11 +53,6 @@
       title: "Visual Storytelling",
       subtitle: "Capturing moments that matter",
       description: "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary.",
-      works: [
-        { title: "Street Photography Series", year: "2024", cleanContent: "Digital", morandiStyle: "background: #8a9a9a;", brightMorandiStyle: "background: #c0c8c8;" },
-        { title: "Portrait Collection", year: "2024", cleanContent: "Film", morandiStyle: "background: #b5b5b5;", brightMorandiStyle: "background: #d0d0d0;" },
-        { title: "Nature Studies", year: "2023", cleanContent: "Landscape", morandiStyle: "background: #a8b5a8;", brightMorandiStyle: "background: #c8d0c8;" }
-      ],
       featured: { cleanContent: "Featured Photo", morandiStyle: "background: #8a9a9a;" },
       hero: { cleanContent: "Latest Shot", morandiStyle: "background: #9aa5aa;" }
     },
@@ -70,11 +60,6 @@
       title: "Words & Verses",
       subtitle: "Poetry that speaks to the soul",
       description: "My poetry explores themes of love, loss, hope, and the human condition through carefully crafted verses.",
-      works: [
-        { title: "Midnight Reflections", year: "2024", cleanContent: "\"In the quiet hours...\"", morandiStyle: "background: #8a8a8a;", brightMorandiStyle: "background: #c0c0c0;" },
-        { title: "Spring Awakening", year: "2024", cleanContent: "\"Petals fall like...\"", morandiStyle: "background: #a8b5c7;", brightMorandiStyle: "background: #d0d8e0;" },
-        { title: "Urban Symphony", year: "2023", cleanContent: "\"City lights dance...\"", morandiStyle: "background: #c7b5a8;", brightMorandiStyle: "background: #e0d0c8;" }
-      ],
       featured: { cleanContent: "Featured Poem", morandiStyle: "background: #b5a8c7;" },
       hero: { cleanContent: "Latest Verse", morandiStyle: "background: #c7a8b5;" }
     },
@@ -82,11 +67,6 @@
       title: "Functional Art",
       subtitle: "Where design meets craftsmanship",
       description: "I create furniture pieces that blend functionality with artistic expression, using sustainable materials and traditional techniques.",
-      works: [
-        { title: "Modern Oak Table", year: "2024", cleanContent: "Handcrafted Oak", morandiStyle: "background: #c4a882;", brightMorandiStyle: "background: #e0c8a8;" },
-        { title: "Minimalist Bookshelf", year: "2024", cleanContent: "Walnut & Steel", morandiStyle: "background: #a08270;", brightMorandiStyle: "background: #d0b8a0;" },
-        { title: "Ergonomic Chair", year: "2023", cleanContent: "Sustainable Pine", morandiStyle: "background: #b5a082;", brightMorandiStyle: "background: #d8c8a8;" }
-      ],
       featured: { cleanContent: "Featured Piece", morandiStyle: "background: #a89082;" },
       hero: { cleanContent: "Latest Creation", morandiStyle: "background: #c4b082;" }
     },
@@ -94,11 +74,6 @@
       title: "Mixed Media Art",
       subtitle: "Exploring creativity across mediums",
       description: "My work spans multiple mediums, combining traditional and contemporary techniques to create unique artistic expressions.",
-      works: [
-        { title: "Digital Collage", year: "2024", cleanContent: "Mixed Media", morandiStyle: "background: #a8a8c7;", brightMorandiStyle: "background: #d0d0e0;" },
-        { title: "Sculptural Installation", year: "2024", cleanContent: "3D Art", morandiStyle: "background: #c7a8b5;", brightMorandiStyle: "background: #e0d0d8;" },
-        { title: "Interactive Piece", year: "2023", cleanContent: "Performance", morandiStyle: "background: #a8c7c7;", brightMorandiStyle: "background: #d0e0e0;" }
-      ],
       featured: { cleanContent: "Featured Work", morandiStyle: "background: #c7b5a8;" },
       hero: { cleanContent: "Latest Project", morandiStyle: "background: #b5c7a8;" }
     }

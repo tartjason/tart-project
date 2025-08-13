@@ -78,6 +78,45 @@ function buildMediumPlaceholders(medium) {
     return mediumData[medium] || mediumData['multi-medium'];
 }
 
+// Helper: About example sections (mirrors public/js/exampleContent.js)
+function buildAboutExampleSections() {
+    return {
+        education: `
+      <p><strong>2023</strong> - BFA in Fine Arts, [University Name]</p>
+      <p><strong>2021</strong> - Certificate in Traditional Painting Techniques, [Art School]</p>
+    `,
+        workExperience: `
+      <p><strong>2023-Present</strong> - Freelance Artist</p>
+      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>
+    `,
+        recentlyFeatured: `
+      <p><strong>2024</strong> - Art Magazine Feature</p>
+      <p><strong>2024</strong> - Online Gallery Spotlight</p>
+    `,
+        selectedExhibition: `
+      <p><strong>2024</strong> - "Contemporary Visions" Group Show, [Gallery Name]</p>
+      <p><strong>2023</strong> - "Emerging Artists" Solo Exhibition, [Gallery Name]</p>
+    `,
+        selectedPress: `
+      <p><strong>2024</strong> - Featured in [Art Publication]</p>
+      <p><strong>2023</strong> - Interview with [Magazine Name]</p>
+    `,
+        selectedAwards: `
+      <p><strong>2024</strong> - Emerging Artist Grant</p>
+      <p><strong>2023</strong> - Excellence in Fine Arts Award</p>
+    `,
+        selectedProjects: `
+      <p><strong>2024</strong> - Community Mural Project</p>
+      <p><strong>2023</strong> - Artist Talk at [Institution]</p>
+    `,
+        contactInfo: `
+      <p>Email: <a href="mailto:artist@email.com" style="color: #333;">artist@email.com</a></p>
+      <p>Phone: [Phone Number]</p>
+      <p>Studio: [Address]</p>
+    `
+    };
+}
+
 // @route   GET /api/website-state
 // @desc    Get user's website state
 // @access  Private
@@ -217,11 +256,49 @@ router.post('/compile', auth, async (req, res) => {
         }
 
         // Build compiled JSON from current state
+        const surveyData = websiteState.surveyData || {};
+        const medium = surveyData && surveyData.medium;
+        const layout = (surveyData.layouts && surveyData.layouts.homepage) || 'grid';
+        // Pull example data for the selected medium (kept in sync with public/js/exampleContent.js)
+        const mediumData = buildMediumPlaceholders(medium);
+
+        // Adaptive homeContent based on selected home layout
+        let homeContent = {};
+        if (layout === 'hero') {
+            homeContent = {
+                title: mediumData.title || '',
+                subtitle: mediumData.subtitle || '',
+                description: mediumData.description || ''
+            };
+        } else if (layout === 'split') {
+            homeContent = {
+                title: mediumData.title || '',
+                description: mediumData.description || '',
+                explore_text: `Explore my collection of ${medium || 'art'} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
+            };
+        }
+
+        // Build aboutContent based on selected sections from survey and example content
+        const aboutExample = buildAboutExampleSections();
+        const aboutSectionsCfg = (surveyData.aboutSections) || {};
+        const selectedAboutSections = {};
+        Object.keys(aboutSectionsCfg).forEach((key) => {
+            if (aboutSectionsCfg[key]) {
+                selectedAboutSections[key] = aboutExample[key] || '';
+            }
+        });
+        const aboutContent = {
+            title: 'About Me',
+            bio: 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.',
+            ...selectedAboutSections
+        };
+
         const compiled = {
-            surveyData: websiteState.surveyData || {},
+            surveyData: surveyData,
             content: websiteState.content || {},
             customStyles: websiteState.customStyles || {},
-            mediumPlaceholders: buildMediumPlaceholders(websiteState.surveyData && websiteState.surveyData.medium),
+            homeContent,
+            aboutContent,
             generatedAt: new Date().toISOString(),
             version: websiteState.version
         };

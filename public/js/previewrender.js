@@ -94,7 +94,8 @@
               // Merge minimally to preserve client-side tweaks
               this.surveyData = { ...this.surveyData, ...compiled.surveyData };
             }
-            this.mediumPlaceholders = (compiled && compiled.mediumPlaceholders) || null;
+            // Prefer new adaptive homeContent over legacy mediumPlaceholders
+            this.homeContent = (compiled && compiled.homeContent) || null;
           }
         } catch (e) {
           console.warn('Failed to fetch compiled JSON, falling back to local data:', e);
@@ -457,32 +458,29 @@
 
     createSplitHomePreview() {
       const { medium } = this.surveyData;
-      const mediumContent = this.getMediumSpecificContent(medium);
+      const mediumContent = this.getCompiled(medium);
       const tpl = this.templates.home.split;
       return this.renderTemplate(tpl, {
-        split_feature_style: mediumContent.featured.morandiStyle,
-        split_feature_content: mediumContent.featured.cleanContent,
         title: mediumContent.title,
         description: mediumContent.description,
-        explore_text: `Explore my collection of ${medium} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
+        explore_text: mediumContent.explore_text || `Explore my collection of ${medium} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
       });
     }
 
     createHeroHomePreview() {
       const { medium } = this.surveyData;
-      const mediumContent = this.getMediumSpecificContent(medium);
+      const mediumContent = this.getCompiled(medium);
       const tpl = this.templates.home.hero;
       return this.renderTemplate(tpl, {
-        hero_style: mediumContent.hero.morandiStyle,
-        hero_content: mediumContent.hero.cleanContent,
         title: mediumContent.title,
         subtitle: mediumContent.subtitle,
-        hero_description: `${mediumContent.description} Each piece tells a story, capturing fleeting moments and transforming them into lasting memories through the power of visual art.`
+        hero_description: mediumContent.description
       });
     }
 
-    getMediumSpecificContent(medium) {
-      if (this.mediumPlaceholders) return this.mediumPlaceholders;
+    getCompiled(medium) {
+      // Prefer compiled adaptive homeContent if available
+      if (this._compiled && this._compiled.homeContent) return this._compiled.homeContent;
       const homeMap = (window.ExampleContent && window.ExampleContent.home) || {};
       return homeMap[medium] || homeMap['multi-medium'] || {};
     }
@@ -687,11 +685,19 @@
     }
 
     getSelectedAboutSections() {
-      const { aboutSections } = this.surveyData;
-      return Object.keys(aboutSections).filter(section => aboutSections[section]);
+      // Prefer compiled.aboutContent keys (excluding title/bio)
+      const compiledAbout = this._compiled && this._compiled.aboutContent;
+      if (compiledAbout && typeof compiledAbout === 'object') {
+        return Object.keys(compiledAbout).filter(k => k !== 'title' && k !== 'bio' && compiledAbout[k]);
+      }
+      // Fallback to survey selection if compiled not present
+      const { aboutSections } = this.surveyData || {};
+      return aboutSections ? Object.keys(aboutSections).filter(section => aboutSections[section]) : [];
     }
 
     getAboutSectionContent(section) {
+      const compiledAbout = this._compiled && this._compiled.aboutContent;
+      if (compiledAbout && compiledAbout[section]) return compiledAbout[section];
       const aboutMap = (window.ExampleContent && window.ExampleContent.about) || {};
       return aboutMap[section] || '<p>Content for this section will be customized based on your information.</p>';
     }
