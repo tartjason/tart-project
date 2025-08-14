@@ -25,6 +25,13 @@
       this._compiled = null;
       this.mediumPlaceholders = null;
 
+      // Editable content state
+      this._dirty = {}; // map: path -> { type, value }
+      this._version = 0;
+      this._isSaving = false;
+      this._saveBtn = null;
+      this._saveStatus = null;
+
       // Bridge: expose surveyData through this.surveyData
       Object.defineProperty(this, 'surveyData', {
         get: () => this.survey && this.survey.surveyData,
@@ -59,6 +66,8 @@
             // Clear compiled state on both renderer and survey holder
             if (this.survey) this.survey.compiledJsonPath = null;
             this._compiled = null;
+            this._version = 0;
+            this._dirty = {};
             this.mediumPlaceholders = null;
             this.originalLayout = null;
 
@@ -86,26 +95,55 @@
       const compiledPath = this.survey && this.survey.compiledJsonPath;
       if (compiledPath) {
         try {
-          const res = await fetch(compiledPath, { credentials: 'same-origin' });
+          // Cache-bust to guarantee we never read a stale compiled JSON
+          const vb = (typeof this._version === 'number' && this._version > 0) ? this._version : Date.now();
+          const url = compiledPath + (compiledPath.includes('?') ? '&' : '?') + 'v=' + vb;
+          const res = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
           if (res.ok) {
             const compiled = await res.json();
             this._compiled = compiled;
+            // Track backend version for optimistic concurrency
+            if (compiled && typeof compiled.version === 'number') {
+              this._version = compiled.version;
+            }
             if (compiled && compiled.surveyData && this.surveyData) {
               // Merge minimally to preserve client-side tweaks
               this.surveyData = { ...this.surveyData, ...compiled.surveyData };
             }
             // Prefer new adaptive homeContent over legacy mediumPlaceholders
             this.homeContent = (compiled && compiled.homeContent) || null;
+            try { console.debug('Loaded compiled JSON', { url, version: this._version }); } catch {}
+          } else {
+            // If the compiled file cannot be fetched, reset compiled state
+            console.warn('Compiled JSON fetch not OK, resetting state. Status:', res.status);
+            this._compiled = null;
+            this._version = 0;
+            this.homeContent = null;
+            if (this.survey) this.survey.compiledJsonPath = null;
           }
         } catch (e) {
           console.warn('Failed to fetch compiled JSON, falling back to local data:', e);
+          // Ensure stale compiled cache is cleared on error
+          this._compiled = null;
+          this._version = 0;
+          this.homeContent = null;
         }
+      } else {
+        // No compiled path provided: ensure a clean state for a fresh preview
+        this._compiled = null;
+        this._version = 0;
+        this.homeContent = null;
       }
 
       // Generate preview
       const previewHTML = this.createPreviewHTML();
       if (previewFrame) previewFrame.innerHTML = previewHTML;
       this.applyDataStyles(previewFrame);
+      this.applyDataBindings(previewFrame);
+
+      // Save controls and editable listeners
+      this.setupSaveControls();
+      this.attachEditableListeners(previewFrame);
 
       if (!this.originalLayout) this.originalLayout = previewHTML;
 
@@ -140,6 +178,7 @@
         this.setupPreviewNavigation();
         this.setupGlobalFunctions();
         this.applyDataStyles(previewFrame);
+        this.applyDataBindings(previewFrame);
         const sidePanel = document.getElementById('works-side-panel');
         if (sidePanel) sidePanel.style.display = 'none';
       }
@@ -194,6 +233,72 @@
         });
       } catch (err) {
         console.error('applyDataStyles error:', err);
+      }
+    }
+
+    // Populate elements that declare a data-content-path from compiled JSON
+    applyDataBindings(root) {
+      try {
+        const scope = root && root.querySelectorAll ? root : document;
+        const elements = scope.querySelectorAll('[data-content-path]');
+        if (!elements || elements.length === 0) return;
+
+        // Build a safe data root with fallbacks
+        const compiled = this._compiled || {};
+        const medium = this.surveyData && this.surveyData.medium;
+        const fallbackHome = this.getCompiled ? (this.getCompiled(medium) || {}) : {};
+        const dataRoot = {
+          ...compiled,
+          homeContent: (compiled.homeContent || fallbackHome)
+        };
+
+        elements.forEach(el => {
+          const path = el.getAttribute('data-content-path');
+          if (!path) return;
+          const rawType = el.getAttribute('data-type') || el.getAttribute('data-content-type') || 'text';
+          const type = String(rawType).toLowerCase();
+          const value = this.getValueAtPath(dataRoot, path);
+          // Treat empty strings as "no value" for text/html so we don't clobber defaults
+          const isEmptyString = (typeof value === 'string' && value.trim() === '');
+          if (value == null || (type !== 'imageurl' && type !== 'image' && isEmptyString)) return;
+
+          if (type === 'html') {
+            el.innerHTML = String(value);
+          } else if (type === 'imageurl' || type === 'image') {
+            const url = String(value || '');
+            if (url) {
+              const current = el.getAttribute('style') || '';
+              const separator = current && !current.trim().endsWith(';') ? '; ' : '';
+              const imgStyle = `background-image: url('${url}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
+              el.setAttribute('style', current + separator + imgStyle);
+            } else {
+              // Clear background if empty
+              el.style.backgroundImage = '';
+            }
+          } else {
+            el.textContent = String(value);
+          }
+        });
+      } catch (err) {
+        console.error('applyDataBindings error:', err);
+      }
+    }
+
+    // Resolve deep value from object using dotted/bracket path, e.g.,
+    // "aboutContent.title" or "content.about.workExperience[0].role"
+    getValueAtPath(obj, path) {
+      try {
+        if (!obj || !path) return undefined;
+        // Convert bracket indices to dot form
+        const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+        let cur = obj;
+        for (const p of parts) {
+          if (cur == null) return undefined;
+          cur = cur[p];
+        }
+        return cur;
+      } catch {
+        return undefined;
       }
     }
 
@@ -375,24 +480,30 @@
         <div style="padding: 20px; font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto;">
           <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
             ${logoHTML}
-            <nav style="display: flex; gap: 20px;">
-              ${navItems.map((item, index) => {
-                if (item === 'Works' && this.surveyData.features.works) {
-                  const orgType = this.surveyData.features.worksOrganization;
-                  const orgItems = orgType === 'year' ? this.surveyData.worksDetails.years : this.surveyData.worksDetails.themes;
-                  return `
-                    <div style="position: relative; display: inline-block;">
-                      <a href="#" class="preview-nav-item ${index === 0 ? 'active' : ''}" data-page="${item.toLowerCase()}" style="text-decoration: none; color: ${index === 0 ? '#007bff' : '#333'}; font-weight: ${index === 0 ? 'bold' : 'normal'}; border-bottom: ${index === 0 ? '2px solid #007bff' : 'none'}; padding-bottom: 5px; cursor: pointer;">${item}</a>
-                      <div class="works-dropdown" style="position: absolute; top: 100%; left: 0; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); min-width: 150px; display: none; z-index: 1000;">
-                        ${orgItems.map(orgItem => `<a href="#" class="works-filter" data-filter="${orgItem}" style="display: block; padding: 10px 15px; text-decoration: none; color: #333; border-bottom: 1px solid #eee;">${orgItem}</a>`).join('')}
+            <div style="display:flex; align-items:center; gap:16px;">
+              <nav style="display: flex; gap: 20px;">
+                ${navItems.map((item, index) => {
+                  if (item === 'Works' && this.surveyData.features.works) {
+                    const orgType = this.surveyData.features.worksOrganization;
+                    const orgItems = orgType === 'year' ? this.surveyData.worksDetails.years : this.surveyData.worksDetails.themes;
+                    return `
+                      <div style="position: relative; display: inline-block;">
+                        <a href="#" class="preview-nav-item ${index === 0 ? 'active' : ''}" data-page="${item.toLowerCase()}" style="text-decoration: none; color: ${index === 0 ? '#007bff' : '#333'}; font-weight: ${index === 0 ? 'bold' : 'normal'}; border-bottom: ${index === 0 ? '2px solid #007bff' : 'none'}; padding-bottom: 5px; cursor: pointer;">${item}</a>
+                        <div class="works-dropdown" style="position: absolute; top: 100%; left: 0; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); min-width: 150px; display: none; z-index: 1000;">
+                          ${orgItems.map(orgItem => `<a href="#" class="works-filter" data-filter="${orgItem}" style="display: block; padding: 10px 15px; text-decoration: none; color: #333; border-bottom: 1px solid #eee;">${orgItem}</a>`).join('')}
+                        </div>
                       </div>
-                    </div>
-                  `;
-                } else {
-                  return `<a href="#" class="preview-nav-item ${index === 0 ? 'active' : ''}" data-page="${item.toLowerCase()}" style="text-decoration: none; color: ${index === 0 ? '#007bff' : '#333'}; font-weight: ${index === 0 ? 'bold' : 'normal'}; border-bottom: ${index === 0 ? '2px solid #007bff' : 'none'}; padding-bottom: 5px; cursor: pointer;">${item}</a>`;
-                }
-              }).join('')}
-            </nav>
+                    `;
+                  } else {
+                    return `<a href="#" class="preview-nav-item ${index === 0 ? 'active' : ''}" data-page="${item.toLowerCase()}" style="text-decoration: none; color: ${index === 0 ? '#007bff' : '#333'}; font-weight: ${index === 0 ? 'bold' : 'normal'}; border-bottom: ${index === 0 ? '2px solid #007bff' : 'none'}; padding-bottom: 5px; cursor: pointer;">${item}</a>`;
+                  }
+                }).join('')}
+              </nav>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div id="preview-save-status" style="font-size:0.9rem; color:#666;">All changes saved</div>
+                <button id="preview-save-btn" style="padding:6px 10px; border:1px solid #ccc; border-radius:4px; background:#f7f7f7; color:#333; cursor:not-allowed;" disabled>Save</button>
+              </div>
+            </div>
           </header>
           <main id="preview-content">
             ${this.createHomePreview()}
@@ -485,10 +596,20 @@
     }
 
     getCompiled(medium) {
-      // Prefer compiled adaptive homeContent if available
-      if (this._compiled && this._compiled.homeContent) return this._compiled.homeContent;
+      // Prefer compiled adaptive homeContent if available, but merge over defaults
       const homeMap = (window.ExampleContent && window.ExampleContent.home) || {};
-      return homeMap[medium] || homeMap['multi-medium'] || {};
+      const base = homeMap[medium] || homeMap['multi-medium'] || {};
+      const compiledHome = (this._compiled && this._compiled.homeContent) ? this._compiled.homeContent : null;
+      if (!compiledHome) return base;
+      // Merge, keeping default placeholders when compiled has empty/null
+      const merged = { ...base };
+      Object.keys(compiledHome).forEach(k => {
+        const v = compiledHome[k];
+        if (v != null && !(typeof v === 'string' && v.trim() === '')) {
+          merged[k] = v;
+        }
+      });
+      return merged;
     }
 
     setupPreviewNavigation() {
@@ -527,6 +648,7 @@
 
               previewContent.innerHTML = this.createWorksPreview();
               this.applyDataStyles(previewContent);
+              this.applyDataBindings(previewContent);
               this.setupWorkNavigation();
               this.ensureExternalWorksSidePanel();
               const sidePanel = document.getElementById('works-side-panel');
@@ -561,6 +683,8 @@
           if (page === 'home') {
             previewContent.innerHTML = this.createHomePreview();
             this.applyDataStyles(previewContent);
+            this.applyDataBindings(previewContent);
+            this.attachEditableListeners(previewContent);
             const sidePanel = document.getElementById('works-side-panel');
             const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
             if (sidePanel) sidePanel.style.display = homeLayout === 'grid' ? 'block' : 'none';
@@ -568,11 +692,15 @@
           } else if (page === 'about') {
             previewContent.innerHTML = this.createAboutPreview();
             this.applyDataStyles(previewContent);
+            this.applyDataBindings(previewContent);
+            this.attachEditableListeners(previewContent);
             const sidePanel = document.getElementById('works-side-panel');
             if (sidePanel) sidePanel.style.display = 'none';
           } else if (page === 'works') {
             previewContent.innerHTML = this.createWorksPreview();
             this.applyDataStyles(previewContent);
+            this.applyDataBindings(previewContent);
+            this.attachEditableListeners(previewContent);
             this.setupWorkNavigation();
             this.ensureExternalWorksSidePanel();
             const sidePanel = document.getElementById('works-side-panel');
@@ -581,6 +709,8 @@
           } else {
             previewContent.innerHTML = `<div style="text-align: center; padding: 60px 0;"><h2>${page.charAt(0).toUpperCase() + page.slice(1)} Page</h2><p style="color: #666;">Content coming soon.</p></div>`;
             this.applyDataStyles(previewContent);
+            this.applyDataBindings(previewContent);
+            this.attachEditableListeners(previewContent);
             const sidePanel = document.getElementById('works-side-panel');
             if (sidePanel) sidePanel.style.display = 'none';
           }
@@ -638,6 +768,8 @@
 
       // Keep side panel state consistent when on Works
       this.applyDataStyles(previewContent);
+      this.applyDataBindings(previewContent);
+      this.attachEditableListeners(previewContent);
       if (this.currentPreviewPage === 'works') {
         this.ensureExternalWorksSidePanel();
         const sidePanel = document.getElementById('works-side-panel');
@@ -653,11 +785,24 @@
       if (!previewContent) return;
       previewContent.innerHTML = this.createHomePreview();
       this.applyDataStyles(previewContent);
+      this.applyDataBindings(previewContent);
+      this.attachEditableListeners(previewContent);
       // Keep side panel behavior consistent: only show on Home when layout is grid
       const sidePanel = document.getElementById('works-side-panel');
       const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
       if (sidePanel) sidePanel.style.display = homeLayout === 'grid' ? 'block' : 'none';
       if (homeLayout === 'grid' && window.loadSideGallery) window.loadSideGallery();
+    }
+
+    updateAboutPreview() {
+      const previewContent = document.getElementById('preview-content');
+      if (!previewContent) return;
+      previewContent.innerHTML = this.createAboutPreview();
+      this.applyDataStyles(previewContent);
+      this.applyDataBindings(previewContent);
+      this.attachEditableListeners(previewContent);
+      const sidePanel = document.getElementById('works-side-panel');
+      if (sidePanel) sidePanel.style.display = 'none';
     }
 
     // About
@@ -708,14 +853,18 @@
     }
 
     getSelectedAboutSections() {
-      // Prefer compiled.aboutContent keys (excluding title/bio)
+      // Combine compiled.aboutContent keys (excluding title/bio) with survey selections
       const compiledAbout = this._compiled && this._compiled.aboutContent;
-      if (compiledAbout && typeof compiledAbout === 'object') {
-        return Object.keys(compiledAbout).filter(k => k !== 'title' && k !== 'bio' && compiledAbout[k]);
-      }
-      // Fallback to survey selection if compiled not present
+      const compiledKeys = (compiledAbout && typeof compiledAbout === 'object')
+        ? Object.keys(compiledAbout).filter(k => k !== 'title' && k !== 'bio' && compiledAbout[k])
+        : [];
       const { aboutSections } = this.surveyData || {};
-      return aboutSections ? Object.keys(aboutSections).filter(section => aboutSections[section]) : [];
+      const surveyKeys = aboutSections ? Object.keys(aboutSections).filter(section => aboutSections[section]) : [];
+      const orderedUnion = [];
+      const seen = new Set();
+      compiledKeys.forEach(k => { if (!seen.has(k)) { seen.add(k); orderedUnion.push(k); } });
+      surveyKeys.forEach(k => { if (!seen.has(k)) { seen.add(k); orderedUnion.push(k); } });
+      return orderedUnion;
     }
 
     getAboutSectionContent(section) {
@@ -813,6 +962,141 @@
           <button id="next-work" class="next-work-btn" aria-label="Next" style="position:absolute; right:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;" ${disableAttr}>&gt;</button>
         </div>
       `;
+    }
+
+    // =============================
+    // Editable + Save integration
+    // =============================
+    setupSaveControls() {
+      this._saveBtn = document.getElementById('preview-save-btn');
+      this._saveStatus = document.getElementById('preview-save-status');
+      if (!this._saveBtn) return;
+      this._saveBtn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        await this.handleSaveClick();
+      });
+      this.updateSaveButtonState();
+    }
+
+    updateSaveButtonState() {
+      const hasDirty = Object.keys(this._dirty || {}).length > 0;
+      if (this._saveBtn) {
+        this._saveBtn.disabled = !hasDirty || this._isSaving;
+        this._saveBtn.style.cursor = (!hasDirty || this._isSaving) ? 'not-allowed' : 'pointer';
+      }
+      if (this._saveStatus) {
+        if (this._isSaving) this._saveStatus.textContent = 'Saving...';
+        else if (hasDirty) this._saveStatus.textContent = 'Unsaved changes';
+        else this._saveStatus.textContent = 'All changes saved';
+      }
+    }
+
+    attachEditableListeners(root) {
+      try {
+        const scope = root && root.querySelectorAll ? root : document;
+        const elements = scope.querySelectorAll('[contenteditable][data-content-path]');
+        if (!elements || elements.length === 0) return;
+        elements.forEach((el) => {
+          const onChange = () => {
+            const path = el.getAttribute('data-content-path');
+            if (!path) return;
+            const rawType = el.getAttribute('data-type') || el.getAttribute('data-content-type') || 'text';
+            const type = String(rawType).toLowerCase();
+            const value = type === 'html' ? el.innerHTML : el.textContent;
+            // Update local compiled for instant preview
+            if (!this._compiled) this._compiled = {};
+            this.setValueAtPath(this._compiled, path, value);
+            // Track dirty
+            this._dirty[path] = { type, value };
+            this.updateSaveButtonState();
+          };
+          el.removeEventListener('input', el.__editableInputHandler);
+          el.removeEventListener('blur', el.__editableBlurHandler);
+          el.__editableInputHandler = onChange;
+          el.__editableBlurHandler = onChange;
+          el.addEventListener('input', onChange);
+          el.addEventListener('blur', onChange);
+        });
+      } catch (err) {
+        console.error('attachEditableListeners error:', err);
+      }
+    }
+
+    setValueAtPath(obj, path, value) {
+      if (!obj || !path) return;
+      const parts = [];
+      path.split('.').forEach((seg) => {
+        const m = seg.match(/([^\[]+)(\[(\d+)\])?/);
+        if (!m) return parts.push(seg);
+        parts.push(m[1]);
+        if (m[3] != null) parts.push(Number(m[3]));
+      });
+      let cursor = obj;
+      for (let i = 0; i < parts.length; i++) {
+        const key = parts[i];
+        const last = i === parts.length - 1;
+        if (last) {
+          if (typeof key === 'number') return; // we do not support arrays yet
+          cursor[key] = value;
+        } else {
+          const nextKey = parts[i + 1];
+          if (typeof key === 'number') return; // arrays not supported in step 1
+          if (cursor[key] == null || typeof cursor[key] !== 'object') {
+            cursor[key] = typeof nextKey === 'number' ? [] : {};
+          }
+          cursor = cursor[key];
+        }
+      }
+    }
+
+    async handleSaveClick() {
+      if (this._isSaving) return;
+      const updates = Object.entries(this._dirty || {}).map(([path, { type, value }]) => ({ path, type, value }));
+      if (updates.length === 0) return;
+      this._isSaving = true;
+      this.updateSaveButtonState();
+
+      try {
+        const token = localStorage.getItem('token');
+        const payload = this._version > 0 ? { version: this._version, updates } : { updates };
+        const res = await fetch('/api/website-state/update-content-batch?compile=true', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-auth-token': token || ''
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const msg = await res.text().catch(() => '');
+          throw new Error(msg || 'Save failed');
+        }
+        const data = await res.json();
+        if (data && data.compiled) this._compiled = data.compiled;
+        if (typeof data.version === 'number') this._version = data.version;
+        if (this.survey && data.compiledJsonPath) this.survey.compiledJsonPath = data.compiledJsonPath;
+        // Clear dirty and re-render current page
+        this._dirty = {};
+        const page = this.currentPreviewPage || 'home';
+        if (page === 'home') this.updateHomePreview();
+        else if (page === 'about') this.updateAboutPreview();
+        else if (page === 'works') this.updateWorksPreview();
+        else {
+          // default to re-applying bindings to whatever is there
+          const previewContent = document.getElementById('preview-content');
+          if (previewContent) {
+            this.applyDataStyles(previewContent);
+            this.applyDataBindings(previewContent);
+            this.attachEditableListeners(previewContent);
+          }
+        }
+      } catch (err) {
+        console.error('Save failed:', err);
+        if (this._saveStatus) this._saveStatus.textContent = 'Save failed. Try again';
+      } finally {
+        this._isSaving = false;
+        this.updateSaveButtonState();
+      }
     }
 
     createStyledPreviewHTML() {

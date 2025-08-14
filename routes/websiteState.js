@@ -42,13 +42,31 @@ function isAllowedPath(pathStr) {
         'homeContent.imageUrl',
         'aboutContent.title',
         'aboutContent.bio',
+        'aboutContent.contactInfo',
+        'aboutContent.education',
+        'aboutContent.workExperience',
+        'aboutContent.recentlyFeatured',
+        'aboutContent.selectedExhibition',
+        'aboutContent.selectedPress',
+        'aboutContent.selectedAwards',
+        'aboutContent.selectedProjects',
         'aboutContent.imageUrl'
     ]);
     return allowed.has(pathStr);
 }
 
 function validateTypeForPath(pathStr, type) {
-    const htmlFields = new Set(['aboutContent.bio']);
+    const htmlFields = new Set([
+        'aboutContent.bio',
+        'aboutContent.contactInfo',
+        'aboutContent.education',
+        'aboutContent.workExperience',
+        'aboutContent.recentlyFeatured',
+        'aboutContent.selectedExhibition',
+        'aboutContent.selectedPress',
+        'aboutContent.selectedAwards',
+        'aboutContent.selectedProjects'
+    ]);
     const imageFields = new Set(['homeContent.imageUrl', 'aboutContent.imageUrl']);
     if (htmlFields.has(pathStr)) return type === 'html';
     if (imageFields.has(pathStr)) return type === 'imageUrl' || type === 'text';
@@ -526,6 +544,13 @@ router.post('/start-over', auth, async (req, res) => {
         websiteState.compiledJsonPath = undefined;
         websiteState.compiledAt = undefined;
         websiteState.surveyCompleted = false;
+
+        // Also clear any persisted editable content so a fresh start doesn't reuse prior values
+        // Note: keep other fields (e.g., artworks) intact unless explicitly part of Start Over.
+        websiteState.homeContent = {};
+        websiteState.aboutContent = {};
+        // Reset optimistic concurrency version so clients start from a clean slate
+        websiteState.version = 0;
         await websiteState.save();
 
         return res.json({ msg: 'Start over succeeded' });

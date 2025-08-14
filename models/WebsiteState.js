@@ -60,7 +60,16 @@ const websiteStateSchema = new Schema({
     aboutContent: {
         title: String,
         bio: String, // rich text (HTML)
-        imageUrl: String
+        imageUrl: String,
+        // Additional HTML sections rendered on About page
+        contactInfo: String,
+        education: String,
+        workExperience: String,
+        recentlyFeatured: String,
+        selectedExhibition: String,
+        selectedPress: String,
+        selectedAwards: String,
+        selectedProjects: String
     },
 
     // Editable content for each page

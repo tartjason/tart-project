@@ -17,19 +17,18 @@
     },
     "worksDetails": {
       "years": [
-        2020,
-        2021
+        2020
       ],
       "themes": []
     },
     "aboutSections": {
-      "education": false,
+      "education": true,
       "workExperience": true,
-      "recentlyFeatured": false,
-      "selectedExhibition": false,
-      "selectedPress": false,
-      "selectedAwards": false,
-      "selectedProjects": false,
+      "recentlyFeatured": true,
+      "selectedExhibition": true,
+      "selectedPress": true,
+      "selectedAwards": true,
+      "selectedProjects": true,
       "contactInfo": true
     },
     "style": {
@@ -37,19 +36,19 @@
       "textColor": "#333333",
       "themeColor": "#007bff"
     },
-    "medium": "painting",
+    "medium": "poetry",
     "logo": null
   },
   "content": {
     "homepage": {},
     "about": {
       "contactInfo": {},
+      "awards": [],
       "education": [],
-      "workExperience": [],
       "exhibitions": [],
       "press": [],
-      "awards": [],
-      "projects": []
+      "projects": [],
+      "workExperience": []
     },
     "works": {
       "selectedArtworks": []
@@ -58,24 +57,18 @@
       "process": []
     },
     "exhibition": {
-      "upcomingExhibitions": [],
-      "pastExhibitions": []
+      "pastExhibitions": [],
+      "upcomingExhibitions": []
     }
   },
   "customStyles": {},
   "homeContent": {
-    "imageUrl": "",
-    "title": "Contemporary Painting Studio",
-    "subtitle": "Exploring color, form, and emotion through paint",
-    "description": "My paintings explore the intersection of color and emotion, creating vibrant compositions that speak to the human experience."
+    "title": "\n                 Words & Verses & Love"
   },
   "aboutContent": {
-    "imageUrl": "",
-    "title": "About Me",
-    "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.",
-    "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>\n    ",
-    "contactInfo": "\n      <p>Email: <a href=\"mailto:artist@email.com\" style=\"color: #333;\">artist@email.com</a></p>\n      <p>Phone: [Phone Number]</p>\n      <p>Studio: [Address]</p>\n    "
+    "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques and more.",
+    "education": "\n            \n      <p><strong>2023</strong> - BFA in Fine Arts, [Brown University]</p>\n      <p><strong>2021</strong> - Certificate in Traditional Painting Techniques, [Art School]</p>\n    \n          "
   },
-  "generatedAt": "2025-08-13T09:05:23.030Z",
-  "version": 14
+  "generatedAt": "2025-08-14T15:40:40.272Z",
+  "version": 4
 }
