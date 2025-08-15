@@ -23,7 +23,6 @@
 
       // Compiled data cache
       this._compiled = null;
-      this.mediumPlaceholders = null;
 
       // Editable content state
       this._dirty = {}; // map: path -> { type, value }
@@ -68,7 +67,6 @@
             this._compiled = null;
             this._version = 0;
             this._dirty = {};
-            this.mediumPlaceholders = null;
             this.originalLayout = null;
 
             window.location.reload();
@@ -110,15 +108,12 @@
               // Merge minimally to preserve client-side tweaks
               this.surveyData = { ...this.surveyData, ...compiled.surveyData };
             }
-            // Prefer new adaptive homeContent over legacy mediumPlaceholders
-            this.homeContent = (compiled && compiled.homeContent) || null;
             try { console.debug('Loaded compiled JSON', { url, version: this._version }); } catch {}
           } else {
             // If the compiled file cannot be fetched, reset compiled state
             console.warn('Compiled JSON fetch not OK, resetting state. Status:', res.status);
             this._compiled = null;
             this._version = 0;
-            this.homeContent = null;
             if (this.survey) this.survey.compiledJsonPath = null;
           }
         } catch (e) {
@@ -126,13 +121,11 @@
           // Ensure stale compiled cache is cleared on error
           this._compiled = null;
           this._version = 0;
-          this.homeContent = null;
         }
       } else {
         // No compiled path provided: ensure a clean state for a fresh preview
         this._compiled = null;
         this._version = 0;
-        this.homeContent = null;
       }
 
       // Generate preview
@@ -243,14 +236,8 @@
         const elements = scope.querySelectorAll('[data-content-path]');
         if (!elements || elements.length === 0) return;
 
-        // Build a safe data root with fallbacks
-        const compiled = this._compiled || {};
-        const medium = this.surveyData && this.surveyData.medium;
-        const fallbackHome = this.getCompiled ? (this.getCompiled(medium) || {}) : {};
-        const dataRoot = {
-          ...compiled,
-          homeContent: (compiled.homeContent || fallbackHome)
-        };
+        // Use compiled JSON only (no client-side defaults)
+        const dataRoot = this._compiled || {};
 
         elements.forEach(el => {
           const path = el.getAttribute('data-content-path');
@@ -568,48 +555,34 @@
     }
 
     createSplitHomePreview() {
-      const { medium } = this.surveyData;
-      const mediumContent = this.getCompiled(medium);
       const tpl = this.templates.home.split;
-      const imgUrl = mediumContent && mediumContent.imageUrl;
+      const home = (this._compiled && this._compiled.homeContent) || {};
+      const imgUrl = home.imageUrl;
       const splitStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
       return this.renderTemplate(tpl, {
-        title: mediumContent.title,
-        description: mediumContent.description,
-        explore_text: mediumContent.explore_text || `Explore my collection of ${medium} works, each piece carefully crafted to capture the essence of light, color, and emotion.`,
+        title: home.title || '',
+        description: home.description || '',
+        explore_text: home.explore_text || '',
         split_feature_style: splitStyle
       });
     }
 
     createHeroHomePreview() {
-      const { medium } = this.surveyData;
-      const mediumContent = this.getCompiled(medium);
       const tpl = this.templates.home.hero;
-      const imgUrl = mediumContent && mediumContent.imageUrl;
+      const home = (this._compiled && this._compiled.homeContent) || {};
+      const imgUrl = home.imageUrl;
       const heroStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
       return this.renderTemplate(tpl, {
-        title: mediumContent.title,
-        subtitle: mediumContent.subtitle,
-        hero_description: mediumContent.description,
+        title: home.title || '',
+        subtitle: home.subtitle || '',
+        hero_description: home.description || '',
         hero_style: heroStyle
       });
     }
 
-    getCompiled(medium) {
-      // Prefer compiled adaptive homeContent if available, but merge over defaults
-      const homeMap = (window.ExampleContent && window.ExampleContent.home) || {};
-      const base = homeMap[medium] || homeMap['multi-medium'] || {};
-      const compiledHome = (this._compiled && this._compiled.homeContent) ? this._compiled.homeContent : null;
-      if (!compiledHome) return base;
-      // Merge, keeping default placeholders when compiled has empty/null
-      const merged = { ...base };
-      Object.keys(compiledHome).forEach(k => {
-        const v = compiledHome[k];
-        if (v != null && !(typeof v === 'string' && v.trim() === '')) {
-          merged[k] = v;
-        }
-      });
-      return merged;
+    getCompiled(/* medium */) {
+      // Return compiled home content only (no client-side defaults)
+      return (this._compiled && this._compiled.homeContent) || {};
     }
 
     setupPreviewNavigation() {
@@ -828,8 +801,8 @@
       const compiledAbout = this._compiled && this._compiled.aboutContent;
       const imgUrl = compiledAbout && compiledAbout.imageUrl;
       const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      const aboutTitle = (compiledAbout && compiledAbout.title) || 'About Me';
-      const aboutBio = (compiledAbout && compiledAbout.bio) || 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.';
+      const aboutTitle = (compiledAbout && compiledAbout.title) || '';
+      const aboutBio = (compiledAbout && compiledAbout.bio) || '';
       return this.renderTemplate(tpl, { about_title: aboutTitle, about_bio: aboutBio, about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
     }
 
@@ -847,8 +820,8 @@
       const compiledAbout = this._compiled && this._compiled.aboutContent;
       const imgUrl = compiledAbout && compiledAbout.imageUrl;
       const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      const aboutTitle = (compiledAbout && compiledAbout.title) || 'About Me';
-      const aboutBio = (compiledAbout && compiledAbout.bio) || 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.';
+      const aboutTitle = (compiledAbout && compiledAbout.title) || '';
+      const aboutBio = (compiledAbout && compiledAbout.bio) || '';
       return this.renderTemplate(tpl, { about_title: aboutTitle, about_bio: aboutBio, about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
     }
 
@@ -870,8 +843,7 @@
     getAboutSectionContent(section) {
       const compiledAbout = this._compiled && this._compiled.aboutContent;
       if (compiledAbout && compiledAbout[section]) return compiledAbout[section];
-      const aboutMap = (window.ExampleContent && window.ExampleContent.about) || {};
-      return aboutMap[section] || '<p>Content for this section will be customized based on your information.</p>';
+      return '';
     }
 
     // Works
