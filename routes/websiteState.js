@@ -1,3 +1,29 @@
+// Helper: sanitize worksSelections payload
+// Expected format: { [folderKey: string]: Array< { _id?: string, title?: string, imageUrl?: string } | string > }
+function sanitizeWorksSelections(input) {
+    const out = {};
+    if (!input || typeof input !== 'object') return out;
+    const keys = Object.keys(input);
+    for (const k of keys) {
+        const arr = Array.isArray(input[k]) ? input[k] : [];
+        const cleaned = [];
+        for (const item of arr) {
+            if (item && typeof item === 'object') {
+                const cleanedItem = {};
+                if (typeof item._id === 'string') cleanedItem._id = item._id;
+                if (typeof item.title === 'string') cleanedItem.title = item.title;
+                if (typeof item.imageUrl === 'string') cleanedItem.imageUrl = item.imageUrl;
+                cleaned.push(cleanedItem);
+            } else if (typeof item === 'string') {
+                cleaned.push({ _id: item });
+            }
+            if (cleaned.length >= 200) break; // guardrail per folder
+        }
+        out[k] = cleaned;
+    }
+    return out;
+}
+
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
@@ -50,7 +76,9 @@ function isAllowedPath(pathStr) {
         'aboutContent.selectedPress',
         'aboutContent.selectedAwards',
         'aboutContent.selectedProjects',
-        'aboutContent.imageUrl'
+        'aboutContent.imageUrl',
+        // Works selections persistence (per subpage mapping)
+        'surveyData.worksSelections'
     ]);
     return allowed.has(pathStr);
 }
@@ -68,8 +96,10 @@ function validateTypeForPath(pathStr, type) {
         'aboutContent.selectedProjects'
     ]);
     const imageFields = new Set(['homeContent.imageUrl', 'aboutContent.imageUrl']);
+    const jsonFields = new Set(['surveyData.worksSelections']);
     if (htmlFields.has(pathStr)) return type === 'html';
     if (imageFields.has(pathStr)) return type === 'imageUrl' || type === 'text';
+    if (jsonFields.has(pathStr)) return type === 'json';
     return type === 'text';
 }
 
@@ -282,6 +312,11 @@ function buildCompiledFromState(websiteState) {
     const homeContent = buildHomeContent(layout, mediumData, websiteState.homeContent || {});
     const aboutContent = buildAboutContent(surveyData, websiteState.aboutContent || {});
 
+    // Ensure worksSelections exists in compiled surveyData (default to empty object)
+    if (!surveyData.worksSelections || typeof surveyData.worksSelections !== 'object') {
+        surveyData.worksSelections = {};
+    }
+
     try {
         console.log('[COMPILE] layout=', layout, 'home keys=', Object.keys(homeContent), 'about keys=', Object.keys(aboutContent));
     } catch {}
@@ -413,6 +448,11 @@ router.patch('/survey', auth, async (req, res) => {
                 delete normalized.layouts.about;
             }
         }
+        // Sanitize worksSelections mapping if provided
+        if (normalized && normalized.worksSelections) {
+            normalized.worksSelections = sanitizeWorksSelections(normalized.worksSelections);
+        }
+        if (!normalized.worksSelections) normalized.worksSelections = {};
         
         let websiteState = await WebsiteState.findOne({ artist: req.artist.id });
         
@@ -501,6 +541,9 @@ router.post('/update-content-batch', auth, async (req, res) => {
             }
             let v = value;
             if (type === 'html') v = sanitizeHtmlBasic(String(value ?? ''));
+            if (p === 'surveyData.worksSelections') {
+                v = sanitizeWorksSelections(value);
+            }
 
             // Determine root object (homeContent/aboutContent)
             if (p.startsWith('homeContent.')) {
@@ -509,6 +552,14 @@ router.post('/update-content-batch', auth, async (req, res) => {
             } else if (p.startsWith('aboutContent.')) {
                 if (!websiteState.aboutContent) websiteState.aboutContent = {};
                 setByPath(websiteState.aboutContent, p.replace('aboutContent.', ''), v);
+            } else if (p.startsWith('surveyData.')) {
+                if (!websiteState.surveyData) websiteState.surveyData = {};
+                const key = p.replace('surveyData.', '');
+                if (key === 'worksSelections') {
+                    websiteState.surveyData.worksSelections = v && typeof v === 'object' ? v : {};
+                } else {
+                    setByPath(websiteState.surveyData, key, v);
+                }
             }
         }
 

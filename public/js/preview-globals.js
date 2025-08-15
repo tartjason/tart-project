@@ -135,6 +135,10 @@
           if (!self.surveyData.worksSelections) self.surveyData.worksSelections = {};
           self.surveyData.worksSelections[self.currentWorksFilter] = ordered;
           self.currentSelectedWorkIndex = 0;
+          // Mark worksSelections as dirty so user can Save
+          if (!self._dirty) self._dirty = {};
+          self._dirty['surveyData.worksSelections'] = { type: 'json', value: self.surveyData.worksSelections };
+          if (typeof self.updateSaveButtonState === 'function') self.updateSaveButtonState();
         }
 
         // Quick badge/border UI update
