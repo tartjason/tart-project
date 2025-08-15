@@ -179,6 +179,133 @@ function buildAboutExampleSections() {
     };
 }
 
+// Helper: Build homeContent defaults by layout and merge with persisted, with guards
+function buildHomeContent(layout, mediumData, persistedHome = {}) {
+    let homeContent = {};
+    if (layout === 'hero') {
+        homeContent = {
+            imageUrl: '',
+            title: mediumData.title || '',
+            subtitle: mediumData.subtitle || '',
+            description: mediumData.description || ''
+        };
+    } else if (layout === 'split') {
+        homeContent = {
+            imageUrl: '',
+            title: mediumData.title || '',
+            description: mediumData.description || '',
+            // Medium-friendly copy; falls back to generic if missing
+            explore_text: `Explore my collection of ${(mediumData && mediumData.title ? mediumData.title.toLowerCase() : 'art')} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
+        };
+    } else {
+        // Defaults for other layouts (e.g., grid)
+        homeContent = {
+            imageUrl: '',
+            title: mediumData.title || '',
+            subtitle: mediumData.subtitle || '',
+            description: mediumData.description || ''
+        };
+    }
+    // Clean undefined values from persisted so they don't wipe defaults in JSON.stringify
+    const cleanedPersisted = {};
+    for (const [k, v] of Object.entries(persistedHome || {})) {
+        if (v !== undefined) cleanedPersisted[k] = v;
+    }
+    // Merge persisted edits if present
+    homeContent = { ...homeContent, ...cleanedPersisted };
+    // Enforce per-key defaults (undefined should fall back)
+    const expectedKeys = layout === 'split'
+        ? ['imageUrl', 'title', 'description', 'explore_text']
+        : ['imageUrl', 'title', 'subtitle', 'description'];
+    for (const key of expectedKeys) {
+        if (homeContent[key] === undefined) {
+            if (key === 'imageUrl') homeContent[key] = '';
+            else if (key === 'explore_text') {
+                homeContent[key] = `Explore my collection of ${(mediumData && mediumData.title ? mediumData.title.toLowerCase() : 'art')} works, each piece carefully crafted to capture the essence of light, color, and emotion.`;
+            } else {
+                homeContent[key] = mediumData[key] || '';
+            }
+        }
+    }
+    // Guard against accidental empty object (e.g., all keys undefined and filtered out)
+    if (!homeContent || Object.keys(homeContent).length === 0) {
+        homeContent = {
+            imageUrl: '',
+            title: mediumData.title || '',
+            subtitle: mediumData.subtitle || '',
+            description: mediumData.description || ''
+        };
+    }
+    return homeContent;
+}
+
+// Helper: Build aboutContent from survey selections + defaults + persisted, with guards
+function buildAboutContent(surveyData = {}, persistedAbout = {}) {
+    const aboutExample = buildAboutExampleSections();
+    const aboutSectionsCfg = surveyData.aboutSections || {};
+    const selectedAboutSections = {};
+    Object.keys(aboutSectionsCfg).forEach((key) => {
+        if (aboutSectionsCfg[key]) {
+            selectedAboutSections[key] = aboutExample[key] || '';
+        }
+    });
+    const baseAbout = {
+        imageUrl: '',
+        title: 'About Me',
+        bio: 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.',
+        ...selectedAboutSections
+    };
+    // Clean undefined values so they don't wipe defaults in JSON.stringify
+    const cleanedPersisted = {};
+    for (const [k, v] of Object.entries(persistedAbout || {})) {
+        if (v !== undefined) cleanedPersisted[k] = v;
+    }
+    let aboutContent = { ...baseAbout, ...cleanedPersisted };
+    // Guard + fill missing top-level fields
+    if (!aboutContent || Object.keys(aboutContent).length === 0) {
+        aboutContent = { imageUrl: '', title: 'About Me', bio: baseAbout.bio };
+    } else {
+        if (aboutContent.title == null) aboutContent.title = 'About Me';
+        if (aboutContent.bio == null) aboutContent.bio = baseAbout.bio;
+        if (aboutContent.imageUrl == null) aboutContent.imageUrl = '';
+    }
+    return aboutContent;
+}
+
+// Helper: Build compiled object from WebsiteState
+function buildCompiledFromState(websiteState) {
+    const surveyData = websiteState.surveyData || {};
+    const medium = surveyData && surveyData.medium;
+    const layout = (surveyData.layouts && surveyData.layouts.homepage) || 'grid';
+    const mediumData = buildMediumPlaceholders(medium);
+
+    const homeContent = buildHomeContent(layout, mediumData, websiteState.homeContent || {});
+    const aboutContent = buildAboutContent(surveyData, websiteState.aboutContent || {});
+
+    try {
+        console.log('[COMPILE] layout=', layout, 'home keys=', Object.keys(homeContent), 'about keys=', Object.keys(aboutContent));
+    } catch {}
+
+    return {
+        surveyData,
+        content: websiteState.content || {},
+        customStyles: websiteState.customStyles || {},
+        homeContent,
+        aboutContent,
+        generatedAt: new Date().toISOString(),
+        version: websiteState.version
+    };
+}
+
+// Helper: Write compiled JSON to disk under public/sites/<artistId>/site.json
+function writeCompiledJson(artistId, compiled) {
+    const outDir = path.join(__dirname, '..', 'public', 'sites', String(artistId));
+    fs.mkdirSync(outDir, { recursive: true });
+    const outFile = path.join(outDir, 'site.json');
+    fs.writeFileSync(outFile, JSON.stringify(compiled, null, 2), 'utf8');
+    return outFile;
+}
+
 // @route   GET /api/website-state
 // @desc    Get user's website state
 // @access  Private
@@ -316,68 +443,11 @@ router.post('/compile', auth, async (req, res) => {
         if (!websiteState) {
             return res.status(404).json({ msg: 'Website state not found' });
         }
+        // Build compiled JSON from current state using shared helpers
+        const compiled = buildCompiledFromState(websiteState);
 
-        // Build compiled JSON from current state
-        const surveyData = websiteState.surveyData || {};
-        const medium = surveyData && surveyData.medium;
-        const layout = (surveyData.layouts && surveyData.layouts.homepage) || 'grid';
-        // Pull example data for the selected medium (kept in sync with public/js/exampleContent.js)
-        const mediumData = buildMediumPlaceholders(medium);
-
-        // Adaptive homeContent based on selected home layout
-        let homeContent = {};
-        if (layout === 'hero') {
-            homeContent = {
-                imageUrl: '',
-                title: mediumData.title || '',
-                subtitle: mediumData.subtitle || '',
-                description: mediumData.description || ''
-            };
-        } else if (layout === 'split') {
-            homeContent = {
-                imageUrl: '',
-                title: mediumData.title || '',
-                description: mediumData.description || '',
-                explore_text: `Explore my collection of ${medium || 'art'} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
-            };
-        }
-        // Merge persisted edits if present
-        const persistedHome = websiteState.homeContent || {};
-        homeContent = { ...homeContent, ...persistedHome };
-
-        // Build aboutContent based on selected sections from survey and example content
-        const aboutExample = buildAboutExampleSections();
-        const aboutSectionsCfg = (surveyData.aboutSections) || {};
-        const selectedAboutSections = {};
-        Object.keys(aboutSectionsCfg).forEach((key) => {
-            if (aboutSectionsCfg[key]) {
-                selectedAboutSections[key] = aboutExample[key] || '';
-            }
-        });
-        const baseAbout = {
-            imageUrl: '',
-            title: 'About Me',
-            bio: 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.',
-            ...selectedAboutSections
-        };
-        const persistedAbout = websiteState.aboutContent || {};
-        const aboutContent = { ...baseAbout, ...persistedAbout };
-
-        const compiled = {
-            surveyData: surveyData,
-            content: websiteState.content || {},
-            customStyles: websiteState.customStyles || {},
-            homeContent,
-            aboutContent,
-            generatedAt: new Date().toISOString(),
-            version: websiteState.version
-        };
-
-        // Ensure output directory exists under public
-        const outDir = path.join(__dirname, '..', 'public', 'sites', String(req.artist.id));
-        fs.mkdirSync(outDir, { recursive: true });
-        const outFile = path.join(outDir, 'site.json');
-        fs.writeFileSync(outFile, JSON.stringify(compiled, null, 2), 'utf8');
+        // Write compiled JSON to disk
+        writeCompiledJson(req.artist.id, compiled);
 
         // Update state with compiled path + flags
         websiteState.compiledJsonPath = `/sites/${req.artist.id}/site.json`;
@@ -449,59 +519,11 @@ router.post('/update-content-batch', auth, async (req, res) => {
             return res.json({ version: websiteState.version });
         }
 
-        // Build compiled JSON (reuse compile logic inline)
-        const surveyData = websiteState.surveyData || {};
-        const medium = surveyData && surveyData.medium;
-        const layout = (surveyData.layouts && surveyData.layouts.homepage) || 'grid';
-        const mediumData = buildMediumPlaceholders(medium);
-        let homeContent = {};
-        if (layout === 'hero') {
-            homeContent = {
-                imageUrl: '',
-                title: mediumData.title || '',
-                subtitle: mediumData.subtitle || '',
-                description: mediumData.description || ''
-            };
-        } else if (layout === 'split') {
-            homeContent = {
-                imageUrl: '',
-                title: mediumData.title || '',
-                description: mediumData.description || '',
-                explore_text: `Explore my collection of ${medium || 'art'} works, each piece carefully crafted to capture the essence of light, color, and emotion.`
-            };
-        }
-        homeContent = { ...homeContent, ...(websiteState.homeContent || {}) };
+        // Build compiled JSON using shared helpers
+        const compiled = buildCompiledFromState(websiteState);
 
-        const aboutExample = buildAboutExampleSections();
-        const aboutSectionsCfg = (surveyData.aboutSections) || {};
-        const selectedAboutSections = {};
-        Object.keys(aboutSectionsCfg).forEach((key) => {
-            if (aboutSectionsCfg[key]) {
-                selectedAboutSections[key] = aboutExample[key] || '';
-            }
-        });
-        const baseAbout = {
-            imageUrl: '',
-            title: 'About Me',
-            bio: 'I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.',
-            ...selectedAboutSections
-        };
-        const aboutContent = { ...baseAbout, ...(websiteState.aboutContent || {}) };
-
-        const compiled = {
-            surveyData: surveyData,
-            content: websiteState.content || {},
-            customStyles: websiteState.customStyles || {},
-            homeContent,
-            aboutContent,
-            generatedAt: new Date().toISOString(),
-            version: websiteState.version
-        };
-
-        const outDir = path.join(__dirname, '..', 'public', 'sites', String(req.artist.id));
-        fs.mkdirSync(outDir, { recursive: true });
-        const outFile = path.join(outDir, 'site.json');
-        fs.writeFileSync(outFile, JSON.stringify(compiled, null, 2), 'utf8');
+        // Write compiled JSON to disk
+        writeCompiledJson(req.artist.id, compiled);
 
         websiteState.compiledJsonPath = `/sites/${req.artist.id}/site.json`;
         websiteState.compiledAt = new Date();
@@ -549,7 +571,7 @@ router.post('/start-over', auth, async (req, res) => {
         // Note: keep other fields (e.g., artworks) intact unless explicitly part of Start Over.
         websiteState.homeContent = {};
         websiteState.aboutContent = {};
-        // Reset optimistic concurrency version so clients start from a clean slate
+        // Reset optimistic concurrency version to 0 so the first compile after Start Over is version 1
         websiteState.version = 0;
         await websiteState.save();
 
