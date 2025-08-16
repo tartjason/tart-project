@@ -802,7 +802,7 @@
         : `${hero}${titleHtml}`;
 
       return `
-        <div style="position:relative; display:flex; align-items:center; justify-content:center; min-height:60vh;">
+        <div style="position:relative; display:flex; align-items:center; justify-content:center; min-height:60vh; padding:0 80px; box-sizing:border-box;">
           <button id="prev-work" class="prev-work-btn" aria-label="Previous" style="position:absolute; left:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;" ${disableAttr}>&lt;</button>
           <div class="artwork-content" style="max-width: min(80vw, 960px);">
             ${content}
