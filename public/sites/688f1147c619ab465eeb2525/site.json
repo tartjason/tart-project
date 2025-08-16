@@ -17,13 +17,13 @@
     },
     "worksDetails": {
       "years": [
-        2020
+        2028
       ],
       "themes": []
     },
     "aboutSections": {
       "education": false,
-      "workExperience": true,
+      "workExperience": false,
       "recentlyFeatured": false,
       "selectedExhibition": false,
       "selectedPress": false,
@@ -36,8 +36,28 @@
       "textColor": "#333333",
       "themeColor": "#007bff"
     },
-    "medium": "photography",
-    "worksSelections": {},
+    "medium": "poetry",
+    "worksSelections": {
+      "2028": [
+        {
+          "_id": "68904099b30b8e738b17044c",
+          "title": "on living",
+          "imageUrl": "/uploads/artworkImage-1754284185607.png"
+        },
+        {
+          "_id": "68902b961764b474cf58a910",
+          "title": "sheep",
+          "imageUrl": "/uploads/artworkImage-1754278806227.jpg"
+        }
+      ]
+    },
+    "homeSelections": [
+      {
+        "_id": "688f27be2476c4a981871474",
+        "title": "1",
+        "imageUrl": "/uploads/artworkImage-1754212286144.png"
+      }
+    ],
     "logo": null
   },
   "content": {
@@ -65,16 +85,22 @@
   "customStyles": {},
   "homeContent": {
     "imageUrl": "",
-    "title": "Visual Storytelling",
-    "subtitle": "Capturing moments that matter",
-    "description": "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary."
+    "title": "Words & Verses",
+    "subtitle": "Poetry that speaks to the soul",
+    "description": "My poetry explores themes of love, loss, hope, and the human condition through carefully crafted verses.",
+    "homeSelections": [
+      {
+        "_id": "688f27be2476c4a981871474",
+        "title": "1",
+        "imageUrl": "/uploads/artworkImage-1754212286144.png"
+      }
+    ]
   },
   "aboutContent": {
     "imageUrl": "",
     "title": "About Me",
-    "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.",
-    "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>\n    "
+    "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques."
   },
-  "generatedAt": "2025-08-16T03:58:30.785Z",
-  "version": 1
+  "generatedAt": "2025-08-16T05:28:53.070Z",
+  "version": 7
 }

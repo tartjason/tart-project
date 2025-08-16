@@ -5,21 +5,33 @@ function sanitizeWorksSelections(input) {
     if (!input || typeof input !== 'object') return out;
     const keys = Object.keys(input);
     for (const k of keys) {
-        const arr = Array.isArray(input[k]) ? input[k] : [];
-        const cleaned = [];
-        for (const item of arr) {
-            if (item && typeof item === 'object') {
-                const cleanedItem = {};
-                if (typeof item._id === 'string') cleanedItem._id = item._id;
-                if (typeof item.title === 'string') cleanedItem.title = item.title;
-                if (typeof item.imageUrl === 'string') cleanedItem.imageUrl = item.imageUrl;
-                cleaned.push(cleanedItem);
-            } else if (typeof item === 'string') {
-                cleaned.push({ _id: item });
-            }
-            if (cleaned.length >= 200) break; // guardrail per folder
-        }
-        out[k] = cleaned;
+        out[k] = sanitizeArtworkArray(input[k]);
+    }
+    return out;
+}
+
+// Helper: normalize a single artwork item or id
+function sanitizeArtworkItem(item) {
+    if (item && typeof item === 'object') {
+        const cleaned = {};
+        if (typeof item._id === 'string') cleaned._id = item._id;
+        if (typeof item.title === 'string') cleaned.title = item.title;
+        if (typeof item.imageUrl === 'string') cleaned.imageUrl = item.imageUrl;
+        return cleaned;
+    } else if (typeof item === 'string') {
+        return { _id: item };
+    }
+    return null;
+}
+
+// Helper: sanitize array of artworks or ids (for homeSelections)
+function sanitizeArtworkArray(input) {
+    const out = [];
+    const arr = Array.isArray(input) ? input : [];
+    for (const item of arr) {
+        const cleaned = sanitizeArtworkItem(item);
+        if (cleaned) out.push(cleaned);
+        if (out.length >= 200) break; // guardrail overall
     }
     return out;
 }

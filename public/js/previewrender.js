@@ -414,6 +414,39 @@
       });
     }
 
+    createGridHomePreview() {
+      const tpl = this.templates.home.grid;
+      const compiledHome = (this._compiled && this._compiled.homeContent) || {};
+      const compiledSel = Array.isArray(compiledHome.homeSelections) ? compiledHome.homeSelections : [];
+      const localSel = Array.isArray(this.surveyData && this.surveyData.homeSelections) ? this.surveyData.homeSelections : [];
+      // Prefer unsaved local changes, otherwise compiled selections, otherwise local
+      let selection = localSel;
+      if (this._dirty && this._dirty['surveyData.homeSelections'] && Array.isArray(this._dirty['surveyData.homeSelections'].value)) {
+        selection = this._dirty['surveyData.homeSelections'].value;
+      } else if (compiledSel && compiledSel.length > 0) {
+        selection = compiledSel;
+      }
+      const hasSelection = Array.isArray(selection) && selection.length > 0;
+      const gridItems = (selection || []).map(a => {
+        const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
+        const title = (a && a.title) || 'Untitled';
+        const safeTitle = String(title).replace(/"/g,'&quot;');
+        const img = a && a.imageUrl
+          ? `<img src="${a.imageUrl}" alt="${safeTitle}" style="display:block; width:100%; height:auto;">`
+          : `<div style="display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;">${safeTitle}</div>`;
+        return `
+          <a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">
+            <div style="background:#fff;">
+              ${img}
+              <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div>
+            </div>
+          </a>
+        `;
+      }).join('');
+      const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected. Use the side panel to add artworks.</div>`;
+      return this.renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
+    }
+
     getCompiled(/* medium */) {
       // Return compiled home content only (no client-side defaults)
       return (this._compiled && this._compiled.homeContent) || {};
