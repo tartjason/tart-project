@@ -127,6 +127,10 @@
           const ordered = artworks.filter(x => x && x._id && set.has(x._id));
           self.surveyData.homeSelections = ordered;
           self.currentSelectedWorkIndex = 0;
+          // Mark homeSelections as dirty so user can Save
+          if (!self._dirty) self._dirty = {};
+          self._dirty['surveyData.homeSelections'] = { type: 'json', value: self.surveyData.homeSelections };
+          if (typeof self.updateSaveButtonState === 'function') self.updateSaveButtonState();
         } else {
           const currentArr = ((self.surveyData.worksSelections && self.surveyData.worksSelections[self.currentWorksFilter]) || []);
           const set = new Set(currentArr.map(x => x && x._id));

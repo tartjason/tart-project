@@ -388,22 +388,6 @@
       return this.createGridHomePreview();
     }
 
-    createGridHomePreview() {
-      const tpl = this.templates.home.grid;
-      const selected = Array.isArray(this.surveyData.homeSelections) ? this.surveyData.homeSelections : [];
-      const hasSelection = selected.length > 0;
-      const gridItems = (selected || []).map(a => `
-        <div style="background:#fff;">
-          ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
-            <div style=\"display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;\">${(a.title||'Untitled')}</div>
-          `}
-          <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.title || 'Untitled'}</div>
-        </div>
-      `).join('');
-      const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected. Use the side panel below to add artworks.</div>`;
-      return this.renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
-    }
-
     createSplitHomePreview() {
       const tpl = this.templates.home.split;
       const home = (this._compiled && this._compiled.homeContent) || {};
@@ -750,14 +734,19 @@
       const tpl = this.templates.works.grid;
       const selection = this.getCurrentFolderSelection() || [];
       const hasSelection = selection.length > 0;
-      const gridItems = selection.map(a => `
-        <div style="background:#fff;">
-          ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
-            <div style=\"display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;\">${(a.title||'Untitled')}</div>
-          `}
-          <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.title || 'Untitled'}</div>
-        </div>
-      `).join('');
+      const gridItems = selection.map(a => {
+        const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
+        return `
+        <a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">
+          <div style="background:#fff;">
+            ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
+              <div style=\"display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;\">${(a.title||'Untitled')}</div>
+            `}
+            <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.title || 'Untitled'}</div>
+          </div>
+        </a>
+      `;
+      }).join('');
       const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected. Use the side panel to add artworks.</div>`;
       return this.renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
     }
@@ -773,13 +762,17 @@
             : `<div style=\"text-align:center; color:#999;\">${(a.title||'Untitled')}</div>`)
         : `<div style=\"text-align:center; color:#999;\">No artwork selected. Use the side panel below to add artworks.</div>`;
       const disableAttr = n <= 1 ? 'disabled' : '';
+      const linkHref = a && a._id ? `/artwork.html?id=${encodeURIComponent(a._id)}` : null;
+      const titleHtml = a ? `<div style=\"text-align:center; margin-top:12px; color:#7a2ea6; font-size:0.9rem;\">${a.title || 'Untitled'}</div>` : '';
+      const content = a && linkHref
+        ? `<a href="${linkHref}" style="text-decoration:none; color:inherit;">${hero}${titleHtml}</a>`
+        : `${hero}${titleHtml}`;
 
       return `
         <div style="position:relative; display:flex; align-items:center; justify-content:center; min-height:60vh;">
           <button id="prev-work" class="prev-work-btn" aria-label="Previous" style="position:absolute; left:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;" ${disableAttr}>&lt;</button>
           <div class="artwork-content" style="max-width: min(80vw, 960px);">
-            ${hero}
-            ${a ? `<div style=\"text-align:center; margin-top:12px; color:#7a2ea6; font-size:0.9rem;\">${a.title || 'Untitled'}</div>` : ''}
+            ${content}
           </div>
           <button id="next-work" class="next-work-btn" aria-label="Next" style="position:absolute; right:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;" ${disableAttr}>&gt;</button>
         </div>

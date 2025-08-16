@@ -78,7 +78,9 @@ function isAllowedPath(pathStr) {
         'aboutContent.selectedProjects',
         'aboutContent.imageUrl',
         // Works selections persistence (per subpage mapping)
-        'surveyData.worksSelections'
+        'surveyData.worksSelections',
+        // Home selections persistence (homepage grid)
+        'surveyData.homeSelections'
     ]);
     return allowed.has(pathStr);
 }
@@ -96,7 +98,7 @@ function validateTypeForPath(pathStr, type) {
         'aboutContent.selectedProjects'
     ]);
     const imageFields = new Set(['homeContent.imageUrl', 'aboutContent.imageUrl']);
-    const jsonFields = new Set(['surveyData.worksSelections']);
+    const jsonFields = new Set(['surveyData.worksSelections', 'surveyData.homeSelections']);
     if (htmlFields.has(pathStr)) return type === 'html';
     if (imageFields.has(pathStr)) return type === 'imageUrl' || type === 'text';
     if (jsonFields.has(pathStr)) return type === 'json';
@@ -316,6 +318,17 @@ function buildCompiledFromState(websiteState) {
     if (!surveyData.worksSelections || typeof surveyData.worksSelections !== 'object') {
         surveyData.worksSelections = {};
     }
+    // Ensure homeSelections exists in compiled surveyData (default to empty array)
+    if (!Array.isArray(surveyData.homeSelections)) {
+        surveyData.homeSelections = [];
+    }
+
+    // Mirror homeSelections into compiled.homeContent when homepage layout is grid
+    if (layout === 'grid') {
+        try {
+            homeContent.homeSelections = Array.isArray(surveyData.homeSelections) ? surveyData.homeSelections : [];
+        } catch {}
+    }
 
     try {
         console.log('[COMPILE] layout=', layout, 'home keys=', Object.keys(homeContent), 'about keys=', Object.keys(aboutContent));
@@ -453,6 +466,11 @@ router.patch('/survey', auth, async (req, res) => {
             normalized.worksSelections = sanitizeWorksSelections(normalized.worksSelections);
         }
         if (!normalized.worksSelections) normalized.worksSelections = {};
+        // Sanitize homeSelections (ordered array) if provided
+        if (normalized && normalized.homeSelections) {
+            normalized.homeSelections = sanitizeArtworkArray(normalized.homeSelections);
+        }
+        if (!Array.isArray(normalized.homeSelections)) normalized.homeSelections = [];
         
         let websiteState = await WebsiteState.findOne({ artist: req.artist.id });
         
@@ -544,6 +562,9 @@ router.post('/update-content-batch', auth, async (req, res) => {
             if (p === 'surveyData.worksSelections') {
                 v = sanitizeWorksSelections(value);
             }
+            if (p === 'surveyData.homeSelections') {
+                v = sanitizeArtworkArray(value);
+            }
 
             // Determine root object (homeContent/aboutContent)
             if (p.startsWith('homeContent.')) {
@@ -557,6 +578,8 @@ router.post('/update-content-batch', auth, async (req, res) => {
                 const key = p.replace('surveyData.', '');
                 if (key === 'worksSelections') {
                     websiteState.surveyData.worksSelections = v && typeof v === 'object' ? v : {};
+                } else if (key === 'homeSelections') {
+                    websiteState.surveyData.homeSelections = Array.isArray(v) ? v : [];
                 } else {
                     setByPath(websiteState.surveyData, key, v);
                 }

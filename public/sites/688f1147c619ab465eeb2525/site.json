@@ -9,15 +9,15 @@
       "exhibition": false
     },
     "layouts": {
-      "homepage": "hero",
+      "homepage": "grid",
       "about": "vertical",
-      "works": "grid",
+      "works": "single",
       "commission": null,
       "exhibition": null
     },
     "worksDetails": {
       "years": [
-        1997
+        2020
       ],
       "themes": []
     },
@@ -36,16 +36,8 @@
       "textColor": "#333333",
       "themeColor": "#007bff"
     },
-    "medium": "multi-medium",
-    "worksSelections": {
-      "1997": [
-        {
-          "_id": "68902b961764b474cf58a910",
-          "title": "sheep",
-          "imageUrl": "/uploads/artworkImage-1754278806227.jpg"
-        }
-      ]
-    },
+    "medium": "photography",
+    "worksSelections": {},
     "logo": null
   },
   "content": {
@@ -73,9 +65,9 @@
   "customStyles": {},
   "homeContent": {
     "imageUrl": "",
-    "title": "Mixed Media Art",
-    "subtitle": "Exploring creativity across mediums",
-    "description": "My work spans multiple mediums, combining traditional and contemporary techniques to create unique artistic expressions."
+    "title": "Visual Storytelling",
+    "subtitle": "Capturing moments that matter",
+    "description": "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary."
   },
   "aboutContent": {
     "imageUrl": "",
@@ -83,6 +75,6 @@
     "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.",
     "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>\n    "
   },
-  "generatedAt": "2025-08-15T07:26:39.917Z",
-  "version": 3
+  "generatedAt": "2025-08-16T03:58:30.785Z",
+  "version": 1
 }

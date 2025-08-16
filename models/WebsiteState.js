@@ -35,6 +35,8 @@ const websiteStateSchema = new Schema({
         // Items may be stored as full artwork stubs ({ _id, title, imageUrl })
         // or as ObjectId strings. We normalize on input.
         worksSelections: Schema.Types.Mixed,
+        // Homepage grid selections: ordered array of artwork stubs or ids
+        homeSelections: Schema.Types.Mixed,
         aboutSections: {
             education: { type: Boolean, default: false },
             workExperience: { type: Boolean, default: false },
