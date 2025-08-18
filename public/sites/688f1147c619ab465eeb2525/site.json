@@ -9,7 +9,7 @@
       "exhibition": false
     },
     "layouts": {
-      "homepage": "split",
+      "homepage": "hero",
       "about": "vertical",
       "works": "single",
       "commission": null,
@@ -25,10 +25,10 @@
       "education": false,
       "workExperience": true,
       "recentlyFeatured": false,
-      "selectedExhibition": false,
+      "selectedExhibition": true,
       "selectedPress": false,
       "selectedAwards": false,
-      "selectedProjects": false,
+      "selectedProjects": true,
       "contactInfo": false
     },
     "style": {
@@ -37,20 +37,7 @@
       "themeColor": "#007bff"
     },
     "medium": "poetry",
-    "worksSelections": {
-      "2021": [
-        {
-          "_id": "68902b961764b474cf58a910",
-          "title": "sheep",
-          "imageUrl": "/uploads/artworkImage-1754278806227.jpg"
-        },
-        {
-          "_id": "688f27be2476c4a981871474",
-          "title": "1",
-          "imageUrl": "/uploads/artworkImage-1754212286144.png"
-        }
-      ]
-    },
+    "worksSelections": {},
     "homeSelections": [],
     "logo": null
   },
@@ -80,15 +67,17 @@
   "homeContent": {
     "imageUrl": "",
     "title": "Words & Verses",
-    "description": "My poetry explores themes of love, loss, hope, and the human condition through carefully crafted verses.",
-    "explore_text": "Explore my collection of words & verses works, each piece carefully crafted to capture the essence of light, color, and emotion."
+    "subtitle": "Poetry that speaks to the soul",
+    "description": "My poetry explores themes of love, loss, hope, and the human condition through carefully crafted verses."
   },
   "aboutContent": {
     "imageUrl": "",
     "title": "About Me",
     "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.",
-    "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>\n    "
+    "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>\n    ",
+    "selectedExhibition": "\n      <p><strong>2024</strong> - \"Contemporary Visions\" Group Show, [Gallery Name]</p>\n      <p><strong>2023</strong> - \"Emerging Artists\" Solo Exhibition, [Gallery Name]</p>\n    ",
+    "selectedProjects": "\n      <p><strong>2024</strong> - Community Mural Project</p>\n      <p><strong>2023</strong> - Artist Talk at [Institution]</p>\n    "
   },
-  "generatedAt": "2025-08-18T03:32:38.534Z",
-  "version": 2
+  "generatedAt": "2025-08-18T10:14:06.775Z",
+  "version": 1
 }

@@ -437,6 +437,10 @@
                                             <button type="button" class="btn" id="revert-preview">Revert</button>
                                         </div>
                                     </div>
+                                    <div class="preview-save-bar" style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin:8px 0;">
+                                        <div id="preview-save-status" style="font-size:0.9rem; color:#666;">All changes saved</div>
+                                        <button id="preview-save-btn" style="padding:6px 10px; border:1px solid #ccc; border-radius:4px; background:#f7f7f7; color:#333; cursor:not-allowed;" disabled>Save</button>
+                                    </div>
                                     <div class="preview-frame" id="website-preview">
                                         <!-- Website preview will be generated here -->
                                     </div>
@@ -495,11 +499,12 @@
         </div>
     </main>
 
-    <script src="js/exampleContent.js"></script>
-    <script src="js/runtime-renderer.js"></script>
-    <script src="js/previewrender.js"></script>
-    <script src="js/preview-editable.js"></script>
-    <script src="js/preview-globals.js"></script>
-    <script src="js/survey.js"></script>
+    <script src="js/siteBuilding/exampleContent.js"></script>
+    <script src="js/siteBuilding/runtime-renderer.js"></script>
+    <script src="js/siteBuilding/site-header.js"></script>
+    <script src="js/siteBuilding/previewrender.js"></script>
+    <script src="js/siteBuilding/preview-editable.js"></script>
+    <script src="js/siteBuilding/preview-globals.js"></script>
+    <script src="js/siteBuilding/survey.js"></script>
 </body>
 </html>

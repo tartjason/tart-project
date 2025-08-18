@@ -61,6 +61,13 @@
     return [];
   }
 
+  function pickWorksSelectionByFilter(compiled, filter) {
+    const ws = (compiled && compiled.surveyData && compiled.surveyData.worksSelections) || {};
+    if (!filter) return pickWorksSelection(compiled);
+    const arr = normalizeArtworks(ws[filter]);
+    return arr.length ? arr : pickWorksSelection(compiled);
+  }
+
   function buildStateFor(page, compiled) {
     if (page === 'home') {
       return { homeSelections: normalizeArtworks(compiled && compiled.surveyData && compiled.surveyData.homeSelections) };
@@ -143,20 +150,55 @@
       return;
     }
 
-    const layout = getLayoutFor(page, compiled);
-    const state = buildStateFor(page, compiled);
+    // Render shared header
+    try {
+      const headerMount = document.getElementById('site-header');
+      if (headerMount && window.SiteHeader && window.SiteHeader.render) {
+        const sd = (compiled && compiled.surveyData) || {};
+        headerMount.innerHTML = window.SiteHeader.render({
+          features: sd.features || {},
+          worksOrganization: sd.features && sd.features.worksOrganization,
+          worksDetails: sd.worksDetails || {},
+          activePage: page,
+          logo: sd.logo || null
+        });
+        if (window.SiteHeader.updateLogoFromUserIfAvailable) {
+          window.SiteHeader.updateLogoFromUserIfAvailable(document);
+        }
+      }
+    } catch (e) { console.warn('Header render failed:', e); }
 
-    const html = window.RuntimeRenderer.renderPage(page, layout, compiled, compiled && compiled.surveyData, state);
     const mount = root;
-    mount.innerHTML = html;
 
-    // One-time style + data bindings
-    window.RuntimeRenderer.applyDataStyles(mount);
-    window.RuntimeRenderer.applyDataBindings(mount, compiled);
-    disableEditing(mount);
+    function renderAndBind(targetPage, params) {
+      const layout = getLayoutFor(targetPage, compiled);
+      const baseState = buildStateFor(targetPage, compiled);
+      const state = { ...baseState };
+      if (targetPage === 'works' && params && params.filter) {
+        state.worksSelection = pickWorksSelectionByFilter(compiled, params.filter);
+        state.worksIndex = 0;
+      }
+      const html = window.RuntimeRenderer.renderPage(targetPage, layout, compiled, compiled && compiled.surveyData, state);
+      mount.innerHTML = html;
+      window.RuntimeRenderer.applyDataStyles(mount);
+      window.RuntimeRenderer.applyDataBindings(mount, compiled);
+      disableEditing(mount);
+      attachWorksSingleNav(document, compiled, state, layout, targetPage, mount);
+    }
 
-    // Lightweight interactions
-    attachWorksSingleNav(document, compiled, state, layout, page, mount);
+    // Initial render
+    renderAndBind(page, {});
+
+    // Wire navigation via shared header (SPA-like)
+    try {
+      if (window.SiteHeader && window.SiteHeader.attachNavigation) {
+        window.SiteHeader.attachNavigation(document, {
+          onNavigate: (nextPage, params) => {
+            renderAndBind(nextPage, params);
+          }
+        });
+      }
+    } catch (e) { console.warn('Header navigation wiring failed:', e); }
   }
 
   document.addEventListener('DOMContentLoaded', bootstrap);

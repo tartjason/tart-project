@@ -133,6 +133,12 @@
       if (previewFrame) previewFrame.innerHTML = previewHTML;
       this.applyDataStyles(previewFrame);
       this.applyDataBindings(previewFrame);
+      // Update header title from logged-in user if possible using shared module
+      try {
+        const SH = window.SiteHeader;
+        if (SH && SH.updateLogoFromUserIfAvailable) SH.updateLogoFromUserIfAvailable(previewFrame);
+        else this.updateLogoFromUserIfAvailable(previewFrame);
+      } catch {}
 
       // Save controls and editable listeners
       this.setupSaveControls();
@@ -258,50 +264,48 @@
 
     // High-level preview HTML wrapper
     createPreviewHTML() {
-      const { medium, features, logo } = this.surveyData;
-      const navItems = [];
-      if (features.home) navItems.push('Home');
-      if (features.works) navItems.push('Works');
-      if (features.about) navItems.push('About');
-      if (features.commission) navItems.push('Commission');
-      if (features.exhibition) navItems.push('Exhibition');
-
-      const logoHTML = logo ? `<img src="${logo.dataUrl}" alt="Logo" style="max-height: 40px;">` : '<div style="font-weight: bold;">Your Portfolio</div>';
+      const { features, logo } = this.surveyData;
+      const SH = window.SiteHeader;
+      let headerHTML = '';
+      if (SH && SH.render) {
+        headerHTML = SH.render({
+          features: features || {},
+          worksOrganization: features && features.worksOrganization,
+          worksDetails: (this.surveyData && this.surveyData.worksDetails) || {},
+          activePage: 'home',
+          logo: logo || null
+        });
+      }
 
       return `
         <div style="padding: 20px; font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto;">
-          <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #eee; padding-bottom: 20px;">
-            ${logoHTML}
-            <div style="display:flex; align-items:center; gap:16px;">
-              <nav style="display: flex; gap: 20px;">
-                ${navItems.map((item, index) => {
-                  if (item === 'Works' && this.surveyData.features.works) {
-                    const orgType = this.surveyData.features.worksOrganization;
-                    const orgItems = orgType === 'year' ? this.surveyData.worksDetails.years : this.surveyData.worksDetails.themes;
-                    return `
-                      <div style="position: relative; display: inline-block;">
-                        <a href="#" class="preview-nav-item ${index === 0 ? 'active' : ''}" data-page="${item.toLowerCase()}" style="text-decoration: none; color: ${index === 0 ? '#007bff' : '#333'}; font-weight: ${index === 0 ? 'bold' : 'normal'}; border-bottom: ${index === 0 ? '2px solid #007bff' : 'none'}; padding-bottom: 5px; cursor: pointer;">${item}</a>
-                        <div class="works-dropdown" style="position: absolute; top: 100%; left: 0; background: white; border: 1px solid #ddd; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); min-width: 150px; display: none; z-index: 1000;">
-                          ${orgItems.map(orgItem => `<a href="#" class="works-filter" data-filter="${orgItem}" style="display: block; padding: 10px 15px; text-decoration: none; color: #333; border-bottom: 1px solid #eee;">${orgItem}</a>`).join('')}
-                        </div>
-                      </div>
-                    `;
-                  } else {
-                    return `<a href="#" class="preview-nav-item ${index === 0 ? 'active' : ''}" data-page="${item.toLowerCase()}" style="text-decoration: none; color: ${index === 0 ? '#007bff' : '#333'}; font-weight: ${index === 0 ? 'bold' : 'normal'}; border-bottom: ${index === 0 ? '2px solid #007bff' : 'none'}; padding-bottom: 5px; cursor: pointer;">${item}</a>`;
-                  }
-                }).join('')}
-              </nav>
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div id="preview-save-status" style="font-size:0.9rem; color:#666;">All changes saved</div>
-                <button id="preview-save-btn" style="padding:6px 10px; border:1px solid #ccc; border-radius:4px; background:#f7f7f7; color:#333; cursor:not-allowed;" disabled>Save</button>
-              </div>
-            </div>
-          </header>
+          ${headerHTML}
           <main id="preview-content">
             ${this.createHomePreview()}
           </main>
         </div>
       `;
+    }
+
+    // Try to replace default logo text with the logged-in user's name when available
+    updateLogoFromUserIfAvailable(root) {
+      try {
+        // If a logo image is present, skip
+        const hasLogoImg = (root || document).querySelector('header img[alt="Logo"]');
+        if (hasLogoImg) return;
+        const el = (root || document).querySelector('#site-logo-text');
+        if (!el) return;
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        fetch('/api/auth/me', { headers: { 'x-auth-token': token } })
+          .then(res => res.ok ? res.json() : null)
+          .then(user => {
+            if (user && user.name && el && el.textContent === 'Your Portfolio') {
+              el.textContent = user.name;
+            }
+          })
+          .catch(() => {});
+      } catch {}
     }
 
     setupStyleCustomization() {
@@ -410,6 +414,65 @@
       const navItems = document.querySelectorAll('.preview-nav-item');
       const previewContent = document.getElementById('preview-content');
       if (!previewContent) return;
+
+      // Prefer shared header navigation wiring when available
+      try {
+        const SH = window.SiteHeader;
+        if (SH && SH.attachNavigation) {
+          SH.attachNavigation(document, {
+            onNavigate: (page, params) => {
+              this.currentPreviewPage = page;
+              if (page === 'home') {
+                previewContent.innerHTML = this.createHomePreview();
+                this.applyDataStyles(previewContent);
+                this.applyDataBindings(previewContent);
+                this.attachEditableListeners(previewContent);
+                const sidePanel = document.getElementById('works-side-panel');
+                const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
+                if (sidePanel) sidePanel.style.display = homeLayout === 'grid' ? 'block' : 'none';
+                if (homeLayout === 'grid' && window.loadSideGallery) window.loadSideGallery();
+              } else if (page === 'about') {
+                previewContent.innerHTML = this.createAboutPreview();
+                this.applyDataStyles(previewContent);
+                this.applyDataBindings(previewContent);
+                this.attachEditableListeners(previewContent);
+                const sidePanel = document.getElementById('works-side-panel');
+                if (sidePanel) sidePanel.style.display = 'none';
+              } else if (page === 'works') {
+                const filter = params && params.filter;
+                if (filter) {
+                  this.currentWorksFilter = filter;
+                  this.currentSelectedWorkIndex = 0;
+                  if (!this.surveyData.worksSelections) this.surveyData.worksSelections = {};
+                  if (!Array.isArray(this.surveyData.worksSelections[filter])) this.surveyData.worksSelections[filter] = [];
+                }
+                previewContent.innerHTML = this.createWorksPreview();
+                this.applyDataStyles(previewContent);
+                this.applyDataBindings(previewContent);
+                this.attachEditableListeners(previewContent);
+                this.setupWorkNavigation();
+                this.ensureExternalWorksSidePanel();
+                const sidePanel = document.getElementById('works-side-panel');
+                if (sidePanel) sidePanel.style.display = 'block';
+                const layoutLabel = document.getElementById('works-side-layout-label');
+                if (layoutLabel) {
+                  const wl = (this.surveyData.layouts && this.surveyData.layouts.works) || 'grid';
+                  layoutLabel.textContent = wl === 'grid' ? 'grid' : 'single focus';
+                }
+                if (window.loadSideGallery) window.loadSideGallery();
+              } else {
+                previewContent.innerHTML = `<div style="text-align: center; padding: 60px 0;"><h2>${page.charAt(0).toUpperCase() + page.slice(1)} Page</h2><p style="color: #666;">Content coming soon.</p></div>`;
+                this.applyDataStyles(previewContent);
+                this.applyDataBindings(previewContent);
+                this.attachEditableListeners(previewContent);
+                const sidePanel = document.getElementById('works-side-panel');
+                if (sidePanel) sidePanel.style.display = 'none';
+              }
+            }
+          });
+          return; // Skip legacy wiring
+        }
+      } catch (e) { /* fall back to legacy below */ }
 
       const worksNavItem = document.querySelector('.preview-nav-item[data-page="works"]');
       if (worksNavItem) {
