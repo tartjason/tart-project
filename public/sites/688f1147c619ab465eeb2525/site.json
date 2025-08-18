@@ -9,15 +9,16 @@
       "exhibition": false
     },
     "layouts": {
-      "homepage": "hero",
-      "about": "vertical",
-      "works": "single",
+      "homepage": "grid",
+      "about": "split",
+      "works": "grid",
       "commission": null,
       "exhibition": null
     },
     "worksDetails": {
       "years": [
-        2021
+        1999,
+        2000
       ],
       "themes": []
     },
@@ -25,20 +26,56 @@
       "education": false,
       "workExperience": true,
       "recentlyFeatured": false,
-      "selectedExhibition": true,
+      "selectedExhibition": false,
       "selectedPress": false,
-      "selectedAwards": false,
+      "selectedAwards": true,
       "selectedProjects": true,
-      "contactInfo": false
+      "contactInfo": true
     },
     "style": {
       "fontSize": 16,
       "textColor": "#333333",
       "themeColor": "#007bff"
     },
-    "medium": "poetry",
-    "worksSelections": {},
-    "homeSelections": [],
+    "medium": "photography",
+    "worksSelections": {
+      "1999": [
+        {
+          "_id": "68902b961764b474cf58a910",
+          "title": "sheep",
+          "imageUrl": "/uploads/artworkImage-1754278806227.jpg"
+        }
+      ],
+      "2000": [
+        {
+          "_id": "688f27be2476c4a981871474",
+          "title": "1",
+          "imageUrl": "/uploads/artworkImage-1754212286144.png"
+        }
+      ]
+    },
+    "homeSelections": [
+      {
+        "_id": "689063d367178857389b2541",
+        "title": "Wind, Behind",
+        "imageUrl": "/uploads/artworkImage-1754293203111.png"
+      },
+      {
+        "_id": "68904099b30b8e738b17044c",
+        "title": "on living",
+        "imageUrl": "/uploads/artworkImage-1754284185607.png"
+      },
+      {
+        "_id": "68902b961764b474cf58a910",
+        "title": "sheep",
+        "imageUrl": "/uploads/artworkImage-1754278806227.jpg"
+      },
+      {
+        "_id": "688f27be2476c4a981871474",
+        "title": "1",
+        "imageUrl": "/uploads/artworkImage-1754212286144.png"
+      }
+    ],
     "logo": null
   },
   "content": {
@@ -66,18 +103,41 @@
   "customStyles": {},
   "homeContent": {
     "imageUrl": "",
-    "title": "Words & Verses",
-    "subtitle": "Poetry that speaks to the soul",
-    "description": "My poetry explores themes of love, loss, hope, and the human condition through carefully crafted verses."
+    "title": "Visual Storytelling",
+    "subtitle": "Capturing moments that matter",
+    "description": "Through my lens, I capture the beauty in everyday moments and the extraordinary in the ordinary.",
+    "homeSelections": [
+      {
+        "_id": "689063d367178857389b2541",
+        "title": "Wind, Behind",
+        "imageUrl": "/uploads/artworkImage-1754293203111.png"
+      },
+      {
+        "_id": "68904099b30b8e738b17044c",
+        "title": "on living",
+        "imageUrl": "/uploads/artworkImage-1754284185607.png"
+      },
+      {
+        "_id": "68902b961764b474cf58a910",
+        "title": "sheep",
+        "imageUrl": "/uploads/artworkImage-1754278806227.jpg"
+      },
+      {
+        "_id": "688f27be2476c4a981871474",
+        "title": "1",
+        "imageUrl": "/uploads/artworkImage-1754212286144.png"
+      }
+    ]
   },
   "aboutContent": {
     "imageUrl": "",
     "title": "About Me",
-    "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.",
-    "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>\n    ",
-    "selectedExhibition": "\n      <p><strong>2024</strong> - \"Contemporary Visions\" Group Show, [Gallery Name]</p>\n      <p><strong>2023</strong> - \"Emerging Artists\" Solo Exhibition, [Gallery Name]</p>\n    ",
-    "selectedProjects": "\n      <p><strong>2024</strong> - Community Mural Project</p>\n      <p><strong>2023</strong> - Artist Talk at [Institution]</p>\n    "
+    "bio": "I am from RISD",
+    "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Sequoia Gallery]</p>\n    ",
+    "selectedAwards": "\n      <p><strong>2024</strong> - Emerging Artist Grant</p>\n      <p><strong>2023</strong> - Excellence in Fine Arts Award</p>\n    ",
+    "selectedProjects": "\n      <p><strong>2024</strong> - Community Mural Project</p>\n      <p><strong>2023</strong> - Artist Talk at [Institution]</p>\n    ",
+    "contactInfo": "\n      <p>Email: <a href=\"mailto:artist@email.com\" style=\"color: #333;\">artist@email.com</a></p>\n      <p>Phone: [13918850868]</p>\n      <p>Studio: [Address]</p>\n    "
   },
-  "generatedAt": "2025-08-18T10:14:06.775Z",
-  "version": 1
+  "generatedAt": "2025-08-18T10:40:30.456Z",
+  "version": 5
 }

@@ -89,6 +89,13 @@
         await this.ensureTemplatesLoaded();
       }
 
+      // Preview-specific messaging for empty artworks
+      try {
+        if (window.RuntimeRenderer && window.RuntimeRenderer.config) {
+          window.RuntimeRenderer.config.emptyArtworksMessage = 'No artworks selected. Use the side panel to add artworks.';
+        }
+      } catch {}
+
       // If we have a compiled JSON path, prefer rendering from it
       const compiledPath = this.survey && this.survey.compiledJsonPath;
       if (compiledPath) {
@@ -137,7 +144,6 @@
       try {
         const SH = window.SiteHeader;
         if (SH && SH.updateLogoFromUserIfAvailable) SH.updateLogoFromUserIfAvailable(previewFrame);
-        else this.updateLogoFromUserIfAvailable(previewFrame);
       } catch {}
 
       // Save controls and editable listeners
@@ -229,36 +235,7 @@
       }
     }
 
-    // Resolve deep value from object using dotted/bracket path, e.g.,
-    // "aboutContent.title" or "content.about.workExperience[0].role"
-    getValueAtPath(obj, path) {
-      const RR = window.RuntimeRenderer;
-      if (RR && RR.getValueAtPath) return RR.getValueAtPath(obj, path);
-      try {
-        if (!obj || !path) return undefined;
-        const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
-        let cur = obj;
-        for (const p of parts) {
-          if (cur == null) return undefined;
-          cur = cur[p];
-        }
-        return cur;
-      } catch {
-        return undefined;
-      }
-    }
-
-    renderTemplate(template, data) {
-      const RR = window.RuntimeRenderer;
-      if (RR && RR.renderTemplate) return RR.renderTemplate(template, data);
-      if (!template) return '';
-      let out = template;
-      Object.entries(data || {}).forEach(([k, v]) => {
-        const re = new RegExp(`{{\s*${k}\s*}}`, 'g');
-        out = out.replace(re, v == null ? '' : String(v));
-      });
-      return out;
-    }
+    // (Removed) Local template helpers are no longer needed; RuntimeRenderer handles all rendering.
 
     // Global helpers moved to public/js/preview-globals.js
 
@@ -349,24 +326,12 @@
 
     createSplitHomePreview() {
       const RR = window.RuntimeRenderer;
-      if (RR && RR.renderHome) return RR.renderHome('split', this._compiled, /*state*/null);
-      // Fallback to local rendering if RR is unavailable
-      const tpl = this.templates.home.split;
-      const home = (this._compiled && this._compiled.homeContent) || {};
-      const imgUrl = home.imageUrl;
-      const splitStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      return this.renderTemplate(tpl, { title: home.title || '', description: home.description || '', explore_text: home.explore_text || '', split_feature_style: splitStyle });
+      return (RR && RR.renderHome) ? RR.renderHome('split', this._compiled, null) : '';
     }
 
     createHeroHomePreview() {
       const RR = window.RuntimeRenderer;
-      if (RR && RR.renderHome) return RR.renderHome('hero', this._compiled, /*state*/null);
-      // Fallback
-      const tpl = this.templates.home.hero;
-      const home = (this._compiled && this._compiled.homeContent) || {};
-      const imgUrl = home.imageUrl;
-      const heroStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      return this.renderTemplate(tpl, { title: home.title || '', subtitle: home.subtitle || '', hero_description: home.description || '', hero_style: heroStyle });
+      return (RR && RR.renderHome) ? RR.renderHome('hero', this._compiled, null) : '';
     }
 
     createGridHomePreview() {
@@ -381,28 +346,7 @@
         selection = compiledSel;
       }
       const RR = window.RuntimeRenderer;
-      if (RR && RR.renderHome) return RR.renderHome('grid', this._compiled, { homeSelections: selection });
-      // Fallback to local rendering if RR is unavailable
-      const tpl = this.templates.home.grid;
-      const hasSelection = Array.isArray(selection) && selection.length > 0;
-      const gridItems = (selection || []).map(a => {
-        const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
-        const title = (a && a.title) || 'Untitled';
-        const safeTitle = String(title).replace(/"/g,'&quot;');
-        const img = a && a.imageUrl
-          ? `<img src="${a.imageUrl}" alt="${safeTitle}" style="display:block; width:100%; height:auto;">`
-          : `<div style="display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;">${safeTitle}</div>`;
-        return `
-          <a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">
-            <div style="background:#fff;">
-              ${img}
-              <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div>
-            </div>
-          </a>
-        `;
-      }).join('');
-      const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected. Use the side panel to add artworks.</div>`;
-      return this.renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
+      return (RR && RR.renderHome) ? RR.renderHome('grid', this._compiled, { homeSelections: selection }) : '';
     }
 
     getCompiled(/* medium */) {
@@ -689,88 +633,15 @@
 
     createAboutVerticalPreview() {
       const RR = window.RuntimeRenderer;
-      if (RR && RR.renderAbout) {
-        try {
-          return RR.renderAbout('vertical', this._compiled || {}, this.surveyData || {});
-        } catch (e) {
-          console.warn('RuntimeRenderer.renderAbout vertical failed, falling back:', e);
-        }
-      }
-      // Fallback to local rendering
-      const selectedSections = this.getSelectedAboutSections();
-      const aboutSectionsHTML = selectedSections.map(section => `
-        <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
-          <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
-          <div contenteditable="true" data-content-path="aboutContent.${section}" data-type="html" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-            ${this.getAboutSectionContent(section)}
-          </div>
-        </div>
-      `).join('');
-      const tpl = this.templates.about.vertical;
-      const compiledAbout = this._compiled && this._compiled.aboutContent;
-      const imgUrl = compiledAbout && compiledAbout.imageUrl;
-      const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      const aboutTitle = (compiledAbout && compiledAbout.title) || '';
-      const aboutBio = (compiledAbout && compiledAbout.bio) || '';
-      return this.renderTemplate(tpl, { about_title: aboutTitle, about_bio: aboutBio, about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
+      return (RR && RR.renderAbout) ? RR.renderAbout('vertical', this._compiled || {}, this.surveyData || {}) : '';
     }
 
     createAboutSplitPreview() {
       const RR = window.RuntimeRenderer;
-      if (RR && RR.renderAbout) {
-        try {
-          return RR.renderAbout('split', this._compiled || {}, this.surveyData || {});
-        } catch (e) {
-          console.warn('RuntimeRenderer.renderAbout split failed, falling back:', e);
-        }
-      }
-      // Fallback to local rendering
-      const selectedSections = this.getSelectedAboutSections();
-      const aboutSectionsHTML = selectedSections.map(section => `
-        <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
-          <h3 contenteditable="true" style="font-size: 1.4rem; margin-bottom: 20px; color: #333; font-weight: 400; text-transform: capitalize; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">${section.replace(/([A-Z])/g, ' $1').trim()}</h3>
-          <div contenteditable="true" data-content-path="aboutContent.${section}" data-type="html" style="color: #666; line-height: 1.6; outline: none; padding: 4px; border-radius: 4px; transition: background-color 0.2s;" onmouseover="this.style.backgroundColor='#f9f9f9'" onmouseout="this.style.backgroundColor='transparent'">
-            ${this.getAboutSectionContent(section)}
-          </div>
-        </div>
-      `).join('');
-      const tpl = this.templates.about.split;
-      const compiledAbout = this._compiled && this._compiled.aboutContent;
-      const imgUrl = compiledAbout && compiledAbout.imageUrl;
-      const aboutPhotoStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      const aboutTitle = (compiledAbout && compiledAbout.title) || '';
-      const aboutBio = (compiledAbout && compiledAbout.bio) || '';
-      return this.renderTemplate(tpl, { about_title: aboutTitle, about_bio: aboutBio, about_sections_html: aboutSectionsHTML, about_photo_style: aboutPhotoStyle });
+      return (RR && RR.renderAbout) ? RR.renderAbout('split', this._compiled || {}, this.surveyData || {}) : '';
     }
 
-    getSelectedAboutSections() {
-      const RR = window.RuntimeRenderer;
-      if (RR && RR.getSelectedAboutSections) {
-        try {
-          return RR.getSelectedAboutSections(this._compiled || {}, this.surveyData || {});
-        } catch (e) {
-          console.warn('RuntimeRenderer.getSelectedAboutSections failed, falling back:', e);
-        }
-      }
-      // Fallback: Combine compiled.aboutContent keys (excluding title/bio) with survey selections
-      const compiledAbout = this._compiled && this._compiled.aboutContent;
-      const compiledKeys = (compiledAbout && typeof compiledAbout === 'object')
-        ? Object.keys(compiledAbout).filter(k => k !== 'title' && k !== 'bio' && compiledAbout[k])
-        : [];
-      const { aboutSections } = this.surveyData || {};
-      const surveyKeys = aboutSections ? Object.keys(aboutSections).filter(section => aboutSections[section]) : [];
-      const orderedUnion = [];
-      const seen = new Set();
-      compiledKeys.forEach(k => { if (!seen.has(k)) { seen.add(k); orderedUnion.push(k); } });
-      surveyKeys.forEach(k => { if (!seen.has(k)) { seen.add(k); orderedUnion.push(k); } });
-      return orderedUnion;
-    }
-
-    getAboutSectionContent(section) {
-      const compiledAbout = this._compiled && this._compiled.aboutContent;
-      if (compiledAbout && compiledAbout[section]) return compiledAbout[section];
-      return '';
-    }
+    // (Removed) About helpers used only by local fallback rendering.
 
     // Works
     createWorksPreview() {
@@ -825,57 +696,14 @@
     createWorksGridPreview() {
       const RR = window.RuntimeRenderer;
       const selection = this.getCurrentFolderSelection() || [];
-      if (RR && RR.renderWorks) return RR.renderWorks('grid', this._compiled, { worksSelection: selection });
-      // Fallback to local rendering
-      const tpl = this.templates.works.grid;
-      const hasSelection = selection.length > 0;
-      const gridItems = selection.map(a => {
-        const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
-        return `
-        <a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">
-          <div style="background:#fff;">
-            ${a.imageUrl ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
-              <div style=\"display:flex; align-items:center; justify-content:center; padding:24px; color:#999; background:#f5f5f5;\">${(a.title||'Untitled')}</div>
-            `}
-            <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${a.title || 'Untitled'}</div>
-          </div>
-        </a>
-      `;
-      }).join('');
-      const emptyMsg = `<div style=\"grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;\">No artworks selected. Use the side panel to add artworks.</div>`;
-      return this.renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
+      return (RR && RR.renderWorks) ? RR.renderWorks('grid', this._compiled, { worksSelection: selection }) : '';
     }
     
     createWorksSinglePreview() {
       const RR = window.RuntimeRenderer;
       const selection = this.getCurrentFolderSelection() || [];
       const state = { worksSelection: selection, worksIndex: this.currentSelectedWorkIndex };
-      if (RR && RR.renderWorks) return RR.renderWorks('single', this._compiled, state);
-      // Fallback to local rendering
-      const n = selection.length;
-      const idx = n > 0 ? (this.currentSelectedWorkIndex % n + n) % n : 0;
-      const a = selection[idx];
-      const hero = a
-        ? (a.imageUrl
-            ? `<img src="${a.imageUrl}" alt="${(a.title||'Untitled').replace(/"/g,'&quot;')}" style="display:block; max-width:100%; max-height:70vh; width:auto; height:auto; margin:0 auto;">`
-            : `<div style=\"text-align:center; color:#999;\">${(a.title||'Untitled')}</div>`)
-        : `<div style=\"text-align:center; color:#999;\">No artwork selected. Use the side panel below to add artworks.</div>`;
-      const disableAttr = n <= 1 ? 'disabled' : '';
-      const linkHref = a && a._id ? `/artwork.html?id=${encodeURIComponent(a._id)}` : null;
-      const titleHtml = a ? `<div style=\"text-align:center; margin-top:12px; color:#7a2ea6; font-size:0.9rem;\">${a.title || 'Untitled'}</div>` : '';
-      const content = a && linkHref
-        ? `<a href="${linkHref}" style="text-decoration:none; color:inherit;">${hero}${titleHtml}</a>`
-        : `${hero}${titleHtml}`;
-
-      return `
-        <div style="position:relative; display:flex; align-items:center; justify-content:center; min-height:60vh; padding:0 80px; box-sizing:border-box;">
-          <button id="prev-work" class="prev-work-btn" aria-label="Previous" style="position:absolute; left:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;" ${disableAttr}>&lt;</button>
-          <div class="artwork-content" style="max-width: min(80vw, 960px);">
-            ${content}
-          </div>
-          <button id="next-work" class="next-work-btn" aria-label="Next" style="position:absolute; right:24px; top:50%; transform:translateY(-50%); background:none; border:none; font-size:28px; color:#7a2ea6; cursor:pointer; line-height:1;" ${disableAttr}>&gt;</button>
-        </div>
-      `;
+      return (RR && RR.renderWorks) ? RR.renderWorks('single', this._compiled, state) : '';
     }
 
     // Editable + Save integration moved to public/js/preview-editable.js

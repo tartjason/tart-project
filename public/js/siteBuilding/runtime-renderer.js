@@ -3,6 +3,10 @@
 // Usage (browser): window.RuntimeRenderer
 
 (function(){
+  // Configurable options (can be overridden by consumers)
+  const config = {
+    emptyArtworksMessage: 'No artworks selected.'
+  };
   const TPL_URLS = [
     { key: ['home','grid'], url: '/templates/home/grid.html' },
     { key: ['home','split'], url: '/templates/home/split.html' },
@@ -173,7 +177,7 @@
         </a>
       `;
     }).join('');
-    const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected.</div>`;
+    const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">${config.emptyArtworksMessage}</div>`;
     return renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
   }
 
@@ -220,7 +224,7 @@
       </a>
     `;
     }).join('');
-    const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected.</div>`;
+    const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">${config.emptyArtworksMessage}</div>`;
     return renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
   }
 
@@ -236,7 +240,7 @@
       ? (a.imageUrl
           ? `<img src="${a.imageUrl}" alt="${((a.title||'Untitled')).replace(/"/g,'&quot;')}" style="display:block; max-width: 100%; max-height: 75vh; width:auto; height:auto; margin:0 auto 16px;" />`
           : `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${(a.title||'Untitled')}</div>`)
-      : `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">No artworks selected.</div>`;
+      : `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${config.emptyArtworksMessage}</div>`;
 
     return renderTemplate(tpl, {
       single_work_style: '',
@@ -306,6 +310,8 @@
   window.RuntimeRenderer = {
     // templates
     templates,
+    // configuration
+    config,
     loadTemplates,
     ensureTemplatesLoaded,
 

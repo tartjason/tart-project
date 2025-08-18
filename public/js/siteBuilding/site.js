@@ -89,6 +89,21 @@
           const val = String(el.getAttribute('onclick') || '');
           if (val.includes('uploadImage')) el.removeAttribute('onclick');
         });
+      // Remove hover handlers that reveal edit-only affordances
+      scope.querySelectorAll('[onmouseover],[onmouseout]').forEach(el => {
+        if (el.hasAttribute('onmouseover')) el.removeAttribute('onmouseover');
+        if (el.hasAttribute('onmouseout')) el.removeAttribute('onmouseout');
+      });
+      // Remove any upload hint overlays/buttons/text
+      scope.querySelectorAll('.upload-hint').forEach(el => el.remove());
+      scope.querySelectorAll('p').forEach(p => {
+        const txt = (p.textContent || '').trim();
+        if (/^click to upload/i.test(txt)) p.remove();
+      });
+      // Normalize cursor for image placeholders (no pointer in production)
+      scope.querySelectorAll("[data-type='imageUrl']").forEach(el => {
+        try { el.style.cursor = 'default'; } catch {}
+      });
     } catch (e) {
       console.warn('disableEditing error:', e);
     }
@@ -149,6 +164,13 @@
       root.innerHTML = `<div style="padding:16px; color:#b00;">Could not load site.json for site ${siteId}.</div>`;
       return;
     }
+
+    // Production-specific runtime tweaks
+    try {
+      if (window.RuntimeRenderer && window.RuntimeRenderer.config) {
+        window.RuntimeRenderer.config.emptyArtworksMessage = 'Coming Soon…';
+      }
+    } catch {}
 
     // Render shared header
     try {
