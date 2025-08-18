@@ -32,7 +32,15 @@
   P.attachEditableListeners = function(root) {
     try {
       const scope = root && root.querySelectorAll ? root : document;
-      const elements = scope.querySelectorAll('[contenteditable][data-content-path]');
+      // Make any element with data-content-path editable, except imageUrl types
+      const candidates = scope.querySelectorAll('[data-content-path]');
+      const elements = Array.from(candidates).filter((el) => {
+        const rawType = el.getAttribute('data-type') || el.getAttribute('data-content-type') || 'text';
+        const type = String(rawType).toLowerCase();
+        if (type === 'imageurl') return false;
+        if (!el.hasAttribute('contenteditable')) el.setAttribute('contenteditable', 'true');
+        return true;
+      });
       if (!elements || elements.length === 0) return;
       elements.forEach((el) => {
         const onChange = () => {

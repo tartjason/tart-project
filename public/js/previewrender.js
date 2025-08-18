@@ -180,27 +180,12 @@
     // Template loader and renderer
     async loadTemplates() {
       if (this._templatesLoadingPromise) return this._templatesLoadingPromise;
-      const files = [
-        { key: ['home','grid'], url: '/templates/home/grid.html' },
-        { key: ['home','split'], url: '/templates/home/split.html' },
-        { key: ['home','hero'], url: '/templates/home/hero.html' },
-        { key: ['works','grid'], url: '/templates/works/grid.html' },
-        { key: ['works','single'], url: '/templates/works/single.html' },
-        { key: ['about','split'], url: '/templates/about/split.html' },
-        { key: ['about','vertical'], url: '/templates/about/vertical.html' }
-      ];
-      this._templatesLoadingPromise = Promise.all(files.map(async f => {
-        try {
-          const res = await fetch(f.url, { credentials: 'same-origin' });
-          if (!res.ok) throw new Error(`Failed to load ${f.url}`);
-          const txt = await res.text();
-          this.templates[f.key[0]][f.key[1]] = txt;
-        } catch (e) {
-          console.error('Template load error:', e);
-          this.templates[f.key[0]][f.key[1]] = '';
+      const RR = window.RuntimeRenderer;
+      this._templatesLoadingPromise = (RR && RR.loadTemplates ? RR.loadTemplates() : Promise.resolve()).then(() => {
+        if (RR) {
+          this.templates = RR.templates;
+          this.templatesLoaded = true;
         }
-      })).then(() => {
-        this.templatesLoaded = true;
       }).finally(() => {
         this._templatesLoadingPromise = null;
       });
@@ -209,21 +194,20 @@
 
     ensureTemplatesLoaded() {
       if (this.templatesLoaded) return Promise.resolve();
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.ensureTemplatesLoaded) {
+        return RR.ensureTemplatesLoaded().then(() => {
+          this.templates = RR.templates;
+          this.templatesLoaded = true;
+        });
+      }
       return this.loadTemplates();
     }
 
     applyDataStyles(root) {
       try {
-        const scope = root && root.querySelectorAll ? root : document;
-        const elements = scope.querySelectorAll('[data-style]');
-        elements.forEach(el => {
-          const data = el.getAttribute('data-style');
-          if (!data) return;
-          const current = el.getAttribute('style') || '';
-          const separator = current && !current.trim().endsWith(';') ? '; ' : '';
-          el.setAttribute('style', current + separator + data);
-          el.removeAttribute('data-style');
-        });
+        const RR = window.RuntimeRenderer;
+        if (RR && RR.applyDataStyles) RR.applyDataStyles(root);
       } catch (err) {
         console.error('applyDataStyles error:', err);
       }
@@ -232,40 +216,8 @@
     // Populate elements that declare a data-content-path from compiled JSON
     applyDataBindings(root) {
       try {
-        const scope = root && root.querySelectorAll ? root : document;
-        const elements = scope.querySelectorAll('[data-content-path]');
-        if (!elements || elements.length === 0) return;
-
-        // Use compiled JSON only (no client-side defaults)
-        const dataRoot = this._compiled || {};
-
-        elements.forEach(el => {
-          const path = el.getAttribute('data-content-path');
-          if (!path) return;
-          const rawType = el.getAttribute('data-type') || el.getAttribute('data-content-type') || 'text';
-          const type = String(rawType).toLowerCase();
-          const value = this.getValueAtPath(dataRoot, path);
-          // Treat empty strings as "no value" for text/html so we don't clobber defaults
-          const isEmptyString = (typeof value === 'string' && value.trim() === '');
-          if (value == null || (type !== 'imageurl' && type !== 'image' && isEmptyString)) return;
-
-          if (type === 'html') {
-            el.innerHTML = String(value);
-          } else if (type === 'imageurl' || type === 'image') {
-            const url = String(value || '');
-            if (url) {
-              const current = el.getAttribute('style') || '';
-              const separator = current && !current.trim().endsWith(';') ? '; ' : '';
-              const imgStyle = `background-image: url('${url}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
-              el.setAttribute('style', current + separator + imgStyle);
-            } else {
-              // Clear background if empty
-              el.style.backgroundImage = '';
-            }
-          } else {
-            el.textContent = String(value);
-          }
-        });
+        const RR = window.RuntimeRenderer;
+        if (RR && RR.applyDataBindings) RR.applyDataBindings(root, this._compiled || {});
       } catch (err) {
         console.error('applyDataBindings error:', err);
       }
@@ -274,9 +226,10 @@
     // Resolve deep value from object using dotted/bracket path, e.g.,
     // "aboutContent.title" or "content.about.workExperience[0].role"
     getValueAtPath(obj, path) {
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.getValueAtPath) return RR.getValueAtPath(obj, path);
       try {
         if (!obj || !path) return undefined;
-        // Convert bracket indices to dot form
         const parts = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
         let cur = obj;
         for (const p of parts) {
@@ -290,6 +243,8 @@
     }
 
     renderTemplate(template, data) {
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.renderTemplate) return RR.renderTemplate(template, data);
       if (!template) return '';
       let out = template;
       Object.entries(data || {}).forEach(([k, v]) => {
@@ -389,33 +344,28 @@
     }
 
     createSplitHomePreview() {
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.renderHome) return RR.renderHome('split', this._compiled, /*state*/null);
+      // Fallback to local rendering if RR is unavailable
       const tpl = this.templates.home.split;
       const home = (this._compiled && this._compiled.homeContent) || {};
       const imgUrl = home.imageUrl;
       const splitStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      return this.renderTemplate(tpl, {
-        title: home.title || '',
-        description: home.description || '',
-        explore_text: home.explore_text || '',
-        split_feature_style: splitStyle
-      });
+      return this.renderTemplate(tpl, { title: home.title || '', description: home.description || '', explore_text: home.explore_text || '', split_feature_style: splitStyle });
     }
 
     createHeroHomePreview() {
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.renderHome) return RR.renderHome('hero', this._compiled, /*state*/null);
+      // Fallback
       const tpl = this.templates.home.hero;
       const home = (this._compiled && this._compiled.homeContent) || {};
       const imgUrl = home.imageUrl;
       const heroStyle = imgUrl ? `background-image: url('${imgUrl}'); background-size: cover; background-position: center; background-repeat: no-repeat;` : '';
-      return this.renderTemplate(tpl, {
-        title: home.title || '',
-        subtitle: home.subtitle || '',
-        hero_description: home.description || '',
-        hero_style: heroStyle
-      });
+      return this.renderTemplate(tpl, { title: home.title || '', subtitle: home.subtitle || '', hero_description: home.description || '', hero_style: heroStyle });
     }
 
     createGridHomePreview() {
-      const tpl = this.templates.home.grid;
       const compiledHome = (this._compiled && this._compiled.homeContent) || {};
       const compiledSel = Array.isArray(compiledHome.homeSelections) ? compiledHome.homeSelections : [];
       const localSel = Array.isArray(this.surveyData && this.surveyData.homeSelections) ? this.surveyData.homeSelections : [];
@@ -426,6 +376,10 @@
       } else if (compiledSel && compiledSel.length > 0) {
         selection = compiledSel;
       }
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.renderHome) return RR.renderHome('grid', this._compiled, { homeSelections: selection });
+      // Fallback to local rendering if RR is unavailable
+      const tpl = this.templates.home.grid;
       const hasSelection = Array.isArray(selection) && selection.length > 0;
       const gridItems = (selection || []).map(a => {
         const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
@@ -560,9 +514,15 @@
 
     // Works navigation for single/grid
     setupWorkNavigation() {
-      const prevBtn = document.getElementById('prev-work');
-      const nextBtn = document.getElementById('next-work');
+      // Support both legacy IDs and template class buttons
+      const prevBtn = document.querySelector('#prev-work, .prev-work-btn');
+      const nextBtn = document.querySelector('#next-work, .next-work-btn');
       this.removeExistingWorkListeners(prevBtn, nextBtn);
+      // Set disabled state based on selection length
+      const selection = this.getCurrentFolderSelection() || [];
+      const n = selection.length;
+      if (prevBtn) prevBtn.disabled = n <= 1;
+      if (nextBtn) nextBtn.disabled = n <= 1;
       this.setupNewWorkListeners(prevBtn, nextBtn);
     }
 
@@ -572,24 +532,34 @@
     }
 
     setupNewWorkListeners(prevBtn, nextBtn) {
-      const newPrev = document.getElementById('prev-work');
-      const newNext = document.getElementById('next-work');
+      const newPrev = document.querySelector('.prev-work-btn');
+      const newNext = document.querySelector('.next-work-btn');
       if (newPrev) newPrev.addEventListener('click', (e) => {
         e.preventDefault();
         const selection = this.getCurrentFolderSelection();
-        const n = selection.length;
-        if (n > 0) {
-          this.currentSelectedWorkIndex = (this.currentSelectedWorkIndex - 1 + n) % n;
-          this.updateWorksPreview();
+        const n = (selection || []).length;
+        if (n <= 1) return;
+        this.currentSelectedWorkIndex = (this.currentSelectedWorkIndex - 1 + n) % n;
+        const previewContent = document.getElementById('preview-content');
+        if (previewContent) {
+          previewContent.innerHTML = this.createWorksSinglePreview();
+          this.applyDataStyles(previewContent);
+          this.applyDataBindings(previewContent);
+          this.setupWorkNavigation();
         }
       });
       if (newNext) newNext.addEventListener('click', (e) => {
         e.preventDefault();
         const selection = this.getCurrentFolderSelection();
-        const n = selection.length;
-        if (n > 0) {
-          this.currentSelectedWorkIndex = (this.currentSelectedWorkIndex + 1) % n;
-          this.updateWorksPreview();
+        const n = (selection || []).length;
+        if (n <= 1) return;
+        this.currentSelectedWorkIndex = (this.currentSelectedWorkIndex + 1) % n;
+        const previewContent = document.getElementById('preview-content');
+        if (previewContent) {
+          previewContent.innerHTML = this.createWorksSinglePreview();
+          this.applyDataStyles(previewContent);
+          this.applyDataBindings(previewContent);
+          this.setupWorkNavigation();
         }
       });
     }
@@ -655,6 +625,15 @@
     }
 
     createAboutVerticalPreview() {
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.renderAbout) {
+        try {
+          return RR.renderAbout('vertical', this._compiled || {}, this.surveyData || {});
+        } catch (e) {
+          console.warn('RuntimeRenderer.renderAbout vertical failed, falling back:', e);
+        }
+      }
+      // Fallback to local rendering
       const selectedSections = this.getSelectedAboutSections();
       const aboutSectionsHTML = selectedSections.map(section => `
         <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
@@ -674,6 +653,15 @@
     }
 
     createAboutSplitPreview() {
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.renderAbout) {
+        try {
+          return RR.renderAbout('split', this._compiled || {}, this.surveyData || {});
+        } catch (e) {
+          console.warn('RuntimeRenderer.renderAbout split failed, falling back:', e);
+        }
+      }
+      // Fallback to local rendering
       const selectedSections = this.getSelectedAboutSections();
       const aboutSectionsHTML = selectedSections.map(section => `
         <div style="margin-bottom: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
@@ -693,7 +681,15 @@
     }
 
     getSelectedAboutSections() {
-      // Combine compiled.aboutContent keys (excluding title/bio) with survey selections
+      const RR = window.RuntimeRenderer;
+      if (RR && RR.getSelectedAboutSections) {
+        try {
+          return RR.getSelectedAboutSections(this._compiled || {}, this.surveyData || {});
+        } catch (e) {
+          console.warn('RuntimeRenderer.getSelectedAboutSections failed, falling back:', e);
+        }
+      }
+      // Fallback: Combine compiled.aboutContent keys (excluding title/bio) with survey selections
       const compiledAbout = this._compiled && this._compiled.aboutContent;
       const compiledKeys = (compiledAbout && typeof compiledAbout === 'object')
         ? Object.keys(compiledAbout).filter(k => k !== 'title' && k !== 'bio' && compiledAbout[k])
@@ -764,8 +760,11 @@
     }
 
     createWorksGridPreview() {
-      const tpl = this.templates.works.grid;
+      const RR = window.RuntimeRenderer;
       const selection = this.getCurrentFolderSelection() || [];
+      if (RR && RR.renderWorks) return RR.renderWorks('grid', this._compiled, { worksSelection: selection });
+      // Fallback to local rendering
+      const tpl = this.templates.works.grid;
       const hasSelection = selection.length > 0;
       const gridItems = selection.map(a => {
         const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
@@ -780,12 +779,16 @@
         </a>
       `;
       }).join('');
-      const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">No artworks selected. Use the side panel to add artworks.</div>`;
+      const emptyMsg = `<div style=\"grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;\">No artworks selected. Use the side panel to add artworks.</div>`;
       return this.renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
     }
     
     createWorksSinglePreview() {
-      const selection = this.getCurrentFolderSelection();
+      const RR = window.RuntimeRenderer;
+      const selection = this.getCurrentFolderSelection() || [];
+      const state = { worksSelection: selection, worksIndex: this.currentSelectedWorkIndex };
+      if (RR && RR.renderWorks) return RR.renderWorks('single', this._compiled, state);
+      // Fallback to local rendering
       const n = selection.length;
       const idx = n > 0 ? (this.currentSelectedWorkIndex % n + n) % n : 0;
       const a = selection[idx];

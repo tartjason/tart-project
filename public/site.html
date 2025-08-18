@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tart Site</title>
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/layout-grid.css" />
+  <link rel="stylesheet" href="/css/layout-split.css" />
+  <link rel="stylesheet" href="/css/layout-hero.css" />
+  <link rel="stylesheet" href="/css/layout-works-grid.css" />
+  <link rel="stylesheet" href="/css/layout-works-single.css" />
+  <style>
+    body { background: #fafafa; }
+    header.site-nav { display:flex; align-items:center; justify-content:space-between; padding: 12px 16px; background:#fff; border-bottom:1px solid #eee; }
+    header.site-nav .links a { margin-right: 12px; text-decoration:none; color:#7a2ea6; }
+    #site-root { max-width: 1200px; margin: 0 auto; }
+  </style>
+</head>
+<body>
+  <header class="site-nav">
+    <div class="logo">Tart</div>
+    <div class="links">
+      <a href="/">Home</a>
+      <a href="/survey.html">Builder</a>
+    </div>
+  </header>
+
+  <main>
+    <div id="site-root" data-site="" data-page=""></div>
+  </main>
+
+  <script src="/js/runtime-renderer.js"></script>
+  <script src="/js/site.js"></script>
+</body>
+</html>

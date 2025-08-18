@@ -9,7 +9,7 @@
       "exhibition": false
     },
     "layouts": {
-      "homepage": "grid",
+      "homepage": "split",
       "about": "vertical",
       "works": "single",
       "commission": null,
@@ -17,13 +17,13 @@
     },
     "worksDetails": {
       "years": [
-        2028
+        2021
       ],
       "themes": []
     },
     "aboutSections": {
       "education": false,
-      "workExperience": false,
+      "workExperience": true,
       "recentlyFeatured": false,
       "selectedExhibition": false,
       "selectedPress": false,
@@ -38,26 +38,20 @@
     },
     "medium": "poetry",
     "worksSelections": {
-      "2028": [
-        {
-          "_id": "68904099b30b8e738b17044c",
-          "title": "on living",
-          "imageUrl": "/uploads/artworkImage-1754284185607.png"
-        },
+      "2021": [
         {
           "_id": "68902b961764b474cf58a910",
           "title": "sheep",
           "imageUrl": "/uploads/artworkImage-1754278806227.jpg"
+        },
+        {
+          "_id": "688f27be2476c4a981871474",
+          "title": "1",
+          "imageUrl": "/uploads/artworkImage-1754212286144.png"
         }
       ]
     },
-    "homeSelections": [
-      {
-        "_id": "688f27be2476c4a981871474",
-        "title": "1",
-        "imageUrl": "/uploads/artworkImage-1754212286144.png"
-      }
-    ],
+    "homeSelections": [],
     "logo": null
   },
   "content": {
@@ -86,21 +80,15 @@
   "homeContent": {
     "imageUrl": "",
     "title": "Words & Verses",
-    "subtitle": "Poetry that speaks to the soul",
     "description": "My poetry explores themes of love, loss, hope, and the human condition through carefully crafted verses.",
-    "homeSelections": [
-      {
-        "_id": "688f27be2476c4a981871474",
-        "title": "1",
-        "imageUrl": "/uploads/artworkImage-1754212286144.png"
-      }
-    ]
+    "explore_text": "Explore my collection of words & verses works, each piece carefully crafted to capture the essence of light, color, and emotion."
   },
   "aboutContent": {
     "imageUrl": "",
     "title": "About Me",
-    "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques."
+    "bio": "I am an artist currently based in [Location]. My work has been exhibited in galleries and shows, and I continue to develop my practice through exploration of various mediums and techniques.",
+    "workExperience": "\n      <p><strong>2023-Present</strong> - Freelance Artist</p>\n      <p><strong>2022-2023</strong> - Gallery Assistant, [Gallery Name]</p>\n    "
   },
-  "generatedAt": "2025-08-16T05:28:53.070Z",
-  "version": 7
+  "generatedAt": "2025-08-18T03:32:38.534Z",
+  "version": 2
 }
