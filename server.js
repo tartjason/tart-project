@@ -13,6 +13,7 @@ const port = process.env.PORT || 3000;
 
 // Safe startup log (no secrets)
 console.log('[ENV] S3_BUCKET set:', !!process.env.S3_BUCKET, 'AWS_REGION:', process.env.AWS_REGION || 'unset');
+console.log('[ENV] MONGODB_URI present:', !!process.env.MONGODB_URI, 'uses SRV:', (process.env.MONGODB_URI || '').startsWith('mongodb+srv://'));
 
 // Use express.json() middleware to parse JSON in request bodies
 // This is the modern replacement for body-parser
@@ -20,6 +21,7 @@ app.use(express.json());
 
 // --- MongoDB Connection ---
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tart';
+console.log('[DB] Connecting to MongoDB. Using localhost fallback?', !process.env.MONGODB_URI);
 mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully.'))
     .catch(err => console.log('MongoDB connection error:', err));
