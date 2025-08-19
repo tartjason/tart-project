@@ -7,6 +7,9 @@ const Portfolio = require('../models/portfolio');
 const Artwork = require('../models/artwork');
 const { putBuffer, getUploadsKey, getPublicUrl, deleteObject } = require('../utils/s3');
 
+// Use JWT secret from environment; fall back to a development-only default
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret';
+
 // @route   POST api/auth/register
 // @desc    Register an artist
 // @access  Public
@@ -47,7 +50,7 @@ router.post('/register', async (req, res) => {
 
         jwt.sign(
             payload,
-            'mysecrettoken', // Should be in config
+            JWT_SECRET, // from environment
             { expiresIn: 3600 },
             (err, token) => {
                 if (err) throw err;
@@ -88,7 +91,7 @@ router.post('/login', async (req, res) => {
 
         jwt.sign(
             payload,
-            'mysecrettoken', // This should be in a config file
+            JWT_SECRET, // from environment
             { expiresIn: 3600 },
             (err, token) => {
                 if (err) throw err;

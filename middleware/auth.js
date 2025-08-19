@@ -1,5 +1,8 @@
 const jwt = require('jsonwebtoken');
 
+// Use JWT secret from environment; fall back to a development-only default
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret';
+
 module.exports = function(req, res, next) {
     // Get token from header
     const token = req.header('x-auth-token');
@@ -12,7 +15,7 @@ module.exports = function(req, res, next) {
     // Verify token
     try {
         // Use the same secret from your login route
-        const decoded = jwt.verify(token, 'mysecrettoken');
+        const decoded = jwt.verify(token, JWT_SECRET);
         // Ensure payload is an object before accessing properties
         if (typeof decoded === 'object' && decoded.artist) {
             req.artist = decoded.artist;

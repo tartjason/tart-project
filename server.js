@@ -1,15 +1,18 @@
 // server.js
 // This file sets up an Express server with a MongoDB connection using Mongoose.
 
-const express = require('express');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+const express = require('express');
 const mongoose = require('mongoose');
 const { getObjectStream, getSitesKey } = require('./utils/s3');
-require('dotenv').config();
 
 // Create a new Express application
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Safe startup log (no secrets)
+console.log('[ENV] S3_BUCKET set:', !!process.env.S3_BUCKET, 'AWS_REGION:', process.env.AWS_REGION || 'unset');
 
 // Use express.json() middleware to parse JSON in request bodies
 // This is the modern replacement for body-parser
