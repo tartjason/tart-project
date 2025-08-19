@@ -40,8 +40,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const WebsiteState = require('../models/WebsiteState');
-const fs = require('fs');
-const path = require('path');
+const { putJson, getSitesKey, deleteObject } = require('../utils/s3');
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -358,12 +357,12 @@ function buildCompiledFromState(websiteState) {
 }
 
 // Helper: Write compiled JSON to disk under public/sites/<artistId>/site.json
-function writeCompiledJson(artistId, compiled) {
-    const outDir = path.join(__dirname, '..', 'public', 'sites', String(artistId));
-    fs.mkdirSync(outDir, { recursive: true });
-    const outFile = path.join(outDir, 'site.json');
-    fs.writeFileSync(outFile, JSON.stringify(compiled, null, 2), 'utf8');
-    return outFile;
+async function writeCompiledJson(artistId, compiled) {
+    const Bucket = process.env.S3_BUCKET;
+    if (!Bucket) throw new Error('S3_BUCKET env is required');
+    const Key = getSitesKey(artistId);
+    await putJson({ Bucket, Key, Body: JSON.stringify(compiled, null, 2), ContentType: 'application/json' });
+    return `s3://${Bucket}/${Key}`;
 }
 
 // @route   GET /api/website-state
@@ -516,8 +515,8 @@ router.post('/compile', auth, async (req, res) => {
         // Build compiled JSON from current state using shared helpers
         const compiled = buildCompiledFromState(websiteState);
 
-        // Write compiled JSON to disk
-        writeCompiledJson(req.artist.id, compiled);
+        // Write compiled JSON to S3
+        await writeCompiledJson(req.artist.id, compiled);
 
         // Update state with compiled path + flags
         websiteState.compiledJsonPath = `/sites/${req.artist.id}/site.json`;
@@ -608,8 +607,8 @@ router.post('/update-content-batch', auth, async (req, res) => {
         // Build compiled JSON using shared helpers
         const compiled = buildCompiledFromState(websiteState);
 
-        // Write compiled JSON to disk
-        writeCompiledJson(req.artist.id, compiled);
+        // Write compiled JSON to S3
+        await writeCompiledJson(req.artist.id, compiled);
 
         websiteState.compiledJsonPath = `/sites/${req.artist.id}/site.json`;
         websiteState.compiledAt = new Date();
@@ -633,18 +632,16 @@ router.post('/start-over', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Website state not found' });
         }
 
-        // Delete compiled JSON file if it exists
+        // Delete compiled JSON object from S3 if it exists
         if (websiteState.compiledJsonPath) {
             try {
-                const rel = websiteState.compiledJsonPath.startsWith('/')
-                    ? websiteState.compiledJsonPath.slice(1)
-                    : websiteState.compiledJsonPath;
-                const fullPath = path.join(__dirname, '..', 'public', rel);
-                if (fs.existsSync(fullPath)) {
-                    fs.unlinkSync(fullPath);
+                const Bucket = process.env.S3_BUCKET;
+                if (Bucket) {
+                    const Key = getSitesKey(req.artist.id);
+                    await deleteObject({ Bucket, Key });
                 }
             } catch (e) {
-                console.warn('Failed to delete compiled JSON:', e);
+                console.warn('Failed to delete compiled JSON from S3:', e);
             }
         }
 

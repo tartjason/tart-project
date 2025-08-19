@@ -4,6 +4,8 @@
 const express = require('express');
 const path = require('path');
 const mongoose = require('mongoose');
+const { getObjectStream, getSitesKey } = require('./utils/s3');
+require('dotenv').config();
 
 // Create a new Express application
 const app = express();
@@ -14,8 +16,8 @@ const port = process.env.PORT || 3000;
 app.use(express.json());
 
 // --- MongoDB Connection ---
-const mongoURI = 'mongodb://localhost:27017/tart';
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
+const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tart';
+mongoose.connect(mongoURI)
     .then(() => console.log('MongoDB connected successfully.'))
     .catch(err => console.log('MongoDB connection error:', err));
 
@@ -26,6 +28,31 @@ app.use('/api/artworks', require('./routes/artworks'));
 app.use('/api/portfolios', require('./routes/portfolios'));
 app.use('/api/artists', require('./routes/artists'));
 app.use('/api/website-state', require('./routes/websiteState'));
+
+// --- Backend proxy for compiled site JSON in S3 ---
+app.get('/sites/:artistId/site.json', async (req, res) => {
+    try {
+        const Bucket = process.env.S3_BUCKET;
+        if (!Bucket) {
+            return res.status(500).json({ msg: 'S3 is not configured' });
+        }
+        const Key = getSitesKey(req.params.artistId);
+        const { stream, contentType } = await getObjectStream({ Bucket, Key });
+        res.set('Content-Type', contentType || 'application/json');
+        stream.on('error', (err) => {
+            console.error('S3 stream error:', err);
+            if (!res.headersSent) res.status(500).json({ msg: 'Error streaming S3 object' });
+        });
+        stream.pipe(res);
+    } catch (err) {
+        const status = (err && err.$metadata && err.$metadata.httpStatusCode) || 500;
+        if (status === 404) {
+            return res.status(404).json({ msg: 'Not found' });
+        }
+        console.error('Error proxying site.json from S3:', err);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
 
 // --- Frontend Routes ---
 // Serve static files from the 'public' directory (HTML, CSS, JS)

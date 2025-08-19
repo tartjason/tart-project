@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const Artist = require('../models/Artist');
+const Artist = require('../models/artist');
 
 // @route   PUT api/artists/:id/follow
 // @desc    Follow or un-follow an artist

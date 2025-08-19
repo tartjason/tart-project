@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
-const Portfolio = require('../models/Portfolio');
-const Artist = require('../models/Artist');
+const Portfolio = require('../models/portfolio');
+const Artist = require('../models/artist');
 
 // @route   POST api/portfolios
 // @desc    Create or update an artist's portfolio

@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
+const { putBuffer, getUploadsKey, getPublicUrl, deleteObject } = require('../utils/s3');
 
 // Debug middleware to log all requests
 router.use((req, res, next) => {
@@ -12,17 +13,10 @@ router.use((req, res, next) => {
 
 // Models
 const Artwork = require('../models/artwork');
-const Artist = require('../models/Artist');
+const Artist = require('../models/artist');
 
-// --- Multer Setup for File Uploads ---
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'public/uploads/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
-    }
-});
+// --- Multer Setup for File Uploads (memory storage; upload to S3) ---
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
@@ -91,18 +85,34 @@ router.delete('/:id', auth, async (req, res) => {
             { $pull: { collections: artwork._id } }
         );
         
-        // Delete the image file from filesystem
-        const fs = require('fs');
-        const path = require('path');
-        if (artwork.imageUrl) {
-            const imagePath = path.join(__dirname, '..', 'public', artwork.imageUrl);
-            fs.unlink(imagePath, (err) => {
-                if (err) {
-                    console.error('Error deleting image file:', err);
-                } else {
-                    console.log('Image file deleted successfully:', imagePath);
+        // Delete from S3 if we have an imageKey; otherwise fallback to local filesystem deletion
+        if (artwork.imageKey) {
+            try {
+                const Bucket = process.env.S3_BUCKET;
+                if (Bucket) {
+                    await deleteObject({ Bucket, Key: artwork.imageKey });
+                    console.log('Deleted artwork image from S3:', artwork.imageKey);
                 }
-            });
+            } catch (e) {
+                console.warn('Failed to delete artwork image from S3:', e);
+            }
+        } else if (artwork.imageUrl) {
+            // Backward-compat for previously saved local files
+            const fs = require('fs');
+            const path = require('path');
+            try {
+                const rel = artwork.imageUrl.startsWith('/') ? artwork.imageUrl.slice(1) : artwork.imageUrl;
+                const imagePath = path.join(__dirname, '..', 'public', rel);
+                fs.unlink(imagePath, (err) => {
+                    if (err) {
+                        console.error('Error deleting local image file:', err);
+                    } else {
+                        console.log('Local image file deleted successfully:', imagePath);
+                    }
+                });
+            } catch (e) {
+                console.warn('Failed to delete local image file:', e);
+            }
         }
         
         // Delete the artwork from database
@@ -173,28 +183,37 @@ function checkFileType(file, cb) {
 router.post('/', [auth, uploadMiddleware], async (req, res) => {
     const { title, description, medium, location } = req.body;
 
-    // All mediums now require an image file (poetry generates one from canvas)
     if (!req.file) {
         return res.status(400).json({ msg: 'Please upload a file' });
     }
 
     try {
-        console.log('Processing artwork upload:', { title, medium, location, filename: req.file.filename });
-        
+        console.log('Processing artwork upload:', { title, medium, location, originalname: req.file.originalname, size: req.file.size });
+
+        // Upload to S3
+        const Bucket = process.env.S3_BUCKET;
+        if (!Bucket) {
+            return res.status(500).json({ msg: 'S3 is not configured' });
+        }
+        const Key = getUploadsKey(req.artist.id, req.file.originalname, 'artworks');
+        await putBuffer({ Bucket, Key, Body: req.file.buffer, ContentType: req.file.mimetype });
+        const publicUrl = getPublicUrl(Bucket, Key);
+
         const artworkData = {
             title,
             description,
             medium,
             location: location || 'Not specified',
             artist: req.artist.id,
-            imageUrl: '/uploads/' + req.file.filename
+            imageUrl: publicUrl,
+            imageKey: Key
         };
 
         console.log('Creating artwork with data:', artworkData);
         
         const newArtwork = new Artwork(artworkData);
         const artwork = await newArtwork.save();
-        
+
         console.log('Artwork saved successfully:', artwork._id);
         res.json(artwork);
     } catch (err) {

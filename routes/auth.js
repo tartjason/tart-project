@@ -2,9 +2,10 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const Artist = require('../models/Artist');
-const Portfolio = require('../models/Portfolio');
+const Artist = require('../models/artist');
+const Portfolio = require('../models/portfolio');
 const Artwork = require('../models/artwork');
+const { putBuffer, getUploadsKey, getPublicUrl, deleteObject } = require('../utils/s3');
 
 // @route   POST api/auth/register
 // @desc    Register an artist
@@ -133,23 +134,14 @@ router.get('/me', auth, async (req, res) => {
 });
 
 // @route   POST api/auth/profile-picture
-// @desc    Upload profile picture
+// @desc    Upload profile picture to S3
 // @access  Private
 const multer = require('multer');
 const path = require('path');
 
-// Configure multer for profile picture uploads
-const profilePictureStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'public/uploads/profiles/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, 'profile-' + req.artist.id + '-' + Date.now() + path.extname(file.originalname));
-    }
-});
-
+// Configure multer for profile picture uploads (memory, to upload to S3)
 const profilePictureUpload = multer({
-    storage: profilePictureStorage,
+    storage: multer.memoryStorage(),
     limits: { fileSize: 5000000 }, // 5MB limit
     fileFilter: function (req, file, cb) {
         const allowedTypes = /jpeg|jpg|png|gif/;
@@ -176,19 +168,37 @@ router.post('/profile-picture', auth, (req, res) => {
         }
         
         try {
-            // Update artist's profile picture URL
-            const profilePictureUrl = `/uploads/profiles/${req.file.filename}`;
-            
+            const Bucket = process.env.S3_BUCKET;
+            if (!Bucket) {
+                return res.status(500).json({ message: 'S3 is not configured' });
+            }
+
+            // Delete previous profile picture from S3 if exists
+            const artist = await Artist.findById(req.artist.id).select('profilePictureKey');
+            if (artist && artist.profilePictureKey) {
+                try {
+                    await deleteObject({ Bucket, Key: artist.profilePictureKey });
+                } catch (e) {
+                    console.warn('Failed to delete previous profile picture from S3:', e);
+                }
+            }
+
+            // Upload new picture
+            const Key = getUploadsKey(req.artist.id, req.file.originalname, 'profiles');
+            await putBuffer({ Bucket, Key, Body: req.file.buffer, ContentType: req.file.mimetype });
+            const profilePictureUrl = getPublicUrl(Bucket, Key);
+
             await Artist.findByIdAndUpdate(req.artist.id, {
-                profilePictureUrl: profilePictureUrl
+                profilePictureUrl,
+                profilePictureKey: Key
             });
             
             res.json({ 
                 message: 'Profile picture updated successfully',
-                profilePictureUrl: profilePictureUrl
+                profilePictureUrl
             });
         } catch (error) {
-            console.error('Database update error:', error);
+            console.error('Database/S3 error:', error);
             res.status(500).json({ message: 'Server error while updating profile picture' });
         }
     });

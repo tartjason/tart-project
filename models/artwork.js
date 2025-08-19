@@ -31,6 +31,10 @@ const artworkSchema = new Schema({
             return this.medium !== 'poetry';
         }
     },
+    imageKey: {
+        type: String,
+        required: false
+    },
     poetryData: [{
         text: String,
         color: String,
