@@ -48,7 +48,7 @@
       const startOverBtn = document.getElementById('start-over');
       if (startOverBtn) {
         startOverBtn.addEventListener('click', async () => {
-          const confirmed = confirm('Start over will clear your current preview and reset the survey. Continue?');
+          const confirmed = confirm('Start over will reset your survey and permanently delete all uploaded site images. Continue?');
           if (!confirmed) return;
           const token = localStorage.getItem('token');
           startOverBtn.disabled = true;

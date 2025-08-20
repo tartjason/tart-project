@@ -1,4 +1,5 @@
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { ListObjectsV2Command, DeleteObjectsCommand } = require('@aws-sdk/client-s3');
 
 // Create S3 client using env credentials and region
 const REGION = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || 'us-east-1';
@@ -51,6 +52,32 @@ async function deleteObject({ Bucket, Key }) {
   return s3.send(cmd);
 }
 
+// List and delete all objects under a prefix (paginated; batches of 1000)
+async function deleteAllUnderPrefix({ Bucket, Prefix }) {
+  if (!Bucket || !Prefix) throw new Error('Bucket and Prefix are required');
+  let deleted = 0;
+  const errors = [];
+  let ContinuationToken = undefined;
+  do {
+    const listCmd = new ListObjectsV2Command({ Bucket, Prefix, ContinuationToken });
+    const res = await s3.send(listCmd);
+    const keys = (res.Contents || []).map(o => o.Key).filter(Boolean);
+    if (keys.length > 0) {
+      for (let i = 0; i < keys.length; i += 1000) {
+        const chunk = keys.slice(i, i + 1000).map(Key => ({ Key }));
+        try {
+          await s3.send(new DeleteObjectsCommand({ Bucket, Delete: { Objects: chunk, Quiet: true } }));
+          deleted += chunk.length;
+        } catch (e) {
+          errors.push(e && e.message ? e.message : String(e));
+        }
+      }
+    }
+    ContinuationToken = res.IsTruncated ? res.NextContinuationToken : undefined;
+  } while (ContinuationToken);
+  return { deleted, errors };
+}
+
 module.exports = {
   s3,
   getSitesKey,
@@ -60,4 +87,5 @@ module.exports = {
   putBuffer,
   getObjectStream,
   deleteObject,
+  deleteAllUnderPrefix,
 };

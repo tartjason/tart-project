@@ -40,7 +40,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const WebsiteState = require('../models/WebsiteState');
-const { putJson, getSitesKey, deleteObject } = require('../utils/s3');
+const { putJson, getSitesKey, deleteObject, deleteAllUnderPrefix } = require('../utils/s3');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const fs = require('fs');
@@ -62,6 +62,35 @@ function sanitizeHtmlBasic(input) {
     return out;
 }
 
+// --- Helpers: map public URL to S3 Key and validate ownership ---
+function parseS3KeyFromUrl(url) {
+    try {
+        if (!url || typeof url !== 'string') return '';
+        const Bucket = process.env.S3_BUCKET || '';
+        const CDN = process.env.CDN_DOMAIN || '';
+        const u = new URL(url);
+        const host = u.host || '';
+        const pathname = (u.pathname || '').replace(/^\//, '');
+        // CDN form: https://cdn.example.com/<Key>
+        if (CDN && host.toLowerCase() === CDN.toLowerCase()) return decodeURI(pathname);
+        // S3 path-style: https://<bucket>.s3.<region>.amazonaws.com/<Key>
+        if (Bucket && host.toLowerCase().startsWith(`${Bucket}.s3`)) return decodeURI(pathname);
+        // Generic fallback: if hostname contains amazonaws.com, take pathname
+        if (host.includes('amazonaws.com')) return decodeURI(pathname);
+    } catch {}
+    return '';
+}
+
+function keyBelongsToArtistUploads(key, artistId) {
+    try {
+        const prefix = process.env.S3_UPLOADS_PREFIX || 'uploads';
+        const needle = `${prefix}/${String(artistId)}/`;
+        return typeof key === 'string' && key.startsWith(needle);
+    } catch {
+        return false;
+    }
+}
+
 function setByPath(target, dotPath, value) {
     const parts = dotPath.split('.');
     let obj = target;
@@ -73,13 +102,47 @@ function setByPath(target, dotPath, value) {
     obj[parts[parts.length - 1]] = value;
 }
 
+// Like setByPath, but supports bracket indices for arrays, e.g. "arr[0].field"
+function setByBracketPath(target, anyPath, value) {
+    if (!anyPath || typeof anyPath !== 'string') return;
+    const parts = anyPath.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean);
+    let obj = target;
+    for (let i = 0; i < parts.length - 1; i++) {
+        const key = parts[i];
+        const isIndex = /^\d+$/.test(key);
+        const nextKey = parts[i + 1];
+        const nextIsIndex = /^\d+$/.test(nextKey);
+        if (isIndex) {
+            // current obj should be an array
+            if (!Array.isArray(obj)) return; // invalid shape; bail out
+            const idx = Number(key);
+            if (obj[idx] == null) obj[idx] = nextIsIndex ? [] : {};
+            obj = obj[idx];
+        } else {
+            if (obj[key] == null) obj[key] = nextIsIndex ? [] : {};
+            obj = obj[key];
+        }
+    }
+    const last = parts[parts.length - 1];
+    const lastIsIndex = /^\d+$/.test(last);
+    if (lastIsIndex) {
+        if (!Array.isArray(obj)) return;
+        obj[Number(last)] = value;
+    } else {
+        obj[last] = value;
+    }
+}
+
 function isAllowedPath(pathStr) {
+    const canonical = String(pathStr || '').replace(/\[\d+\]/g, '[*]');
     const allowed = new Set([
+        // Home simple fields
         'homeContent.title',
         'homeContent.subtitle',
         'homeContent.description',
         'homeContent.explore_text',
         'homeContent.imageUrl',
+        // About simple/HTML sections
         'aboutContent.title',
         'aboutContent.bio',
         'aboutContent.contactInfo',
@@ -91,15 +154,22 @@ function isAllowedPath(pathStr) {
         'aboutContent.selectedAwards',
         'aboutContent.selectedProjects',
         'aboutContent.imageUrl',
+        // Structured About arrays (initially workExperience objects)
+        'content.about.workExperience[*].role',
+        'content.about.workExperience[*].organization',
+        'content.about.workExperience[*].years',
+        'content.about.workExperience[*].location',
+        'content.about.workExperience[*].descriptionHtml',
         // Works selections persistence (per subpage mapping)
         'surveyData.worksSelections',
         // Home selections persistence (homepage grid)
         'surveyData.homeSelections'
     ]);
-    return allowed.has(pathStr);
+    return allowed.has(canonical);
 }
 
 function validateTypeForPath(pathStr, type) {
+    const canonical = String(pathStr || '').replace(/\[\d+\]/g, '[*]');
     const htmlFields = new Set([
         'aboutContent.bio',
         'aboutContent.contactInfo',
@@ -109,13 +179,15 @@ function validateTypeForPath(pathStr, type) {
         'aboutContent.selectedExhibition',
         'aboutContent.selectedPress',
         'aboutContent.selectedAwards',
-        'aboutContent.selectedProjects'
+        'aboutContent.selectedProjects',
+        // Structured about description fields
+        'content.about.workExperience[*].descriptionHtml'
     ]);
     const imageFields = new Set(['homeContent.imageUrl', 'aboutContent.imageUrl']);
     const jsonFields = new Set(['surveyData.worksSelections', 'surveyData.homeSelections']);
-    if (htmlFields.has(pathStr)) return type === 'html';
-    if (imageFields.has(pathStr)) return type === 'imageUrl' || type === 'text';
-    if (jsonFields.has(pathStr)) return type === 'json';
+    if (htmlFields.has(canonical)) return type === 'html';
+    if (imageFields.has(canonical)) return type === 'imageUrl' || type === 'text';
+    if (jsonFields.has(canonical)) return type === 'json';
     return type === 'text';
 }
 
@@ -563,20 +635,19 @@ router.post('/update-content-batch', auth, async (req, res) => {
             return res.status(409).json({ msg: 'Version conflict', serverVersion: websiteState.version });
         }
 
+        // Track old image keys to delete after successful persistence
+        const oldImageKeysToDelete = new Set();
+
         for (const u of updates) {
             const { path: p, type, value } = u || {};
             if (!p || typeof p !== 'string') {
                 return res.status(400).json({ msg: 'Invalid update path' });
             }
-            if (p.includes('[')) {
-                // Array index paths not yet supported in step 1
-                return res.status(400).json({ msg: `Array index paths not supported yet: ${p}` });
-            }
             if (!isAllowedPath(p)) {
                 return res.status(400).json({ msg: `Path not allowed: ${p}` });
             }
             if (!validateTypeForPath(p, type)) {
-                return res.status(400).json({ msg: `Invalid type for path ${p}` });
+                return res.status(400).json({ msg: `Invalid type for path: ${p}` });
             }
             let v = value;
             if (type === 'html') v = sanitizeHtmlBasic(String(value ?? ''));
@@ -587,13 +658,39 @@ router.post('/update-content-batch', auth, async (req, res) => {
                 v = sanitizeArtworkArray(value);
             }
 
-            // Determine root object (homeContent/aboutContent)
+            // Determine root object (homeContent/aboutContent/content/surveyData)
             if (p.startsWith('homeContent.')) {
                 if (!websiteState.homeContent) websiteState.homeContent = {};
+                // If replacing imageUrl, record old key for deletion
+                if (p === 'homeContent.imageUrl') {
+                    try {
+                        const oldUrl = websiteState.homeContent && websiteState.homeContent.imageUrl;
+                        const newUrl = String(v || '');
+                        if (oldUrl && newUrl && oldUrl !== newUrl) {
+                            const key = parseS3KeyFromUrl(oldUrl);
+                            if (key && keyBelongsToArtistUploads(key, req.artist.id)) oldImageKeysToDelete.add(key);
+                        }
+                    } catch {}
+                }
                 setByPath(websiteState.homeContent, p.replace('homeContent.', ''), v);
             } else if (p.startsWith('aboutContent.')) {
                 if (!websiteState.aboutContent) websiteState.aboutContent = {};
+                if (p === 'aboutContent.imageUrl') {
+                    try {
+                        const oldUrl = websiteState.aboutContent && websiteState.aboutContent.imageUrl;
+                        const newUrl = String(v || '');
+                        if (oldUrl && newUrl && oldUrl !== newUrl) {
+                            const key = parseS3KeyFromUrl(oldUrl);
+                            if (key && keyBelongsToArtistUploads(key, req.artist.id)) oldImageKeysToDelete.add(key);
+                        }
+                    } catch {}
+                }
                 setByPath(websiteState.aboutContent, p.replace('aboutContent.', ''), v);
+            } else if (p.startsWith('content.')) {
+                if (!websiteState.content) websiteState.content = {};
+                const rel = p.replace(/^content\./, '');
+                // Support bracket indices (e.g., about.workExperience[0].role)
+                setByBracketPath(websiteState.content, rel, v);
             } else if (p.startsWith('surveyData.')) {
                 if (!websiteState.surveyData) websiteState.surveyData = {};
                 const key = p.replace('surveyData.', '');
@@ -611,6 +708,23 @@ router.post('/update-content-batch', auth, async (req, res) => {
         await websiteState.save();
 
         if (!doCompile) {
+            // After successful save, attempt to delete old images (best-effort)
+            try {
+                const Bucket = process.env.S3_BUCKET;
+                if (Bucket && oldImageKeysToDelete.size > 0) {
+                    const stillInUseKeys = new Set();
+                    try {
+                        const k1 = parseS3KeyFromUrl(websiteState?.homeContent?.imageUrl);
+                        const k2 = parseS3KeyFromUrl(websiteState?.aboutContent?.imageUrl);
+                        if (k1) stillInUseKeys.add(k1);
+                        if (k2) stillInUseKeys.add(k2);
+                    } catch {}
+                    for (const Key of oldImageKeysToDelete) {
+                        if (stillInUseKeys.has(Key)) continue; // do not delete if still referenced
+                        try { await deleteObject({ Bucket, Key }); } catch (e) { console.warn('Failed to delete old image from S3:', Key, e && e.message); }
+                    }
+                }
+            } catch {}
             return res.json({ version: websiteState.version });
         }
 
@@ -624,6 +738,24 @@ router.post('/update-content-batch', auth, async (req, res) => {
         websiteState.compiledAt = new Date();
         websiteState.surveyCompleted = true;
         await websiteState.save();
+
+        // After successful save/compile, attempt to delete old images (best-effort)
+        try {
+            const Bucket = process.env.S3_BUCKET;
+            if (Bucket && oldImageKeysToDelete.size > 0) {
+                const stillInUseKeys = new Set();
+                try {
+                    const k1 = parseS3KeyFromUrl(websiteState?.homeContent?.imageUrl);
+                    const k2 = parseS3KeyFromUrl(websiteState?.aboutContent?.imageUrl);
+                    if (k1) stillInUseKeys.add(k1);
+                    if (k2) stillInUseKeys.add(k2);
+                } catch {}
+                for (const Key of oldImageKeysToDelete) {
+                    if (stillInUseKeys.has(Key)) continue; // do not delete if still referenced
+                    try { await deleteObject({ Bucket, Key }); } catch (e) { console.warn('Failed to delete old image from S3:', Key, e && e.message); }
+                }
+            }
+        } catch {}
 
         return res.json({ compiled, version: websiteState.version, compiledJsonPath: websiteState.compiledJsonPath });
     } catch (error) {
@@ -642,18 +774,42 @@ router.post('/start-over', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Website state not found' });
         }
 
-        // Delete compiled JSON object from S3 if it exists
+        // Delete compiled JSON object (S3 or local) if it exists
         if (websiteState.compiledJsonPath) {
             try {
                 const Bucket = process.env.S3_BUCKET;
                 if (Bucket) {
                     const Key = getSitesKey(req.artist.id);
                     await deleteObject({ Bucket, Key });
+                } else {
+                    const rel = websiteState.compiledJsonPath.startsWith('/')
+                        ? websiteState.compiledJsonPath.slice(1)
+                        : websiteState.compiledJsonPath;
+                    const localPath = path.join(__dirname, '..', 'public', rel);
+                    try { await fs.promises.unlink(localPath); } catch {}
                 }
             } catch (e) {
-                console.warn('Failed to delete compiled JSON from S3:', e);
+                console.warn('Failed to delete compiled JSON during start over:', e && e.message);
             }
         }
+
+        // Delete all site images for this artist under uploads/<artistId>/site-images/
+        try {
+            const Bucket = process.env.S3_BUCKET;
+            if (Bucket) {
+                const uploadsPrefix = process.env.S3_UPLOADS_PREFIX || 'uploads';
+                const Prefix = `${uploadsPrefix}/${String(req.artist.id)}/site-images/`;
+                try {
+                    const { deleted, errors } = await deleteAllUnderPrefix({ Bucket, Prefix });
+                    if (errors && errors.length) {
+                        console.warn('Errors deleting site images on start over:', errors.join('; '));
+                    }
+                    console.log(`[START_OVER] Deleted ${deleted} site images under ${Prefix}`);
+                } catch (e) {
+                    console.warn('Failed to delete site images prefix on start over:', e && e.message);
+                }
+            }
+        } catch {}
 
         // Reset flags so user returns to survey
         websiteState.compiledJsonPath = undefined;

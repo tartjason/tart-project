@@ -126,6 +126,13 @@
             const separator = current && !current.trim().endsWith(';') ? '; ' : '';
             const imgStyle = `background-image: url('${url}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
             el.setAttribute('style', current + separator + imgStyle);
+            // Remove any placeholder text/content inside the image container
+            try { el.innerHTML = ''; } catch {}
+            // Hide adjacent helper caption paragraph, if present
+            try {
+              const sib = el.nextElementSibling;
+              if (sib && sib.tagName === 'P') sib.style.display = 'none';
+            } catch {}
           } else {
             el.style.backgroundImage = '';
           }
@@ -141,8 +148,9 @@
   // About section selection logic mirrors PreviewRenderer.getSelectedAboutSections()
   function getSelectedAboutSections(compiled, surveyData) {
     const compiledAbout = compiled && compiled.aboutContent;
+    // Exclude non-section fields like title, bio, and imageUrl
     const compiledKeys = (compiledAbout && typeof compiledAbout === 'object')
-      ? Object.keys(compiledAbout).filter(k => k !== 'title' && k !== 'bio' && compiledAbout[k])
+      ? Object.keys(compiledAbout).filter(k => k !== 'title' && k !== 'bio' && k !== 'imageUrl' && compiledAbout[k])
       : [];
     const aboutSections = (surveyData && surveyData.aboutSections) || {};
     const surveyKeys = Object.keys(aboutSections).filter(section => aboutSections[section]);

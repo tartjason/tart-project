@@ -35,6 +35,8 @@ app.use('/api/portfolios', require('./routes/portfolios'));
 app.use('/api/artists', require('./routes/artists'));
 app.use('/api/website-state', require('./routes/websiteState'));
 app.use('/api/public', require('./routes/public'));
+// Uploads (images to S3/CDN)
+app.use('/api/uploads', require('./routes/uploads'));
 
 // --- Backend proxy for compiled site JSON in S3 ---
 app.get('/sites/:artistId/site.json', async (req, res) => {

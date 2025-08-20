@@ -142,20 +142,35 @@ class PortfolioSurvey {
             const goToPublishBtn = document.getElementById('go-to-publish');
             const urlContainer = document.getElementById('published-url-container');
             const urlLink = document.getElementById('published-url-link');
+            const headerUrlSpan = document.querySelector('#step-preview .preview-header .preview-url');
             const hasUrl = !!(this.isPublished || this.publishedUrl);
             if (hasUrl) {
                 const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
-                const slug = String(this.publishedUrl || '').replace(/^\//, '');
-                const fullUrl = slug ? `${origin}/${slug}` : origin;
+                const raw = String(this.publishedUrl || '');
+                let fullUrl = '';
+                if (/^https?:\/\//i.test(raw)) {
+                    // Already an absolute URL
+                    fullUrl = raw;
+                } else {
+                    const slug = raw.replace(/^\/+/, '');
+                    fullUrl = slug ? `${origin}/${slug}` : origin;
+                }
+                // For header display, strip protocol (http/https)
+                const displayUrl = fullUrl.replace(/^https?:\/\//i, '');
                 if (urlLink) {
                     urlLink.href = fullUrl;
                     urlLink.textContent = fullUrl;
+                }
+                if (headerUrlSpan) {
+                    headerUrlSpan.textContent = displayUrl;
+                    headerUrlSpan.style.display = '';
                 }
                 if (urlContainer) urlContainer.style.display = 'block';
                 if (goToPublishBtn) goToPublishBtn.style.display = 'none';
             } else {
                 if (urlContainer) urlContainer.style.display = 'none';
                 if (goToPublishBtn) goToPublishBtn.style.display = '';
+                if (headerUrlSpan) headerUrlSpan.style.display = 'none';
             }
         } catch (e) {
             console && console.warn && console.warn('updatePreviewPublishUi failed:', e);

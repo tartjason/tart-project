@@ -91,7 +91,14 @@ const websiteStateSchema = new Schema({
             title: String,
             biography: String,
             education: [String],
-            workExperience: [String],
+            // Structured work experience entries for path-based editing
+            workExperience: [{
+                role: String,
+                organization: String,
+                years: String,
+                location: String,
+                descriptionHtml: String
+            }],
             exhibitions: [String],
             press: [String],
             awards: [String],

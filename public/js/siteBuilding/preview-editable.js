@@ -4,6 +4,21 @@
   if (!window.PreviewRenderer) return;
   const P = window.PreviewRenderer.prototype;
 
+  // Lightweight toast helper for success/error messages
+  function showToast(msg, opts) {
+    try {
+      const existing = document.querySelector('.preview-toast');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      const toast = document.createElement('div');
+      toast.className = 'preview-toast';
+      const isError = opts && opts.type === 'error';
+      toast.textContent = msg || '';
+      toast.style.cssText = `position:fixed; top:16px; right:16px; background:${isError ? '#ffefef' : '#eef9f1'}; color:${isError ? '#a00' : '#245c2f'}; border:1px solid ${isError ? '#f5c2c7' : '#cde7d8'}; padding:8px 12px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.1); z-index:9999; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;`;
+      document.body.appendChild(toast);
+      setTimeout(() => { try { if (toast && toast.parentNode) toast.parentNode.removeChild(toast); } catch {} }, (opts && opts.durationMs) || 1600);
+    } catch {}
+  }
+
 
   P.setupSaveControls = function() {
     this._saveBtn = document.getElementById('preview-save-btn');
@@ -17,10 +32,16 @@
   };
 
   P.updateSaveButtonState = function() {
-    const hasDirty = Object.keys(this._dirty || {}).length > 0;
+    const dirtyCount = Object.keys(this._dirty || {}).length;
+    const hasDirty = dirtyCount > 0;
     if (this._saveBtn) {
       this._saveBtn.disabled = !hasDirty || this._isSaving;
       this._saveBtn.style.cursor = (!hasDirty || this._isSaving) ? 'not-allowed' : 'pointer';
+      try {
+        if (this._isSaving) this._saveBtn.textContent = 'Saving…';
+        else if (hasDirty) this._saveBtn.textContent = `Save (${dirtyCount})`;
+        else this._saveBtn.textContent = 'Save';
+      } catch {}
     }
     if (this._saveStatus) {
       if (this._isSaving) this._saveStatus.textContent = 'Saving...';
@@ -72,32 +93,50 @@
     if (!obj || !path) return;
     const parts = [];
     path.split('.').forEach((seg) => {
-      const m = seg.match(/([^\[]+)(\[(\d+)\])?/);
-      if (!m) return parts.push(seg);
-      parts.push(m[1]);
-      if (m[3] != null) parts.push(Number(m[3]));
+      // Support bracket indices like workExperience[0]
+      const re = /([^\[]+)(\[(\d+)\])?/g;
+      let m;
+      while ((m = re.exec(seg)) !== null) {
+        const prop = m[1];
+        if (prop) parts.push(prop);
+        if (m[3] != null) parts.push(Number(m[3]));
+      }
     });
     let cursor = obj;
     for (let i = 0; i < parts.length; i++) {
       const key = parts[i];
-      const last = i === parts.length - 1;
-      if (last) {
-        if (typeof key === 'number') return; // we do not support arrays yet
-        cursor[key] = value;
-      } else {
-        const nextKey = parts[i + 1];
-        if (typeof key === 'number') return; // arrays not supported in step 1
-        if (cursor[key] == null || typeof cursor[key] !== 'object') {
-          cursor[key] = typeof nextKey === 'number' ? [] : {};
+      const isLast = i === parts.length - 1;
+      if (typeof key === 'number') {
+        // Ensure current cursor is an array
+        if (!Array.isArray(cursor)) return; // invalid structure; bail
+        if (isLast) {
+          cursor[key] = value;
+          return;
+        } else {
+          const nextKey = parts[i + 1];
+          if (cursor[key] == null) cursor[key] = (typeof nextKey === 'number') ? [] : {};
+          cursor = cursor[key];
         }
-        cursor = cursor[key];
+      } else {
+        if (isLast) {
+          cursor[key] = value;
+          return;
+        } else {
+          const nextKey = parts[i + 1];
+          if (cursor[key] == null || typeof cursor[key] !== 'object') {
+            cursor[key] = (typeof nextKey === 'number') ? [] : {};
+          }
+          cursor = cursor[key];
+        }
       }
     }
   };
 
   P.handleSaveClick = async function() {
     if (this._isSaving) return;
-    const updates = Object.entries(this._dirty || {}).map(([path, { type, value }]) => ({ path, type, value }));
+    // Snapshot dirty at click time to avoid losing edits made during the save
+    const dirtySnapshot = { ...(this._dirty || {}) };
+    const updates = Object.entries(dirtySnapshot).map(([path, { type, value }]) => ({ path, type, value }));
     if (updates.length === 0) return;
     this._isSaving = true;
     this.updateSaveButtonState();
@@ -114,15 +153,37 @@
         body: JSON.stringify(payload)
       });
       if (!res.ok) {
-        const msg = await res.text().catch(() => '');
+        // Handle version conflict explicitly
+        if (res.status === 409) {
+          let body = {};
+          try { body = await res.json(); } catch {}
+          if (typeof body.serverVersion === 'number') {
+            this._version = body.serverVersion;
+          }
+          if (this._saveStatus) this._saveStatus.textContent = 'Version conflict. Review and Save again';
+          showToast('Version conflict. Please review and Save again.', { type: 'error', durationMs: 2200 });
+          return; // keep dirty so user can retry
+        }
+        let msg = 'Save failed';
+        try {
+          const txt = await res.text();
+          msg = (txt && txt.trim()) || msg;
+        } catch {}
         throw new Error(msg || 'Save failed');
       }
       const data = await res.json();
       if (data && data.compiled) this._compiled = data.compiled;
       if (typeof data.version === 'number') this._version = data.version;
       if (this.survey && data.compiledJsonPath) this.survey.compiledJsonPath = data.compiledJsonPath;
-      // Clear dirty and re-render current page
-      this._dirty = {};
+      // Clear only the entries we sent that still match current values
+      const sentPaths = Object.keys(dirtySnapshot);
+      sentPaths.forEach((p) => {
+        const snap = dirtySnapshot[p];
+        const cur = this._dirty && this._dirty[p];
+        if (cur && snap && cur.type === snap.type && cur.value === snap.value) {
+          delete this._dirty[p];
+        }
+      });
       const page = this.currentPreviewPage || 'home';
       if (page === 'home') this.updateHomePreview();
       else if (page === 'about') this.updateAboutPreview();
@@ -136,9 +197,31 @@
           this.attachEditableListeners(previewContent);
         }
       }
+      // Indicate success briefly
+      if (this._saveStatus) {
+        this._saveStatus.textContent = 'Saved';
+        try {
+          setTimeout(() => {
+            if (Object.keys(this._dirty || {}).length === 0 && !this._isSaving) {
+              this._saveStatus.textContent = 'All changes saved';
+            } else {
+              this._saveStatus.textContent = 'Unsaved changes';
+            }
+          }, 1200);
+        } catch {}
+      }
+      if (this._saveBtn) {
+        try {
+          this._saveBtn.textContent = 'Saved';
+          setTimeout(() => { this.updateSaveButtonState(); }, 800);
+        } catch {}
+      }
+      showToast('Saved', { type: 'success', durationMs: 1200 });
     } catch (err) {
       console.error('Save failed:', err);
-      if (this._saveStatus) this._saveStatus.textContent = 'Save failed. Try again';
+      const emsg = (err && err.message) ? String(err.message) : 'Save failed. Try again';
+      if (this._saveStatus) this._saveStatus.textContent = emsg;
+      showToast(emsg, { type: 'error', durationMs: 2400 });
     } finally {
       this._isSaving = false;
       this.updateSaveButtonState();

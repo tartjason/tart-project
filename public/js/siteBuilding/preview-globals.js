@@ -11,26 +11,166 @@
       input.type = 'file';
       input.accept = 'image/*';
       input.style.display = 'none';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            const element = document.getElementById(elementId);
-            if (element) {
-              element.style.backgroundImage = `url(${evt.target.result})`;
-              element.style.backgroundSize = 'cover';
-              element.style.backgroundPosition = 'center';
-              element.style.backgroundRepeat = 'no-repeat';
-              element.innerHTML = '';
-              if (elementId === 'hero-image' || (typeof elementId === 'string' && elementId.indexOf('hero-home-image') === 0)) {
-                const overlay = document.createElement('div');
-                overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);pointer-events:none;';
-                element.appendChild(overlay);
-              }
+      input.onchange = async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        // Client-side size guard (10MB limit to match server)
+        const MAX_SIZE = 10 * 1024 * 1024;
+        if (file.size > MAX_SIZE) {
+          try {
+            const toast = document.createElement('div');
+            toast.textContent = 'Image is too large (max 10MB). Please choose a smaller file.';
+            toast.style.cssText = 'position:fixed; top:16px; right:16px; background:#ffefef; color:#a00; border:1px solid #f5c2c7; padding:8px 12px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.1); z-index:9999; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;';
+            document.body.appendChild(toast);
+            setTimeout(() => { try { if (toast && toast.parentNode) toast.parentNode.removeChild(toast); } catch {} }, 2500);
+          } catch {}
+          return;
+        }
+
+        const element = document.getElementById(elementId);
+        // Capture previous DOM state to restore on failure
+        let prevStyleAttr = '';
+        let prevInnerHTML = '';
+        let prevSibDisplay = '';
+        try {
+          if (element) {
+            prevStyleAttr = element.getAttribute('style') || '';
+            prevInnerHTML = element.innerHTML;
+            const sib0 = element.nextElementSibling;
+            if (sib0) prevSibDisplay = sib0.style.display || '';
+          }
+        } catch {}
+        // Prepare loading overlay + disable interactions
+        let overlay = null;
+        let prevPointerEvents = '';
+        try {
+          if (element) {
+            const pos = (element.style.position || '').trim();
+            if (!pos || pos === 'static') element.style.position = 'relative';
+            overlay = document.createElement('div');
+            overlay.style.cssText = 'position:absolute; inset:0; background:rgba(255,255,255,0.65); display:flex; align-items:center; justify-content:center; z-index:5; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:#333; font-size:14px;';
+            overlay.innerHTML = '<div style="display:flex; align-items:center; gap:8px;"><div style="width:16px;height:16px;border:2px solid #999;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div><span>Uploading…</span></div>';
+            const spinnerStyle = document.createElement('style');
+            spinnerStyle.textContent = '@keyframes spin{to{transform:rotate(360deg)}}';
+            overlay.appendChild(spinnerStyle);
+            element.appendChild(overlay);
+            prevPointerEvents = element.style.pointerEvents;
+            element.style.pointerEvents = 'none';
+          }
+        } catch {}
+
+        // Immediate local preview while uploading
+        try {
+          const localReader = new FileReader();
+          localReader.onload = (evt) => {
+            if (!element) return;
+            element.style.backgroundImage = `url(${evt.target.result})`;
+            element.style.backgroundSize = 'cover';
+            element.style.backgroundPosition = 'center';
+            element.style.backgroundRepeat = 'no-repeat';
+            element.innerHTML = '';
+            // Hide any sibling caption like "Click to upload image/photo"
+            try {
+              const sib = element.nextElementSibling;
+              if (sib && sib.tagName === 'P') sib.style.display = 'none';
+            } catch {}
+            if (elementId === 'hero-image' || (typeof elementId === 'string' && elementId.indexOf('hero-home-image') === 0)) {
+              const overlay = document.createElement('div');
+              overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);pointer-events:none;';
+              element.appendChild(overlay);
             }
           };
-          reader.readAsDataURL(file);
+          localReader.readAsDataURL(file);
+        } catch {}
+
+        // Upload to backend -> S3
+        try {
+          const token = localStorage.getItem('token');
+          const fd = new FormData();
+          fd.append('image', file, file.name || 'image');
+          const res = await fetch('/api/uploads/site-image', {
+            method: 'POST',
+            headers: { 'x-auth-token': token || '' },
+            body: fd,
+            credentials: 'include'
+          });
+          if (!res.ok) {
+            const raw = await res.text().catch(() => 'Upload failed');
+            let serverMsg = '';
+            try { const j = JSON.parse(raw); serverMsg = j && (j.msg || j.error) || ''; } catch {}
+            const err = new Error(serverMsg || raw || 'Upload failed');
+            try { err.status = res.status; } catch {}
+            throw err;
+          }
+          const data = await res.json();
+          const url = (data && (data.url || data.imageUrl)) || '';
+          if (!url) throw new Error('Upload succeeded but no URL returned');
+
+          // Apply final URL preview (ensures CDN/S3 URL in DOM)
+          if (element) {
+            element.style.backgroundImage = `url(${url})`;
+            element.style.backgroundSize = 'cover';
+            element.style.backgroundPosition = 'center';
+            element.style.backgroundRepeat = 'no-repeat';
+            element.innerHTML = '';
+            // Hide any sibling caption like "Click to upload image/photo"
+            try {
+              const sib = element.nextElementSibling;
+              if (sib && sib.tagName === 'P') sib.style.display = 'none';
+            } catch {}
+            if (elementId === 'hero-image' || (typeof elementId === 'string' && elementId.indexOf('hero-home-image') === 0)) {
+              const overlay = document.createElement('div');
+              overlay.style.cssText = 'position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.3);pointer-events:none;';
+              element.appendChild(overlay);
+            }
+          }
+
+          // Persist into compiled + mark dirty and auto-save
+          const contentPath = element && element.getAttribute('data-content-path') ? element.getAttribute('data-content-path').trim() : '';
+          if (contentPath) {
+            try {
+              if (!self._compiled) self._compiled = {};
+              if (typeof self.setValueAtPath === 'function') self.setValueAtPath(self._compiled, contentPath, url);
+              if (!self._dirty) self._dirty = {};
+              self._dirty[contentPath] = { type: 'imageUrl', value: url };
+              if (typeof self.updateSaveButtonState === 'function') self.updateSaveButtonState();
+              if (typeof self.handleSaveClick === 'function') await self.handleSaveClick();
+            } catch (persistErr) {
+              console.error('Failed to persist image URL to state:', persistErr);
+            }
+          }
+        } catch (err) {
+          console.error('Image upload failed:', err);
+          // Specific message for oversized file
+          const tooLarge = (err && (String(err.message || '').toLowerCase().includes('file too large') || String(err.status || '') === '413'));
+          const msg = tooLarge ? 'Image is too large (max 10MB). Please choose a smaller file.' : 'Image upload failed. Please try again.';
+          try {
+            const toast = document.createElement('div');
+            toast.textContent = msg;
+            toast.style.cssText = 'position:fixed; top:16px; right:16px; background:#ffefef; color:#a00; border:1px solid #f5c2c7; padding:8px 12px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.1); z-index:9999; font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;';
+            document.body.appendChild(toast);
+            setTimeout(() => { try { if (toast && toast.parentNode) toast.parentNode.removeChild(toast); } catch {} }, 2500);
+          } catch {}
+          // Restore previous state so the old image stays
+          try {
+            if (element) {
+              element.setAttribute('style', prevStyleAttr || '');
+              element.innerHTML = prevInnerHTML || '';
+              const sib = element.nextElementSibling;
+              if (sib) sib.style.display = prevSibDisplay || '';
+            }
+          } catch {}
+        }
+        finally {
+          try {
+            if (overlay && overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            if (element) element.style.pointerEvents = prevPointerEvents || '';
+          } catch {}
+          try {
+            // Clean up the temporary input element
+            input.value = '';
+            if (input && input.parentNode) input.parentNode.removeChild(input);
+          } catch {}
         }
       };
       document.body.appendChild(input);
