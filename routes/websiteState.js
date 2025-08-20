@@ -42,6 +42,8 @@ const auth = require('../middleware/auth');
 const WebsiteState = require('../models/WebsiteState');
 const { putJson, getSitesKey, deleteObject } = require('../utils/s3');
 const jwt = require('jsonwebtoken');
+const path = require('path');
+const fs = require('fs');
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -357,10 +359,17 @@ function buildCompiledFromState(websiteState) {
     };
 }
 
-// Helper: Write compiled JSON to disk under public/sites/<artistId>/site.json
+// Helper: Write compiled JSON to S3 if configured, else to local filesystem under public/sites/<artistId>/site.json
 async function writeCompiledJson(artistId, compiled) {
     const Bucket = process.env.S3_BUCKET;
-    if (!Bucket) throw new Error('S3_BUCKET env is required');
+    if (!Bucket) {
+        // Local dev fallback: write to public/sites/<artistId>/site.json
+        const dir = path.join(__dirname, '..', 'public', 'sites', String(artistId));
+        await fs.promises.mkdir(dir, { recursive: true });
+        const filePath = path.join(dir, 'site.json');
+        await fs.promises.writeFile(filePath, JSON.stringify(compiled, null, 2), 'utf8');
+        return filePath;
+    }
     const Key = getSitesKey(artistId);
     await putJson({ Bucket, Key, Body: JSON.stringify(compiled, null, 2), ContentType: 'application/json' });
     return `s3://${Bucket}/${Key}`;

@@ -670,7 +670,8 @@ class PortfolioSurvey {
                 try {
                     await this.publishSite(slug);
                     if (successEl) {
-                        const url = `https://tartart.org/${slug}`;
+                        const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+                        const url = `${origin}/s/${slug}`;
                         successEl.innerHTML = `Published! Your site is live at <a href="${url}" target="_blank" rel="noopener">${url}</a>`;
                         successEl.style.display = 'block';
                     }

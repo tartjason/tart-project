@@ -2,6 +2,7 @@
 // This file sets up an Express server with a MongoDB connection using Mongoose.
 
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
@@ -33,22 +34,43 @@ app.use('/api/artworks', require('./routes/artworks'));
 app.use('/api/portfolios', require('./routes/portfolios'));
 app.use('/api/artists', require('./routes/artists'));
 app.use('/api/website-state', require('./routes/websiteState'));
+app.use('/api/public', require('./routes/public'));
 
 // --- Backend proxy for compiled site JSON in S3 ---
 app.get('/sites/:artistId/site.json', async (req, res) => {
     try {
         const Bucket = process.env.S3_BUCKET;
+        const artistId = req.params.artistId;
+        const localPath = path.join(__dirname, 'public', 'sites', artistId, 'site.json');
+        const serveLocal = () => {
+            if (fs.existsSync(localPath)) {
+                return res.sendFile(localPath);
+            }
+            return res.status(404).json({ msg: 'Not found' });
+        };
+
         if (!Bucket) {
-            return res.status(500).json({ msg: 'S3 is not configured' });
+            // Fallback to local file when S3 isn't configured (dev)
+            return serveLocal();
         }
-        const Key = getSitesKey(req.params.artistId);
-        const { stream, contentType } = await getObjectStream({ Bucket, Key });
-        res.set('Content-Type', contentType || 'application/json');
-        stream.on('error', (err) => {
-            console.error('S3 stream error:', err);
-            if (!res.headersSent) res.status(500).json({ msg: 'Error streaming S3 object' });
-        });
-        stream.pipe(res);
+
+        const Key = getSitesKey(artistId);
+        try {
+            const { stream, contentType } = await getObjectStream({ Bucket, Key });
+            res.set('Content-Type', contentType || 'application/json');
+            stream.on('error', (err) => {
+                console.error('S3 stream error:', err);
+                if (!res.headersSent) res.status(500).json({ msg: 'Error streaming S3 object' });
+            });
+            stream.pipe(res);
+        } catch (err) {
+            const status = (err && err.$metadata && err.$metadata.httpStatusCode) || 500;
+            if (status === 404) {
+                // Fallback to local if object not found in S3
+                return serveLocal();
+            }
+            throw err;
+        }
     } catch (err) {
         const status = (err && err.$metadata && err.$metadata.httpStatusCode) || 500;
         if (status === 404) {
@@ -62,6 +84,23 @@ app.get('/sites/:artistId/site.json', async (req, res) => {
 // --- Frontend Routes ---
 // Serve static files from the 'public' directory (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Public site viewer by slug (e.g., /s/john-doe)
+app.get('/s/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'site.html'));
+});
+
+// Public site viewer at root (e.g., /john-doe) for production domain
+// Avoid intercepting API, assets, or files (anything with a dot)
+app.get('/:slug', (req, res, next) => {
+    const slug = String(req.params.slug || '').toLowerCase();
+    const reserved = new Set([
+        'api', 'sites', 'js', 'css', 'uploads', 'static', 'assets', 'images', 'img', 'fonts',
+        'favicon.ico', 'robots.txt', 's', 'site.html', 'index.html'
+    ]);
+    if (!slug || reserved.has(slug) || slug.includes('.')) return next();
+    return res.sendFile(path.join(__dirname, 'public', 'site.html'));
+});
 
 // For any other request, serve the main index.html file.
 // This is key for single-page applications.

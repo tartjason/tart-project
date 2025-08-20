@@ -4,6 +4,7 @@
 // Optionally set via global window.SITE_CONFIG = { siteId: '...', page: 'home' } or data attributes on #site-root
 
 (function(){
+  const MANUAL = typeof window !== 'undefined' && !!window.SITE_BOOTSTRAP_MANUAL;
   function qs(name) {
     const m = new URLSearchParams(window.location.search).get(name);
     return m && m.trim() ? m.trim() : null;
@@ -142,7 +143,10 @@
     const page = getPage();
 
     if (!siteId) {
-      root.innerHTML = '<div style="padding:16px; color:#b00;">Missing site id. Provide ?site=&lt;id&gt; in URL or set data-site on #site-root.</div>';
+      // In manual mode (slug viewer), we don't auto-render an error; caller will set config and call run()
+      if (!MANUAL) {
+        root.innerHTML = '<div style="padding:16px; color:#b00;">Missing site id. Provide ?site=&lt;id&gt; in URL or set data-site on #site-root.</div>';
+      }
       return;
     }
 
@@ -223,5 +227,9 @@
     } catch (e) { console.warn('Header navigation wiring failed:', e); }
   }
 
-  document.addEventListener('DOMContentLoaded', bootstrap);
+  // Expose manual bootstrap entry point
+  window.SiteBootstrap = { run: bootstrap };
+  if (!MANUAL) {
+    document.addEventListener('DOMContentLoaded', bootstrap);
+  }
 })();
