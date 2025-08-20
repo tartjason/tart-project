@@ -18,6 +18,10 @@ function getUploadsKey(artistId, filename, folder = '') {
 }
 
 function getPublicUrl(Bucket, Key) {
+  const cdn = process.env.CDN_DOMAIN;
+  if (cdn) {
+    return `https://${cdn}/${encodeURI(Key)}`;
+  }
   const region = REGION;
   return `https://${Bucket}.s3.${region}.amazonaws.com/${encodeURI(Key)}`;
 }

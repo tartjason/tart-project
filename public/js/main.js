@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // Non-poetry artworks get the blurred image treatment
                     artworkEl.innerHTML = `
-                        <img src="${artwork.imageUrl}" alt="${artwork.title}" class="blurred">
+                        <img src="${artwork.imageUrl}" alt="${artwork.title}" class="blurred" loading="lazy" decoding="async" fetchpriority="low">
                         <div class="artwork-info">
                             <h3>${artwork.title}</h3>
                             <p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>

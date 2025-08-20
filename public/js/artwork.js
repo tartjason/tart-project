@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Populate Page Elements
         document.title = artwork.title; // Set page title
-        document.getElementById('artwork-image-container').innerHTML = `<img src="${artwork.imageUrl}" alt="${artwork.title}">`;
+        document.getElementById('artwork-image-container').innerHTML = `<img src="${artwork.imageUrl}" alt="${artwork.title}" decoding="async" fetchpriority="high">`;
         document.getElementById('artwork-title').textContent = artwork.title;
         
         // Handle description section - hide if empty
