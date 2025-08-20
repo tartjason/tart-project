@@ -41,6 +41,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const WebsiteState = require('../models/WebsiteState');
 const { putJson, getSitesKey, deleteObject } = require('../utils/s3');
+const jwt = require('jsonwebtoken');
 
 // Debug middleware
 router.use((req, res, next) => {
@@ -733,19 +734,31 @@ router.patch('/styles', auth, async (req, res) => {
 // @access  Private
 router.post('/publish', auth, async (req, res) => {
     try {
-        const { customUrl } = req.body;
-        
+        let { customUrl } = req.body;
+
         let websiteState = await WebsiteState.findOne({ artist: req.artist.id });
-        
+
         if (!websiteState) {
             return res.status(404).json({ msg: 'Website state not found' });
         }
-        
-        websiteState.isPublished = true;
-        if (customUrl) {
-            websiteState.publishedUrl = customUrl;
+
+        // Sanitize and validate slug
+        if (typeof customUrl === 'string') {
+            customUrl = customUrl.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
         }
-        
+        if (!customUrl || customUrl.length < 3 || customUrl.length > 30 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(customUrl)) {
+            return res.status(400).json({ msg: 'Invalid slug' });
+        }
+
+        // Ensure uniqueness across other artists
+        const conflict = await WebsiteState.findOne({ publishedUrl: customUrl, artist: { $ne: req.artist.id } }).select('_id').lean();
+        if (conflict) {
+            return res.status(409).json({ msg: 'Slug already taken' });
+        }
+
+        websiteState.isPublished = true;
+        websiteState.publishedUrl = customUrl;
+
         await websiteState.save();
         res.json(websiteState);
     } catch (error) {
@@ -757,7 +770,7 @@ router.post('/publish', auth, async (req, res) => {
 // @route   GET /api/website-state/slug-available
 // @desc    Validate and check if a slug is available (not used by another artist)
 // @access  Private
-router.get('/slug-available', auth, async (req, res) => {
+router.get('/slug-available', async (req, res) => {
     try {
         let slug = String(req.query.slug || '').toLowerCase();
         // Sanitize similarly to frontend
@@ -768,13 +781,27 @@ router.get('/slug-available', auth, async (req, res) => {
             return res.json({ slug, available: false, reason: 'invalid' });
         }
 
+        // Optional identification of caller (no auth required)
+        let artistId = null;
+        const token = req.header('x-auth-token');
+        if (token) {
+            try {
+                const decoded = jwt.verify(token, process.env.JWT_SECRET || 'dev-insecure-secret');
+                if (decoded && decoded.artist) {
+                    artistId = typeof decoded.artist === 'object' ? (decoded.artist.id || decoded.artist._id) : decoded.artist;
+                }
+            } catch (e) {
+                // ignore invalid token; treat as unauthenticated for availability
+            }
+        }
+
         // If another user's WebsiteState already has this slug, it's taken
         const existing = await WebsiteState.findOne({ publishedUrl: slug }).select('artist publishedUrl').lean();
         if (!existing) {
             return res.json({ slug, available: true });
         }
         // If it's the current user's own slug, treat as available
-        const sameOwner = String(existing.artist) === String(req.artist.id);
+        const sameOwner = artistId && String(existing.artist) === String(artistId);
         return res.json({ slug, available: sameOwner, reason: sameOwner ? 'own' : 'taken' });
     } catch (error) {
         console.error('Error checking slug availability:', error);
