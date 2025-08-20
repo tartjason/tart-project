@@ -235,6 +235,8 @@ class PortfolioSurvey {
         document.querySelectorAll('.prev-btn').forEach(btn => {
             const stepEl = btn.closest('.survey-step');
             if (stepEl && (stepEl.id === 'step-preview' || stepEl.id === 'step-style')) return;
+            // Allow dedicated Back-to-account link to navigate normally
+            if (btn.id === 'back-to-account') return;
             btn.addEventListener('click', () => {
                 this.prevStep();
             });
