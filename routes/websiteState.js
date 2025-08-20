@@ -754,6 +754,34 @@ router.post('/publish', auth, async (req, res) => {
     }
 });
 
+// @route   GET /api/website-state/slug-available
+// @desc    Validate and check if a slug is available (not used by another artist)
+// @access  Private
+router.get('/slug-available', auth, async (req, res) => {
+    try {
+        let slug = String(req.query.slug || '').toLowerCase();
+        // Sanitize similarly to frontend
+        slug = slug.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
+
+        // Validate constraints
+        if (!slug || slug.length < 3 || slug.length > 30 || !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(slug)) {
+            return res.json({ slug, available: false, reason: 'invalid' });
+        }
+
+        // If another user's WebsiteState already has this slug, it's taken
+        const existing = await WebsiteState.findOne({ publishedUrl: slug }).select('artist publishedUrl').lean();
+        if (!existing) {
+            return res.json({ slug, available: true });
+        }
+        // If it's the current user's own slug, treat as available
+        const sameOwner = String(existing.artist) === String(req.artist.id);
+        return res.json({ slug, available: sameOwner, reason: sameOwner ? 'own' : 'taken' });
+    } catch (error) {
+        console.error('Error checking slug availability:', error);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 // @route   DELETE /api/website-state
 // @desc    Delete user's website state
 // @access  Private

@@ -457,6 +457,27 @@
                     </div>
                     <div class="step-navigation">
                         <button type="button" class="btn" id="open-style-tool">Customize Style</button>
+                        <button type="button" class="btn primary" id="go-to-publish">Continue to Publish</button>
+                    </div>
+                </div>
+
+                <!-- Slug & Publish Step (after preview) -->
+                <div id="step-publish" class="survey-step">
+                    <h2>Pick the name of your website</h2>
+                    <p>Choose a URL slug for your portfolio. Allowed: lowercase letters, numbers, and dashes.</p>
+                    <div class="publish-form" style="max-width:520px;">
+                        <label for="publish-slug">Your site URL</label>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="white-space:nowrap; color:#666;">tartart.org/</span>
+                            <input id="publish-slug" type="text" placeholder="your-name" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;" />
+                        </div>
+                        <div id="slug-error" style="color:#c00; font-size:0.9rem; margin-top:6px; display:none;">Slug must be 3–30 chars: a–z, 0–9, dashes. Start/end with alphanumeric.</div>
+                        <div id="slug-availability" style="font-size:0.9rem; margin-top:6px; display:none;">Checking availability…</div>
+                        <div id="publish-success" style="color:#0a7a0a; font-size:0.95rem; margin-top:8px; display:none;"></div>
+                    </div>
+                    <div class="step-navigation">
+                        <button type="button" class="btn" id="back-to-preview-from-publish">Back to Preview</button>
+                        <button type="button" class="btn" id="publish-btn" disabled>Publish</button>
                     </div>
                 </div>
 

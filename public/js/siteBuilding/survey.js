@@ -121,6 +121,17 @@ class PortfolioSurvey {
                 await this.previewRenderer.generateWebsitePreview();
             });
         }
+
+        // Route to Publish step from Preview
+        const goToPublishBtn = document.getElementById('go-to-publish');
+        if (goToPublishBtn) {
+            goToPublishBtn.addEventListener('click', async () => {
+                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                const publishEl = document.getElementById('step-publish');
+                if (publishEl) publishEl.classList.add('active');
+                if (!this._publishSetupDone) this.setupPublishStep();
+            });
+        }
     }
     
     setupMediumSelection() {
@@ -550,6 +561,7 @@ class PortfolioSurvey {
             // Merge saved survey data
             this.surveyData = { ...this.surveyData, ...state.surveyData };
             if (state.compiledJsonPath) this.compiledJsonPath = state.compiledJsonPath;
+            if (state.publishedUrl) this.publishedUrl = state.publishedUrl;
             
             // If logo is stored as a string path, normalize to { dataUrl }
             if (this.surveyData.logo && typeof this.surveyData.logo === 'string') {
@@ -567,6 +579,153 @@ class PortfolioSurvey {
         } catch (err) {
             console.warn('Draft load skipped:', err);
         }
+    }
+
+    // Publish step setup: slug validation and event handlers
+    setupPublishStep() {
+        if (this._publishSetupDone) return;
+        this._publishSetupDone = true;
+
+        const slugInput = document.getElementById('publish-slug');
+        const publishBtn = document.getElementById('publish-btn');
+        const errorEl = document.getElementById('slug-error');
+        const successEl = document.getElementById('publish-success');
+        const availabilityEl = document.getElementById('slug-availability');
+        const backBtn = document.getElementById('back-to-preview-from-publish');
+
+        const sanitize = (s) => {
+            s = (s || '').toLowerCase().replace(/[^a-z0-9-]/g, '-');
+            s = s.replace(/-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
+            return s;
+        };
+        const isValid = (s) => {
+            if (!s) return false;
+            if (s.length < 3 || s.length > 30) return false;
+            if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(s)) return false;
+            return true;
+        };
+
+        if (slugInput) {
+            if (this.publishedUrl && !slugInput.value) slugInput.value = this.publishedUrl;
+            let checkTimer = null;
+            slugInput.addEventListener('input', () => {
+                const sanitized = sanitize(slugInput.value);
+                if (slugInput.value !== sanitized) slugInput.value = sanitized;
+                const ok = isValid(sanitized);
+                if (ok) {
+                    if (errorEl) errorEl.style.display = 'none';
+                    if (availabilityEl) {
+                        availabilityEl.textContent = 'Checking availability…';
+                        availabilityEl.style.display = 'block';
+                        availabilityEl.style.color = '#666';
+                    }
+                    if (publishBtn) publishBtn.disabled = true;
+                    if (checkTimer) clearTimeout(checkTimer);
+                    checkTimer = setTimeout(async () => {
+                        try {
+                            const res = await this.checkSlugAvailability(sanitized);
+                            if (res && res.available) {
+                                if (availabilityEl) {
+                                    availabilityEl.textContent = 'Available';
+                                    availabilityEl.style.display = 'block';
+                                    availabilityEl.style.color = '#0a7a0a';
+                                }
+                                if (publishBtn) publishBtn.disabled = false;
+                            } else {
+                                if (availabilityEl) {
+                                    availabilityEl.textContent = res && res.reason === 'invalid' ? 'Invalid slug' : 'Not available';
+                                    availabilityEl.style.display = 'block';
+                                    availabilityEl.style.color = '#c00';
+                                }
+                                if (publishBtn) publishBtn.disabled = true;
+                            }
+                        } catch (e) {
+                            if (availabilityEl) {
+                                availabilityEl.textContent = 'Unable to check right now';
+                                availabilityEl.style.display = 'block';
+                                availabilityEl.style.color = '#c00';
+                            }
+                            if (publishBtn) publishBtn.disabled = true;
+                        }
+                    }, 350);
+                } else {
+                    if (errorEl) errorEl.style.display = 'block';
+                    if (availabilityEl) availabilityEl.style.display = 'none';
+                    if (publishBtn) publishBtn.disabled = true;
+                }
+                if (successEl) successEl.style.display = 'none';
+            });
+        }
+
+        if (publishBtn) {
+            publishBtn.addEventListener('click', async () => {
+                const slug = sanitize(slugInput ? slugInput.value : '');
+                if (!isValid(slug)) {
+                    if (errorEl) errorEl.style.display = 'block';
+                    return;
+                }
+                publishBtn.disabled = true;
+                const oldText = publishBtn.textContent;
+                publishBtn.textContent = 'Publishing...';
+                try {
+                    await this.publishSite(slug);
+                    if (successEl) {
+                        const url = `https://tartart.org/${slug}`;
+                        successEl.innerHTML = `Published! Your site is live at <a href="${url}" target="_blank" rel="noopener">${url}</a>`;
+                        successEl.style.display = 'block';
+                    }
+                } catch (e) {
+                    alert('Failed to publish. Please try again.');
+                    publishBtn.disabled = false;
+                } finally {
+                    publishBtn.textContent = oldText;
+                }
+            });
+        }
+
+        if (backBtn) {
+            backBtn.addEventListener('click', async () => {
+                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                const previewEl = document.getElementById('step-preview');
+                if (previewEl) previewEl.classList.add('active');
+                await this.previewRenderer.ensureTemplatesLoaded();
+                await this.previewRenderer.generateWebsitePreview();
+            });
+        }
+    }
+
+    async checkSlugAvailability(slug) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/website-state/slug-available?slug=${encodeURIComponent(slug)}`, {
+            method: 'GET',
+            headers: {
+                'x-auth-token': token || ''
+            }
+        });
+        if (!res.ok) {
+            throw new Error('availability check failed');
+        }
+        return res.json();
+    }
+
+    async publishSite(slug) {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/website-state/publish', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': token || ''
+            },
+            body: JSON.stringify({ customUrl: slug })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.msg || 'Publish failed');
+        }
+        const state = await res.json();
+        this.isPublished = true;
+        this.publishedUrl = state.publishedUrl || slug;
+        return state;
     }
 }
 
