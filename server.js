@@ -85,9 +85,10 @@ app.get('/sites/:artistId/site.json', async (req, res) => {
 // Serve static files from the 'public' directory (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Public site viewer by slug (e.g., /s/john-doe)
+// Back-compat: redirect /s/:slug to root-level /:slug
 app.get('/s/:slug', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'site.html'));
+    const slug = String(req.params.slug || '');
+    return res.redirect(301, `/${encodeURIComponent(slug)}`);
 });
 
 // Public site viewer at root (e.g., /john-doe) for production domain
