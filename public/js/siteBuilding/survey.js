@@ -108,6 +108,7 @@ class PortfolioSurvey {
                 if (previewEl) previewEl.classList.add('active');
                 await this.previewRenderer.ensureTemplatesLoaded();
                 await this.previewRenderer.generateWebsitePreview();
+                this.updatePreviewPublishUi();
             });
         }
 
@@ -119,6 +120,7 @@ class PortfolioSurvey {
                 if (previewEl) previewEl.classList.add('active');
                 await this.previewRenderer.ensureTemplatesLoaded();
                 await this.previewRenderer.generateWebsitePreview();
+                this.updatePreviewPublishUi();
             });
         }
 
@@ -131,6 +133,32 @@ class PortfolioSurvey {
                 if (publishEl) publishEl.classList.add('active');
                 if (!this._publishSetupDone) this.setupPublishStep();
             });
+        }
+    }
+
+    // Toggle preview step CTA vs. published URL if already published
+    updatePreviewPublishUi() {
+        try {
+            const goToPublishBtn = document.getElementById('go-to-publish');
+            const urlContainer = document.getElementById('published-url-container');
+            const urlLink = document.getElementById('published-url-link');
+            const hasUrl = !!(this.isPublished || this.publishedUrl);
+            if (hasUrl) {
+                const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+                const slug = String(this.publishedUrl || '').replace(/^\//, '');
+                const fullUrl = slug ? `${origin}/${slug}` : origin;
+                if (urlLink) {
+                    urlLink.href = fullUrl;
+                    urlLink.textContent = fullUrl;
+                }
+                if (urlContainer) urlContainer.style.display = 'block';
+                if (goToPublishBtn) goToPublishBtn.style.display = 'none';
+            } else {
+                if (urlContainer) urlContainer.style.display = 'none';
+                if (goToPublishBtn) goToPublishBtn.style.display = '';
+            }
+        } catch (e) {
+            console && console.warn && console.warn('updatePreviewPublishUi failed:', e);
         }
     }
     
@@ -196,6 +224,50 @@ class PortfolioSurvey {
                 this.prevStep();
             });
         });
+    }
+    
+    // Lightweight toast (non-blocking) to avoid browser alert("<origin> says")
+    showToast(message, type = 'info') {
+        try {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.position = 'fixed';
+                container.style.top = '16px';
+                container.style.right = '16px';
+                container.style.zIndex = '9999';
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.gap = '8px';
+                document.body.appendChild(container);
+            }
+            const toast = document.createElement('div');
+            toast.role = 'status';
+            toast.style.minWidth = '260px';
+            toast.style.maxWidth = '420px';
+            toast.style.padding = '10px 12px';
+            toast.style.borderRadius = '6px';
+            toast.style.boxShadow = '0 6px 16px rgba(0,0,0,0.15)';
+            toast.style.color = '#fff';
+            toast.style.fontSize = '14px';
+            toast.style.lineHeight = '1.4';
+            toast.style.whiteSpace = 'pre-line';
+            toast.style.cursor = 'pointer';
+            toast.style.transition = 'opacity 200ms ease';
+            const bg = type === 'error' ? '#c4453d' : (type === 'success' ? '#198754' : '#333');
+            toast.style.background = bg;
+            toast.textContent = String(message || '');
+            toast.addEventListener('click', () => toast.remove());
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 250);
+            }, 4500);
+        } catch (e) {
+            // As a last resort, fall back silently to avoid blocking alert
+            console && console.warn && console.warn('Toast failed:', e);
+        }
     }
     
     setupLayoutSelection() {
@@ -295,7 +367,7 @@ class PortfolioSurvey {
     handleLogoUpload(file) {
         // Validate file size (2MB max)
         if (file.size > 2 * 1024 * 1024) {
-            alert('File size must be less than 2MB');
+            this.showToast('File size must be less than 2MB', 'error');
             return;
         }
         
@@ -431,283 +503,93 @@ class PortfolioSurvey {
         return false;
     }
     
-    async nextStep() {
-        const currentStepElement = document.querySelector(`#${this.stepOrder[this.currentStep - 1]}`);
+    
         
-        if (this.currentStep === 1) {
-            // Validate medium selection
-            if (!this.surveyData.medium) {
-                alert('Please select an artwork medium.');
-                return;
-            }
-        }
+async nextStep() {
+    const currentStepElement = document.querySelector(`#${this.stepOrder[this.currentStep - 1]}`);
         
-        if (this.currentStep === 2) {
-            // Validate works organization selection
-            if (!this.surveyData.features.worksOrganization) {
-                alert('Please select how you want to organize your works.');
-                return;
-            }
-            // Generate step order after feature selection
-            this.generateStepOrder();
-            this.showWorksOrganizationInput();
-        }
-        
-        if (this.currentStep === 5) {
-            // Validate works organization details
-            if (!this.validateWorksDetails()) {
-                const orgType = this.surveyData.features.worksOrganization;
-                alert(`Please enter at least one ${orgType === 'year' ? 'year' : 'theme'}.`);
-                return;
-            }
-        }
-        
-        // Handle dynamic step validation
-        const currentStepId = this.stepOrder[this.currentStep - 1];
-        if (currentStepId === 'step-logo') {
-            // Finish survey: save + compile, then jump to preview (outside wizard)
-            await this.completeSurvey();
-            document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
-            const previewEl = document.getElementById('step-preview');
-            if (previewEl) {
-                previewEl.classList.add('active');
-                await this.previewRenderer.ensureTemplatesLoaded();
-                await this.previewRenderer.generateWebsitePreview();
-            }
+    if (this.currentStep === 1) {
+        // Validate medium selection
+        if (!this.surveyData.medium) {
+            this.showToast('Please select an artwork medium.', 'error');
             return;
         }
+    }
         
-        // Hide current step
-        currentStepElement.classList.remove('active');
+    if (this.currentStep === 2) {
+        // Validate works organization selection
+        if (!this.surveyData.features.worksOrganization) {
+            this.showToast('Please select how you want to organize your works.', 'error');
+            return;
+        }
+        // Generate step order after feature selection
+        this.generateStepOrder();
+        this.showWorksOrganizationInput();
+    }
         
-        // Show next step
-        this.currentStep++;
-        const nextStepId = this.stepOrder[this.currentStep - 1];
-        const nextStepElement = document.querySelector(`#${nextStepId}`);
-        if (nextStepElement) {
-            nextStepElement.classList.add('active');
+    if (this.currentStep === 5) {
+        // Validate works organization details
+        if (!this.validateWorksDetails()) {
+            const orgType = this.surveyData.features.worksOrganization;
+            this.showToast(`Please enter at least one ${orgType === 'year' ? 'year' : 'theme'}.`, 'error');
+            return;
         }
     }
-    
-    prevStep() {
-        if (this.currentStep <= 1) return;
         
-        // Hide current step
-        const currentStepId = this.stepOrder[this.currentStep - 1];
-        const currentStepElement = document.querySelector(`#${currentStepId}`);
-        currentStepElement.classList.remove('active');
-        
-        // Show previous step
-        this.currentStep--;
-        const prevStepId = this.stepOrder[this.currentStep - 1];
-        const prevStepElement = document.querySelector(`#${prevStepId}`);
-        prevStepElement.classList.add('active');
-    }
-    
-    async completeSurvey() {
-        console.log('Survey completed with data:', this.surveyData);
-        
-        // Persist survey data and compile JSON on the backend
-        const token = localStorage.getItem('token');
-        try {
-            // Save current survey data
-            await fetch('/api/website-state/survey', {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-auth-token': token || ''
-                },
-                body: JSON.stringify(this.surveyData)
-            });
-
-            // Create/update compiled JSON for this user
-            const compileRes = await fetch('/api/website-state/compile', {
-                method: 'POST',
-                headers: { 'x-auth-token': token || '' }
-            });
-            if (compileRes.ok) {
-                const { compiledJsonPath } = await compileRes.json();
-                this.compiledJsonPath = compiledJsonPath;
-                console.log('Compiled JSON path:', compiledJsonPath);
-            }
-        } catch (err) {
-            console.warn('Saving/compiling survey draft failed:', err);
-        }
-        
-        const selectedFeatures = Object.keys(this.surveyData.features).filter(key => this.surveyData.features[key] === true);
-        const selectedLayouts = Object.entries(this.surveyData.layouts).filter(([key, value]) => value !== null);
-        const worksDetails = this.surveyData.features.worksOrganization === 'year' ? 
-            this.surveyData.worksDetails.years.join(', ') : 
-            this.surveyData.worksDetails.themes.join(', ');
-        
-        alert(`Portfolio setup completed!\n\nMedium: ${this.surveyData.medium}\nFeatures: ${selectedFeatures.join(', ')}\nWorks Organization: ${this.surveyData.features.worksOrganization} (${worksDetails})\nLayouts Selected: ${selectedLayouts.length}\nLogo: ${this.surveyData.logo ? 'Uploaded' : 'Skipped'}\nStyle: Custom colors and font size applied${this.compiledJsonPath ? `\nSaved draft: ${this.compiledJsonPath}` : ''}`);
-    }
-    
-    // Load existing WebsiteState and jump to preview if found
-    async tryLoadDraftAndJumpToPreview() {
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('/api/website-state', {
-                method: 'GET',
-                headers: { 'x-auth-token': token || '' }
-            });
-            if (!res.ok) return; // Not logged in or no draft; keep wizard
-            const state = await res.json();
-            if (!state || !state.surveyData) return;
-
-            // Only auto-jump when the user actually completed survey previously
-            if (!state.surveyCompleted && !state.compiledJsonPath) return;
-
-            // Merge saved survey data
-            this.surveyData = { ...this.surveyData, ...state.surveyData };
-            if (state.compiledJsonPath) this.compiledJsonPath = state.compiledJsonPath;
-            if (state.publishedUrl) this.publishedUrl = state.publishedUrl;
-            
-            // If logo is stored as a string path, normalize to { dataUrl }
-            if (this.surveyData.logo && typeof this.surveyData.logo === 'string') {
-                this.surveyData.logo = { dataUrl: this.surveyData.logo };
-            }
-
-            // Show preview directly (outside of wizard)
-            document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
-            const previewEl = document.getElementById('step-preview');
-            if (previewEl) previewEl.classList.add('active');
-
-            // Ensure templates are ready and render via PreviewRenderer
+    // Handle dynamic step validation
+    const currentStepId = this.stepOrder[this.currentStep - 1];
+    if (currentStepId === 'step-logo') {
+        // Finish survey: save + compile, then jump to preview (outside wizard)
+        await this.completeSurvey();
+        document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+        const previewEl = document.getElementById('step-preview');
+        if (previewEl) {
+            previewEl.classList.add('active');
             await this.previewRenderer.ensureTemplatesLoaded();
             await this.previewRenderer.generateWebsitePreview();
-        } catch (err) {
-            console.warn('Draft load skipped:', err);
+            this.updatePreviewPublishUi();
         }
+        return;
     }
-
-    // Publish step setup: slug validation and event handlers
-    setupPublishStep() {
-        if (this._publishSetupDone) return;
-        this._publishSetupDone = true;
-
-        const slugInput = document.getElementById('publish-slug');
-        const publishBtn = document.getElementById('publish-btn');
-        const errorEl = document.getElementById('slug-error');
-        const successEl = document.getElementById('publish-success');
-        const availabilityEl = document.getElementById('slug-availability');
-        const backBtn = document.getElementById('back-to-preview-from-publish');
-
-        const sanitize = (s) => {
-            s = (s || '').toLowerCase().replace(/[^a-z0-9-]/g, '-');
-            s = s.replace(/-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
-            return s;
-        };
-        const isValid = (s) => {
-            if (!s) return false;
-            if (s.length < 3 || s.length > 30) return false;
-            if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(s)) return false;
-            return true;
-        };
-
-        if (slugInput) {
-            if (this.publishedUrl && !slugInput.value) slugInput.value = this.publishedUrl;
-            let checkTimer = null;
-            slugInput.addEventListener('input', () => {
-                const sanitized = sanitize(slugInput.value);
-                if (slugInput.value !== sanitized) slugInput.value = sanitized;
-                const ok = isValid(sanitized);
-                if (ok) {
-                    if (errorEl) errorEl.style.display = 'none';
-                    if (availabilityEl) {
-                        availabilityEl.textContent = 'Checking availability…';
-                        availabilityEl.style.display = 'block';
-                        availabilityEl.style.color = '#666';
-                    }
-                    if (publishBtn) publishBtn.disabled = true;
-                    if (checkTimer) clearTimeout(checkTimer);
-                    checkTimer = setTimeout(async () => {
-                        try {
-                            const res = await this.checkSlugAvailability(sanitized);
-                            if (res && res.available) {
-                                if (availabilityEl) {
-                                    availabilityEl.textContent = 'Available';
-                                    availabilityEl.style.display = 'block';
-                                    availabilityEl.style.color = '#0a7a0a';
-                                }
-                                if (publishBtn) publishBtn.disabled = false;
-                            } else {
-                                if (availabilityEl) {
-                                    availabilityEl.textContent = res && res.reason === 'invalid' ? 'Invalid slug' : 'Not available';
-                                    availabilityEl.style.display = 'block';
-                                    availabilityEl.style.color = '#c00';
-                                }
-                                if (publishBtn) publishBtn.disabled = true;
-                            }
-                        } catch (e) {
-                            if (availabilityEl) {
-                                availabilityEl.textContent = 'Unable to check right now';
-                                availabilityEl.style.display = 'block';
-                                availabilityEl.style.color = '#c00';
-                            }
-                            if (publishBtn) publishBtn.disabled = true;
-                        }
-                    }, 350);
-                } else {
-                    if (errorEl) errorEl.style.display = 'block';
-                    if (availabilityEl) availabilityEl.style.display = 'none';
-                    if (publishBtn) publishBtn.disabled = true;
-                }
-                if (successEl) successEl.style.display = 'none';
-            });
-        }
-
-        if (publishBtn) {
-            publishBtn.addEventListener('click', async () => {
-                const slug = sanitize(slugInput ? slugInput.value : '');
-                if (!isValid(slug)) {
-                    if (errorEl) errorEl.style.display = 'block';
-                    return;
-                }
-                publishBtn.disabled = true;
-                const oldText = publishBtn.textContent;
-                publishBtn.textContent = 'Publishing...';
-                try {
-                    await this.publishSite(slug);
-                    if (successEl) {
-                        const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
-                        const url = `${origin}/${slug}`;
-                        successEl.innerHTML = `Published! Your site is live at <a href="${url}" target="_blank" rel="noopener">${url}</a>`;
-                        successEl.style.display = 'block';
-                    }
-                } catch (e) {
-                    alert('Failed to publish. Please try again.');
-                    publishBtn.disabled = false;
-                } finally {
-                    publishBtn.textContent = oldText;
-                }
-            });
-        }
-
-        if (backBtn) {
-            backBtn.addEventListener('click', async () => {
-                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
-                const previewEl = document.getElementById('step-preview');
-                if (previewEl) previewEl.classList.add('active');
-                await this.previewRenderer.ensureTemplatesLoaded();
-                await this.previewRenderer.generateWebsitePreview();
-            });
-        }
+        
+    // Hide current step
+    currentStepElement.classList.remove('active');
+        
+    // Show next step
+    this.currentStep++;
+    const nextStepId = this.stepOrder[this.currentStep - 1];
+    const nextStepElement = document.querySelector(`#${nextStepId}`);
+    if (nextStepElement) {
+        nextStepElement.classList.add('active');
     }
+}
 
-    async checkSlugAvailability(slug) {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`/api/website-state/slug-available?slug=${encodeURIComponent(slug)}`, {
-            method: 'GET',
-            headers: {
-                'x-auth-token': token || ''
-            }
-        });
-        if (!res.ok) {
-            throw new Error('availability check failed');
+async prevStep() {
+    const currentIndex = this.currentStep - 1;
+    if (currentIndex <= 0) return;
+    const currentStepId = this.stepOrder[currentIndex];
+    const prevStepId = this.stepOrder[currentIndex - 1];
+    const currentStepElement = document.getElementById(currentStepId);
+    const prevStepElement = document.getElementById(prevStepId);
+    if (currentStepElement) currentStepElement.classList.remove('active');
+    if (prevStepElement) prevStepElement.classList.add('active');
+    this.currentStep = Math.max(1, this.currentStep - 1);
+}
+
+async checkSlugAvailability(slug) {
+    const token = localStorage.getItem('token');
+    const url = `/api/website-state/slug-available?slug=${encodeURIComponent(slug)}`;
+    const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'x-auth-token': token || ''
         }
-        return res.json();
+    });
+    if (!res.ok) {
+        throw new Error('availability check failed');
     }
+    return res.json();
+}
 
     async publishSite(slug) {
         const token = localStorage.getItem('token');
@@ -727,6 +609,174 @@ class PortfolioSurvey {
         this.isPublished = true;
         this.publishedUrl = state.publishedUrl || slug;
         return state;
+    }
+
+    // Load saved state and jump to preview if a compiled site exists
+    async tryLoadDraftAndJumpToPreview() {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch('/api/website-state', { headers: { 'x-auth-token': token || '' } });
+            if (!res.ok) return; // no-op if unauthenticated or not found
+            const state = await res.json();
+            // Merge survey data if present
+            if (state && state.surveyData) {
+                this.surveyData = { ...this.surveyData, ...state.surveyData };
+                this.generateStepOrder();
+            }
+            // Track compiled + publication flags
+            this.compiledJsonPath = state && state.compiledJsonPath ? state.compiledJsonPath : null;
+            this.isPublished = !!(state && state.isPublished);
+            this.publishedUrl = state && state.publishedUrl ? state.publishedUrl : null;
+
+            // If compiled exists, jump to preview immediately
+            if (this.compiledJsonPath || (state && state.surveyCompleted)) {
+                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                const previewEl = document.getElementById('step-preview');
+                if (previewEl) previewEl.classList.add('active');
+                await this.previewRenderer.ensureTemplatesLoaded();
+                await this.previewRenderer.generateWebsitePreview();
+                this.updatePreviewPublishUi();
+            }
+        } catch (e) {
+            // best-effort load; ignore
+            try { console.warn('Failed to load draft state:', e); } catch {}
+        }
+    }
+
+    // Save survey and compile site JSON; sets compiledJsonPath
+    async completeSurvey() {
+        const token = localStorage.getItem('token');
+        try {
+            // Persist survey selections
+            await fetch('/api/website-state/survey', {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-auth-token': token || ''
+                },
+                body: JSON.stringify(this.surveyData || {})
+            });
+        } catch (e) {
+            this.showToast('Failed to save survey data. Please try again.', 'error');
+            throw e;
+        }
+
+        try {
+            const res = await fetch('/api/website-state/compile', {
+                method: 'POST',
+                headers: { 'x-auth-token': token || '' }
+            });
+            if (!res.ok) throw new Error('Compile failed');
+            const data = await res.json();
+            this.compiledJsonPath = (data && data.compiledJsonPath) ? data.compiledJsonPath : null;
+        } catch (e) {
+            this.showToast('Failed to compile preview. You can still publish later.', 'error');
+            throw e;
+        }
+    }
+
+    // Wire up the publish step: slug validation, availability check, and publish action
+    setupPublishStep() {
+        this._publishSetupDone = true;
+        const slugInput = document.getElementById('publish-slug');
+        const errorEl = document.getElementById('slug-error');
+        const availEl = document.getElementById('slug-availability');
+        const publishBtn = document.getElementById('publish-btn');
+        const successEl = document.getElementById('publish-success');
+        const backBtn = document.getElementById('back-to-preview-from-publish');
+
+        const setPublishEnabled = (enabled) => {
+            if (publishBtn) publishBtn.disabled = !enabled;
+        };
+
+        const validateSlugFormat = (s) => {
+            if (!s) return false;
+            if (s.length < 3 || s.length > 30) return false;
+            return /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])$/.test(s);
+        };
+
+        let checkTimer = null;
+        const handleInput = async () => {
+            if (!slugInput) return;
+            let raw = slugInput.value || '';
+            // sanitize similar to backend
+            raw = raw.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
+            slugInput.value = raw;
+            successEl && (successEl.style.display = 'none');
+
+            const valid = validateSlugFormat(raw);
+            if (!valid) {
+                errorEl && (errorEl.style.display = 'block');
+                availEl && (availEl.style.display = 'none');
+                setPublishEnabled(false);
+                return;
+            }
+            errorEl && (errorEl.style.display = 'none');
+            availEl && (availEl.style.display = 'block');
+            setPublishEnabled(false);
+            if (checkTimer) clearTimeout(checkTimer);
+            checkTimer = setTimeout(async () => {
+                try {
+                    const resp = await this.checkSlugAvailability(raw);
+                    const ok = !!(resp && resp.available);
+                    availEl && (availEl.textContent = ok ? 'Available' : 'Not available');
+                    availEl && (availEl.style.color = ok ? '#0a7a0a' : '#c00');
+                    setPublishEnabled(ok);
+                } catch (e) {
+                    availEl && (availEl.textContent = 'Error checking availability');
+                    availEl && (availEl.style.color = '#c00');
+                    setPublishEnabled(false);
+                }
+            }, 350);
+        };
+
+        if (slugInput) {
+            slugInput.addEventListener('input', handleInput);
+            // pre-fill from existing publishedUrl if present
+            if (this.publishedUrl) {
+                slugInput.value = this.publishedUrl;
+                handleInput();
+            }
+        }
+
+        if (publishBtn) {
+            publishBtn.addEventListener('click', async () => {
+                if (!slugInput) return;
+                const slug = String(slugInput.value || '').trim();
+                if (!slug) return;
+                publishBtn.disabled = true;
+                try {
+                    const state = await this.publishSite(slug);
+                    // Update UI state immediately
+                    this.isPublished = true;
+                    this.publishedUrl = state && state.publishedUrl ? state.publishedUrl : slug;
+                    if (successEl) {
+                        const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+                        const full = this.publishedUrl ? `${origin}/${String(this.publishedUrl).replace(/^\//,'')}` : origin;
+                        successEl.textContent = `Published! Your site is live at ${full}`;
+                        successEl.style.display = 'block';
+                    }
+                    // Navigate back to preview and update UI to avoid flicker/races
+                    document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                    const previewEl = document.getElementById('step-preview');
+                    if (previewEl) previewEl.classList.add('active');
+                    this.updatePreviewPublishUi();
+                } catch (e) {
+                    this.showToast(e && e.message ? e.message : 'Publish failed', 'error');
+                } finally {
+                    publishBtn.disabled = false;
+                }
+            });
+        }
+
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
+                const previewEl = document.getElementById('step-preview');
+                if (previewEl) previewEl.classList.add('active');
+                this.updatePreviewPublishUi();
+            });
+        }
     }
 }
 

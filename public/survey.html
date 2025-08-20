@@ -456,6 +456,10 @@
                         </div>
                     </div>
                     <div class="step-navigation">
+                        <div id="published-url-container" style="display:none; font-size:0.95rem;">
+                            <span>Your site is live: </span>
+                            <a id="published-url-link" href="#" target="_blank" rel="noopener" style="text-decoration: underline;">view</a>
+                        </div>
                         <button type="button" class="btn" id="open-style-tool">Customize Style</button>
                         <button type="button" class="btn primary" id="go-to-publish">Continue to Publish</button>
                     </div>
@@ -464,7 +468,9 @@
                 <!-- Slug & Publish Step (after preview) -->
                 <div id="step-publish" class="survey-step">
                     <h2>Pick the name of your website</h2>
-                    <p>Choose a URL slug for your portfolio. Allowed: lowercase letters, numbers, and dashes.</p>
+                    <p> Allowed: lowercase letters, numbers, and dashes.
+                        <br>
+                    </p>
                     <div class="publish-form" style="max-width:520px;">
                         <label for="publish-slug">Your site URL</label>
                         <div style="display:flex; align-items:center; gap:8px;">

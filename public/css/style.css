@@ -803,6 +803,35 @@ body.upload-page .upload-container {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    /* Allow this flex item to shrink within the parent flex row even when it contains long, unbroken content */
+    min-width: 0;
+    /* Keep buttons sized to their content, not stretched by sibling flex items */
+    flex: 0 0 auto;
+    width: max-content;
+    max-width: 100%;
+}
+
+/* Published site link under the buttons: prevent long URLs from expanding the container */
+#account-published-url {
+    max-width: 100%;
+    /* Make this a separate row within .profile-header (which is flex + wrap) */
+    flex: 0 0 100%;
+    /* Allow shrinking even with long content */
+    min-width: 0;
+    /* Align link to the right on its own row */
+    text-align: right;
+}
+
+#account-published-url a {
+    display: inline-block;
+    max-width: 100%;
+    /* Prefer wrapping long URLs so buttons above keep their original sizing */
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    /* Smaller, gray, not underlined */
+    font-size: 0.9em;
+    color: #666;
+    text-decoration: none;
 }
 
 /* Tabs */

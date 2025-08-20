@@ -6,6 +6,48 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('No token found. Functionality will be limited.');
     }
 
+// Load published website info and render link under "Portfolio Website"
+async function loadPublishedWebsiteInfo() {
+    const container = document.getElementById('account-published-url');
+    const link = document.getElementById('account-published-url-link');
+    if (!container || !link) return;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+        container.style.display = 'none';
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/website-state', { headers: { 'x-auth-token': token } });
+        if (!res.ok) {
+            container.style.display = 'none';
+            return;
+        }
+        const state = await res.json();
+        const slugOrUrl = state && state.publishedUrl;
+        const isPublished = !!(state && (state.isPublished || slugOrUrl));
+        if (isPublished && slugOrUrl) {
+            let fullUrl = '';
+            if (/^https?:\/\//i.test(slugOrUrl)) {
+                fullUrl = slugOrUrl;
+            } else {
+                const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+                const slug = String(slugOrUrl).replace(/^\//, '');
+                fullUrl = slug ? `${origin}/${slug}` : origin;
+            }
+            link.href = fullUrl;
+            link.textContent = fullUrl;
+            container.style.display = 'block';
+        } else {
+            container.style.display = 'none';
+        }
+    } catch (e) {
+        console.warn('Failed to load website state:', e);
+        container.style.display = 'none';
+    }
+}
+
     // --- Event Listeners (only attach if element exists) ---
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) {
@@ -35,6 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.getElementById('portfolio-settings-form')) {
             loadPortfolioData();
         }
+
+        // Always try to show published site URL on account page
+        loadPublishedWebsiteInfo();
     }
 });
 
