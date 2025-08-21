@@ -7,6 +7,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const { getObjectStream, getSitesKey } = require('./utils/s3');
+const passport = require('./middleware/passport');
 
 // Create a new Express application
 const app = express();
@@ -19,6 +20,8 @@ console.log('[ENV] MONGODB_URI present:', !!process.env.MONGODB_URI, 'uses SRV:'
 // Use express.json() middleware to parse JSON in request bodies
 // This is the modern replacement for body-parser
 app.use(express.json());
+// Initialize Passport (Google OAuth configured in middleware/passport)
+app.use(passport.initialize());
 
 // --- MongoDB Connection ---
 const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/tart';

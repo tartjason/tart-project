@@ -13,7 +13,12 @@ const artistSchema = new Schema({
     },
     password: {
         type: String,
-        required: true
+        required: false
+    },
+    googleId: {
+        type: String,
+        required: false,
+        unique: false
     },
     portfolio: {
         type: mongoose.Schema.Types.ObjectId,
