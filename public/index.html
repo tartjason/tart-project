@@ -7,27 +7,55 @@
     <link rel="stylesheet" href="css/style.css?v=1.1">
 </head>
 <body>
-    <header>
-        <h1>Tart</h1>
-        <p>The new home for artists.</p>
-        <div id="auth-container">
-            <!-- Login/Account links will be here -->
-        </div>
-    </header>
-    <main>
-        <!-- Sticky showcase section: left hero stays pinned while right column scrolls -->
-        <section id="showcase" class="showcase">
-            <div class="showcase-left">
-                <div id="sticky-hero"></div>
-            </div>
-            <div class="showcase-right">
-                <div id="sticky-grid" class="showcase-grid"></div>
-            </div>
-        </section>
+    <div id="app" class="app sidebar-open">
+        <!-- Main Content Wrapper -->
+        <div class="content" id="content">
+            <header>
+                <div class="header-left">
+                    <h1>Tart</h1>
+                    <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Toggle sidebar">
+                        <span class="toggle-icon" aria-hidden="true"></span>
+                    </button>
+                </div>
+                <p>Finally, a non-viral platform where art breathes.</p>
+                <div id="auth-container">
+                    <!-- Login/Account links will be here -->
+                </div>
+            </header>
+            <main class="page-has-sidebar">
+                <div class="page-layout" id="page-layout">
+                    <!-- Sidebar lives inside the page, below the header -->
+                    <aside id="sidebar" class="sidebar" aria-label="Primary">
+                        <div class="sidebar-inner">
+                            <nav class="sidebar-nav">
+                                <button class="nav-item" id="nav-home" data-page="home">Home</button>
+                                <button class="nav-item" id="nav-tart" data-page="tart">Tart</button>
+                                <button class="nav-item" id="nav-about" data-page="about">About us</button>
+                            </nav>
+                        </div>
+                    </aside>
 
-        <!-- Remaining artworks use the featured rhythm grid -->
-        <div id="artworks-container" class="gallery"></div>
-    </main>
+                    <div class="main-panel" id="main-panel">
+                <!-- Sticky showcase section: left hero stays pinned while right column scrolls -->
+                <section id="showcase" class="showcase">
+                    <div class="showcase-left">
+                        <div id="sticky-hero"></div>
+                    </div>
+                    <div class="showcase-right">
+                        <div id="sticky-grid" class="showcase-grid"></div>
+                    </div>
+                </section>
+
+                <!-- Remaining artworks use the featured rhythm grid -->
+                <div id="artworks-container" class="gallery"></div>
+
+                <!-- Dynamic page container for Tart/About -->
+                <section id="page-content" class="page-content" hidden></section>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
     <script src="js/main.js"></script>
 </body>
 </html>

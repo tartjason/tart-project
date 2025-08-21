@@ -3,6 +3,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const stickyHero = document.getElementById('sticky-hero');
     const stickyGrid = document.getElementById('sticky-grid');
     const authContainer = document.getElementById('auth-container');
+    const appEl = document.getElementById('app');
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    const pageContent = document.getElementById('page-content');
+    const navTart = document.getElementById('nav-tart');
+    const navAbout = document.getElementById('nav-about');
+    const navHome = document.getElementById('nav-home');
     const token = localStorage.getItem('token');
 
     const setupAuthUI = async () => {
@@ -132,6 +138,111 @@ document.addEventListener('DOMContentLoaded', () => {
         return el;
     }
 
+    // -------- Sidebar + Page Switching --------
+    function setActiveNav(id) {
+        [navHome, navTart, navAbout].forEach(btn => btn && btn.classList.remove('active'));
+        if (id) {
+            const el = document.getElementById(id);
+            el && el.classList.add('active');
+        }
+    }
+
+    function renderTartHTML() {
+        return `
+            <h2>What is Tart</h2>
+            <p>We are building a new home for artists — simple tools, expressive canvases, and a community that values creativity.</p>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-img" aria-hidden="true"></div>
+                    <div class="feature-body">
+                        <h3>Creative Canvas</h3>
+                        <p>Compose poetry, images, and layouts with intuitive controls designed for flow.</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-img" aria-hidden="true"></div>
+                    <div class="feature-body">
+                        <h3>Showcase First</h3>
+                        <p>Your work takes center stage with immersive presentation and clean typography.</p>
+                    </div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-img" aria-hidden="true"></div>
+                    <div class="feature-body">
+                        <h3>Own Your Space</h3>
+                        <p>Publish a beautiful site in minutes and keep full control over your content.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="section-divider" style="margin:24px 0"></div>
+            <h3>Our philosophy</h3>
+            <p>Great tools should disappear. Tart focuses on clarity and speed so artists can stay in the moment — from spark to shareable work.</p>
+        `;
+    }
+
+    function renderAboutHTML() {
+        return `
+            <h2>About us</h2>
+            <div class="letter">
+                <p>Dear creators,</p>
+                <p>We started Tart to make a calmer, kinder place for art online. A place where your ideas are respected and your pages load fast. We obsess over the details so you can focus on the work.</p>
+                <p>Thank you for building with us. We can’t wait to see what you publish.</p>
+                <div class="signature">— The Founder, Tart</div>
+            </div>
+        `;
+    }
+
+    function showPage(page) {
+        const showcase = document.getElementById('showcase');
+        if (!page || page === 'home') {
+            // Show artworks
+            setActiveNav('nav-home');
+            pageContent.hidden = true;
+            showcase && (showcase.style.display = '');
+            artworksContainer.style.display = '';
+            // Re-render artworks if container is empty
+            if (!artworksContainer.children.length) fetchArtworks();
+        } else if (page === 'tart') {
+            setActiveNav('nav-tart');
+            pageContent.hidden = false;
+            pageContent.innerHTML = renderTartHTML();
+            showcase && (showcase.style.display = 'none');
+            artworksContainer.style.display = 'none';
+        } else if (page === 'about') {
+            setActiveNav('nav-about');
+            pageContent.hidden = false;
+            pageContent.innerHTML = renderAboutHTML();
+            showcase && (showcase.style.display = 'none');
+            artworksContainer.style.display = 'none';
+        }
+    }
+
+    if (sidebarToggle && appEl) {
+        sidebarToggle.addEventListener('click', () => {
+            const open = appEl.classList.contains('sidebar-open');
+            appEl.classList.toggle('sidebar-open', !open);
+            appEl.classList.toggle('sidebar-closed', open);
+        });
+    }
+
+    navTart && navTart.addEventListener('click', () => {
+        if (location.hash !== '#tart') location.hash = '#tart';
+        else showPage('tart');
+    });
+    navAbout && navAbout.addEventListener('click', () => {
+        if (location.hash !== '#about') location.hash = '#about';
+        else showPage('about');
+    });
+    navHome && navHome.addEventListener('click', () => {
+        if (location.hash !== '#home') location.hash = '#home';
+        else showPage('home');
+    });
+
+    window.addEventListener('hashchange', () => {
+        const hash = location.hash.replace('#', '');
+        showPage(hash || 'home');
+    });
+
     const fetchArtworks = async () => {
         try {
             const res = await fetch('/api/artworks');
@@ -176,5 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     setupAuthUI();
-    fetchArtworks();
+    // Initial route
+    const initial = location.hash.replace('#', '') || 'home';
+    if (initial === 'home') fetchArtworks();
+    showPage(initial);
 });

@@ -33,6 +33,14 @@ main {
     margin: 0 auto;
 }
 
+/* When page hosts an in-page sidebar, let content be full-bleed */
+main.page-has-sidebar {
+    max-width: none;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
 /* Upload Page Styles - Full Width Canvas Layout */
 .upload-container {
     width: 100vw;
@@ -695,6 +703,8 @@ body.upload-page .upload-container {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto 2rem auto;
 }
 
 .artwork-card {
@@ -1435,3 +1445,169 @@ body.artwork-page.focus-mode .artwork-meta,
 body.artwork-page.focus-mode .artwork-footer {
     opacity: 0;
 }
+
+/* Sidebar + App Shell */
+.app {
+    position: relative;
+    min-height: 100vh;
+}
+
+/* Ensure the app content has no unintended left padding */
+.content {
+    padding: 0;
+}
+
+/* In-page layout below header */
+.page-layout {
+    --sidebar-w: 220px;
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    gap: 0;
+    align-items: start;
+    transition: grid-template-columns 200ms ease;
+}
+
+.sidebar {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    color: #111;
+    border-right: none;
+    display: flex;
+}
+
+.sidebar-inner {
+    padding: 20px 8px 20px 0;
+    width: 100%;
+    overflow-y: auto;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.nav-item {
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #111;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.nav-item:hover { background: rgba(0,0,0,0.04); }
+.nav-item.active { background: rgba(0,0,0,0.08); color: #111; }
+
+.main-panel {
+    transition: transform 200ms ease, filter 200ms ease;
+    transform-origin: left center;
+}
+
+.app.sidebar-open .page-layout { --sidebar-w: 220px; }
+.app.sidebar-closed .page-layout { --sidebar-w: 0px; }
+.app.sidebar-open .main-panel { transform: scale(0.985); }
+.app.sidebar-closed .main-panel { transform: none; }
+
+/* Ensure grid spans full width */
+.page-layout { width: 100%; }
+
+/* Tiny toggle button near logo (mimics compact left control) */
+.header-left { display: flex; align-items: center; gap: 10px; }
+
+.sidebar-toggle {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* Icon container: draws the rounded-rectangle outline */
+.sidebar-toggle .toggle-icon {
+    position: relative;
+    width: 18px;   /* visual width of the icon */
+    height: 16px;  /* visual height of the icon */
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+/* Open = showing side panel (first icon): dark outline, thick bar at left */
+.app.sidebar-open .sidebar-toggle .toggle-icon {
+    border: 1.5px solid #111;
+}
+.app.sidebar-open .sidebar-toggle .toggle-icon::after {
+    content: '';
+    position: absolute;
+    left: 4px;               /* place near left edge to suggest sidebar */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;              /* slightly thinner bar */
+    height: 60%;
+    background: #111;
+    border-radius: 2px;
+}
+
+/* Closed = not showing (second icon): grey outline, thin centered divider */
+.app.sidebar-closed .sidebar-toggle .toggle-icon {
+    border: 1.5px solid #9ca3af; /* gray-400 */
+}
+.app.sidebar-closed .sidebar-toggle .toggle-icon::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;              /* thinner divider */
+    height: 60%;
+    background: #9ca3af;
+    border-radius: 1px;
+}
+
+/* Hover/focus polish */
+.sidebar-toggle:hover .toggle-icon { filter: brightness(0.9); }
+.sidebar-toggle:focus-visible { outline: 2px solid #111; outline-offset: 2px; border-radius: 8px; }
+
+/* Page content (Tart / About) */
+.page-content { max-width: 900px; margin: 0 auto; padding: 1rem 0; }
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.feature-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+.feature-img {
+    height: 160px;
+    background: linear-gradient(135deg,#e8ecf1,#dfe5eb);
+}
+
+.feature-body { padding: 14px; }
+.feature-body h3 { margin: 0 0 6px 0; }
+.feature-body p { margin: 0; color: #555; }
+
+.letter {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    line-height: 1.8;
+}
+
+.signature { margin-top: 16px; font-style: italic; color: #444; }
