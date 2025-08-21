@@ -1284,3 +1284,25 @@ body.login-page {
 .avatar-dropdown .dropdown-item:hover {
     background: #f5f5f5;
 }
+
+/* Artwork page spacing overrides */
+body.artwork-page main {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+body.artwork-page .artwork-detail-container {
+    margin-top: 0.25rem;
+    margin-bottom: 0.5rem;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+/* Reduce gap between image and next section */
+body.artwork-page #artwork-image-container img {
+    margin-bottom: 0.75rem;
+}
+
+body.artwork-page .section-divider {
+    margin: 12px 0; /* tighter spacing between sections on artwork page */
+}

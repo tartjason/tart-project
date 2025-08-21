@@ -45,12 +45,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (dividerBefore && dividerBefore.classList.contains('section-divider')) {
                 dividerBefore.style.display = 'block';
             }
+            // And show the divider after description section
+            const dividerAfter = descriptionSection.nextElementSibling;
+            if (dividerAfter && dividerAfter.classList.contains('section-divider')) {
+                dividerAfter.style.display = 'block';
+            }
         } else {
             descriptionSection.style.display = 'none';
             // Also hide the divider before description section
             const dividerBefore = descriptionSection.previousElementSibling;
             if (dividerBefore && dividerBefore.classList.contains('section-divider')) {
                 dividerBefore.style.display = 'none';
+            }
+            // Hide the divider after description section
+            const dividerAfter = descriptionSection.nextElementSibling;
+            if (dividerAfter && dividerAfter.classList.contains('section-divider')) {
+                dividerAfter.style.display = 'none';
             }
         }
         
