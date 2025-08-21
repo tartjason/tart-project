@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f7f7f7"/>
+    </linearGradient>
+  </defs>
+  <g>
+    <!-- Outer circle -->
+    <circle cx="64" cy="64" r="60" fill="url(#bg)" stroke="#e5e7eb" stroke-width="4"/>
+    <!-- Intentionally blank interior to represent no photo -->
+  </g>
+</svg>

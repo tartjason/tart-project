@@ -26,7 +26,7 @@ const artistSchema = new Schema({
     },
     profilePictureUrl: {
         type: String,
-        default: '/assets/default-avatar.png'
+        default: '/assets/default-avatar.svg'
     },
     profilePictureKey: {
         type: String,

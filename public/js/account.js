@@ -121,7 +121,7 @@ async function loadProfileData() {
         // Populate Profile Header
         document.getElementById('artist-name').textContent = artist.name;
         document.getElementById('artist-id').textContent = `@${artist.username || artist.name.toLowerCase().replace(/\s+/g, '')}`;
-        document.querySelector('.profile-avatar').src = artist.profilePictureUrl || '/assets/default-avatar.png';
+        document.querySelector('.profile-avatar').src = artist.profilePictureUrl || '/assets/default-avatar.svg';
 
         // --- Populate Gallery Tab ---
         const galleryContainer = document.getElementById('artist-artworks-container');

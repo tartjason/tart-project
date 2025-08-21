@@ -11,14 +11,30 @@
   <div class="login-container">
     
     <div class="login-card">
-      <h1>Welcome to Tart</h1>
+      <h1 id="login-title">Welcome back</h1>
       
       <form class="email-form" onsubmit="return false;">
         <input type="email" id="email-input" placeholder="Email address" class="email-input" />
         <button type="submit" class="continue-btn">Continue</button>
       </form>
       
-      <p class="signup-link">Don't have an account? <a href="#" onclick="alert('Sign up coming soon')">Sign up</a></p>
+      <div id="password-section" class="password-form" style="display:none;">
+        <input type="password" id="password-input" placeholder="Password" class="email-input" />
+        <button id="login-btn" class="continue-btn">Log in</button>
+        <p class="signup-link" style="margin-top: 8px;"><a href="#" id="password-back">Back</a></p>
+      </div>
+
+      <div id="code-section" class="code-form" style="display:none;">
+        <input type="text" id="code-input" placeholder="6-digit code" inputmode="numeric" pattern="\\d{6}" maxlength="6" class="email-input" />
+        <button id="verify-btn" class="continue-btn">Verify and continue</button>
+        <p class="signup-link" style="margin-top: 8px;">
+          <a href="#" id="resend-link">Resend code</a>
+          <span id="resend-timer"></span>
+          <span style="margin-left:12px;"><a href="#" id="code-back">Back</a></span>
+        </p>
+      </div>
+      
+      <p id="mode-toggle-text" class="signup-link">Don't have an account? <a href="#" id="mode-toggle-link">Sign up</a></p>
       
       <div class="divider">
         <span>OR</span>
@@ -61,12 +77,236 @@
           window.location.href = '/api/auth/oauth/google';
         });
       }
-      // Disable email form for now
+
+      // Mode and elements
+      const titleEl = document.getElementById('login-title');
+      const modeToggleText = document.getElementById('mode-toggle-text');
+      const modeToggleLink = document.getElementById('mode-toggle-link');
+      let mode = 'login'; // 'login' | 'signup'
+
+      // Email/steps
       const emailForm = document.querySelector('.email-form');
-      if (emailForm) {
-        emailForm.addEventListener('submit', function(e) {
+      const emailInput = document.getElementById('email-input');
+      const passwordSection = document.getElementById('password-section');
+      const codeSection = document.getElementById('code-section');
+      const codeInput = document.getElementById('code-input');
+      const verifyBtn = document.getElementById('verify-btn');
+      const loginBtn = document.getElementById('login-btn');
+      const passwordInput = document.getElementById('password-input');
+      const passwordBack = document.getElementById('password-back');
+      const codeBack = document.getElementById('code-back');
+      const resendLink = document.getElementById('resend-link');
+      const resendTimer = document.getElementById('resend-timer');
+      const errorEl = document.getElementById('error');
+
+      let activeEmail = '';
+      let cooldownTimer = null;
+      let remaining = 0;
+
+      function setError(msg) {
+        if (!errorEl) return;
+        errorEl.style.display = msg ? 'block' : 'none';
+        errorEl.textContent = msg || '';
+      }
+
+      function startCooldown(secs) {
+        remaining = Math.max(0, secs|0);
+        function tick(){
+          if (remaining > 0) {
+            resendLink.setAttribute('aria-disabled', 'true');
+            resendLink.style.pointerEvents = 'none';
+            resendLink.style.opacity = '0.6';
+            resendTimer.textContent = ` (${remaining}s)`;
+            remaining -= 1;
+            cooldownTimer = setTimeout(tick, 1000);
+          } else {
+            resendLink.removeAttribute('aria-disabled');
+            resendLink.style.pointerEvents = '';
+            resendLink.style.opacity = '';
+            resendTimer.textContent = '';
+          }
+        }
+        if (cooldownTimer) clearTimeout(cooldownTimer);
+        tick();
+      }
+
+      function resetToEmailStep() {
+        setError('');
+        passwordSection.style.display = 'none';
+        codeSection.style.display = 'none';
+        emailForm.style.display = 'flex';
+        emailInput.focus();
+      }
+
+      function renderMode(){
+        if (mode === 'login') {
+          titleEl.textContent = 'Welcome back';
+          modeToggleText.innerHTML = `Don't have an account? <a href="#" id="mode-toggle-link">Sign up</a>`;
+        } else {
+          titleEl.textContent = 'Create an account';
+          modeToggleText.innerHTML = `Already have an account? <a href="#" id="mode-toggle-link">Log in</a>`;
+        }
+        // Rebind toggle link after innerHTML swap
+        document.getElementById('mode-toggle-link').addEventListener('click', (e) => {
           e.preventDefault();
-          alert('Email login coming soon. Please use Google sign-in.');
+          mode = (mode === 'login') ? 'signup' : 'login';
+          resetToEmailStep();
+          renderMode();
+        });
+      }
+
+      renderMode();
+
+      async function requestCode(email){
+        setError('');
+        const button = emailForm.querySelector('.continue-btn');
+        button.disabled = true;
+        try {
+          const res = await fetch('/api/auth/otp/email/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            const retry = (data && data.retryAfterSec) ? Number(data.retryAfterSec) : 0;
+            setError(data && data.msg ? data.msg : 'Failed to send code');
+            if (retry) startCooldown(retry);
+            return;
+          }
+          activeEmail = email;
+          emailForm.style.display = 'none';
+          codeSection.style.display = 'block';
+          codeInput.focus();
+          startCooldown(60);
+        } catch (e) {
+          setError('Network error. Please try again.');
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function verifyCode(email, code){
+        setError('');
+        verifyBtn.disabled = true;
+        try {
+          const res = await fetch('/api/auth/otp/email/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            setError(data && data.msg ? data.msg : 'Verification failed');
+            return;
+          }
+          const token = data && data.token;
+          if (token) {
+            try {
+              if (window.opener && window.opener.postMessage) {
+                window.opener.postMessage({ type: 'oauthSuccess', provider: 'email', token }, window.location.origin);
+                window.close();
+                return;
+              }
+            } catch (e) {}
+            // Fallback if not opened as a popup
+            localStorage.setItem('token', token);
+            window.location.href = '/';
+          } else {
+            setError('No token received');
+          }
+        } catch (e) {
+          setError('Network error. Please try again.');
+        } finally {
+          verifyBtn.disabled = false;
+        }
+      }
+
+      if (emailForm) {
+        emailForm.addEventListener('submit', function(e){
+          e.preventDefault();
+          const email = String(emailInput.value || '').trim().toLowerCase();
+          if (!/.+@.+\..+/.test(email)) {
+            setError('Please enter a valid email');
+            return;
+          }
+          activeEmail = email;
+          if (mode === 'login') {
+            // Go to password step
+            emailForm.style.display = 'none';
+            passwordSection.style.display = 'block';
+            passwordInput.focus();
+          } else {
+            // Sign up -> OTP flow
+            requestCode(email);
+          }
+        });
+      }
+
+      if (loginBtn) {
+        loginBtn.addEventListener('click', async function(){
+          setError('');
+          const password = String(passwordInput.value || '');
+          if (!password) { setError('Please enter your password'); return; }
+          loginBtn.disabled = true;
+          try {
+            const res = await fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: activeEmail || String(emailInput.value||'').trim().toLowerCase(), password })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { setError(data && data.msg ? data.msg : 'Login failed'); return; }
+            const token = data && data.token;
+            if (token) {
+              try {
+                if (window.opener && window.opener.postMessage) {
+                  window.opener.postMessage({ type: 'oauthSuccess', provider: 'email', token }, window.location.origin);
+                  window.close();
+                  return;
+                }
+              } catch (e) {}
+              localStorage.setItem('token', token);
+              window.location.href = '/';
+            } else {
+              setError('No token received');
+            }
+          } catch (e) {
+            setError('Network error. Please try again.');
+          } finally {
+            loginBtn.disabled = false;
+          }
+        });
+      }
+
+      if (passwordBack) {
+        passwordBack.addEventListener('click', function(e){ e.preventDefault(); resetToEmailStep(); });
+      }
+      if (codeBack) {
+        codeBack.addEventListener('click', function(e){ e.preventDefault(); resetToEmailStep(); });
+      }
+
+      if (verifyBtn) {
+        verifyBtn.addEventListener('click', function(){
+          const code = String(codeInput.value || '').trim();
+          if (!/^\d{6}$/.test(code)) {
+            setError('Enter the 6-digit code sent to your email');
+            return;
+          }
+          verifyCode(activeEmail || String(emailInput.value || '').trim().toLowerCase(), code);
+        });
+      }
+
+      if (resendLink) {
+        resendLink.addEventListener('click', function(e){
+          e.preventDefault();
+          if (resendLink.getAttribute('aria-disabled') === 'true') return;
+          const email = activeEmail || String(emailInput.value || '').trim().toLowerCase();
+          if (!/.+@.+\..+/.test(email)) {
+            setError('Please enter a valid email');
+            return;
+          }
+          requestCode(email);
         });
       }
     })();
