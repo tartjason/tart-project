@@ -6,38 +6,56 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupAuthUI = () => {
         if (token) {
             authContainer.innerHTML = `<a href="/account.html" class="btn">My Account</a> <button id="logout-btn" class="btn">Logout</button>`;
-            document.getElementById('logout-btn').addEventListener('click', () => {
-                localStorage.removeItem('token');
-                window.location.reload();
-            });
-        } else {
-            authContainer.innerHTML = `
-                <form id="login-form">
-                    <input type="email" id="email" placeholder="Email" required>
-                    <input type="password" id="password" placeholder="Password" required>
-                    <button type="submit" class="btn">Login</button>
-                </form>
-            `;
-            document.getElementById('login-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                try {
-                    const res = await fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email, password })
-                    });
-                    if (!res.ok) throw new Error('Login failed');
-                    const { token } = await res.json();
-                    localStorage.setItem('token', token);
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', () => {
+                    localStorage.removeItem('token');
                     window.location.reload();
-                } catch (error) {
-                    alert(error.message);
+                });
+            }
+        } else {
+            // Simple pill button to open login popup
+            authContainer.innerHTML = `<button id="open-login" class="pill-dark-btn">Log in</button>`;
+            const btn = document.getElementById('open-login');
+            if (btn) {
+                btn.addEventListener('click', () => openLoginPopup());
+            }
+
+            // Listen for OAuth success message from popup
+            const onMessage = (event) => {
+                try {
+                    // Only accept messages from same-origin
+                    if (!event || event.origin !== window.location.origin) return;
+                    const data = event && event.data;
+                    if (data && data.type === 'oauthSuccess' && data.token) {
+                        localStorage.setItem('token', data.token);
+                        window.removeEventListener('message', onMessage);
+                        window.location.reload();
+                    }
+                } catch (e) {
+                    // ignore
                 }
-            });
+            };
+            window.addEventListener('message', onMessage);
         }
     };
+
+    function openLoginPopup() {
+        const w = 480;
+        const h = 640;
+        const dualScreenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+        const dualScreenTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+        const width = window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width;
+        const height = window.innerHeight ? window.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : screen.height;
+        const left = ((width - w) / 2) + (dualScreenLeft || 0);
+        const top = ((height - h) / 2) + (dualScreenTop || 0);
+        const features = `scrollbars=yes, width=${w}, height=${h}, top=${top}, left=${left}`;
+        const popup = window.open('/login.html', 'tartLogin', features);
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            // Popup blocked; navigate instead
+            window.location.href = '/login.html';
+        }
+    }
 
     const fetchArtworks = async () => {
         try {

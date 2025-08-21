@@ -194,9 +194,9 @@ router.get('/oauth/google/callback', (req, res, next) => {
     passport.authenticate('google', { session: false }, async (err, artist, info) => {
         if (err) {
             console.error('Google OAuth error:', err);
-            return res.redirect('/login?error=google');
+            return res.redirect('/login.html?error=google');
         }
-        if (!artist) return res.redirect('/login?error=google_no_user');
+        if (!artist) return res.redirect('/login.html?error=google_no_user');
 
         const payload = { artist: { id: artist.id } };
         const token = jwt.sign(payload, JWT_SECRET, { expiresIn: 3600 });
