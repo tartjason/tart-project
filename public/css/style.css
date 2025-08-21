@@ -626,6 +626,70 @@ body.upload-page .upload-container {
     }
 }
 
+/* Showcase (sticky hero + right grid) */
+.showcase {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Wider hero vs right column */
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto 2rem auto;
+}
+
+.showcase-left {
+    position: sticky;
+    top: 2rem;
+    align-self: start;
+    height: fit-content;
+}
+
+.showcase-right .showcase-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    justify-items: start; /* so max-width cards align left */
+}
+
+/* Ensure right-column items are smaller than hero on desktop */
+@media (min-width: 901px) {
+    .showcase-right .artwork-card { max-width: 400px; width: 100%; }
+}
+
+/* Showcase media aspect ratios */
+/* Hero: landscape 16:9 */
+.artwork-card.hero img,
+.artwork-card.hero .poetry-preview {
+    aspect-ratio: 16 / 9;
+    height: auto;
+}
+
+/* Right column items: square 1:1 */
+/* Right column items: slightly wide (reduce height) */
+.showcase-right .artwork-card img,
+.showcase-right .artwork-card .poetry-preview {
+    aspect-ratio: 5 / 4; /* was 1 / 1 */
+    height: auto;
+}
+
+/* Hero variant: larger media height */
+.artwork-card.hero { --media-h: 520px; }
+
+/* Featured rhythm variants for the main gallery */
+.artwork-card.tall { --media-h: 420px; }
+.artwork-card.featured { --media-h: 420px; grid-column: span 2; }
+
+/* Mobile/tablet responsive behavior */
+@media (max-width: 900px) {
+    .showcase {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    .showcase-left { position: static; top: auto; }
+}
+
+@media (max-width: 768px) {
+    .artwork-card.featured { grid-column: auto; }
+}
+
 /* Gallery & Artwork Cards */
 .gallery {
     display: grid;
@@ -644,22 +708,30 @@ body.upload-page .upload-container {
 
 .artwork-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 6px burdensome-shadow-rgba;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.12);
 }
+
+.artwork-card { --media-h: 200px; }
 
 .artwork-card img {
     width: 100%;
-    height: 200px;
+    height: var(--media-h);
     object-fit: cover;
+    transition: transform 200ms ease;
 }
 
 .artwork-card .blurred {
-    filter: blur(10px);
+    filter: blur(14px);
     transition: filter 0.3s ease-in-out;
 }
 
 .artwork-card:hover .blurred {
     filter: blur(0);
+}
+
+/* Subtle image scale on hover */
+.artwork-card:hover img {
+    transform: scale(1.02);
 }
 
 .artwork-card .artwork-info {
@@ -680,7 +752,7 @@ body.upload-page .upload-container {
 /* Poetry preview styling */
 .poetry-preview {
     width: 100%;
-    height: 200px;
+    height: var(--media-h);
     background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
     display: flex;
     align-items: center;

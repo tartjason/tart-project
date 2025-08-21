@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const artworksContainer = document.getElementById('artworks-container');
+    const stickyHero = document.getElementById('sticky-hero');
+    const stickyGrid = document.getElementById('sticky-grid');
     const authContainer = document.getElementById('auth-container');
     const token = localStorage.getItem('token');
 
@@ -100,46 +102,73 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function createArtworkCard(artwork, extraClasses = []) {
+        const el = document.createElement('div');
+        el.classList.add('artwork-card', ...extraClasses);
+        if (artwork.medium === 'poetry') {
+            const poetryText = artwork.description || artwork.title || 'Poetry artwork';
+            const snippet = poetryText.length > 60 ? poetryText.substring(0, 60) + '...' : poetryText;
+            el.innerHTML = `
+                <div class="poetry-preview">
+                    <div class="poetry-snippet">${snippet}</div>
+                </div>
+                <div class="artwork-info">
+                    <h3>${artwork.title}</h3>
+                    <p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>
+                </div>
+            `;
+        } else {
+            el.innerHTML = `
+                <img src="${artwork.imageUrl}" alt="${artwork.title}" class="blurred" loading="lazy" decoding="async" fetchpriority="low">
+                <div class="artwork-info">
+                    <h3>${artwork.title}</h3>
+                    <p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>
+                </div>
+            `;
+        }
+        el.addEventListener('click', () => {
+            window.location.href = `/artwork.html?id=${artwork._id}`;
+        });
+        return el;
+    }
+
     const fetchArtworks = async () => {
         try {
             const res = await fetch('/api/artworks');
             const artworks = await res.json();
-            artworksContainer.innerHTML = '';
-            artworks.forEach(artwork => {
-                const artworkEl = document.createElement('div');
-                artworkEl.classList.add('artwork-card');
-                
-                // Handle poetry differently - show text snippet instead of blurred image
-                if (artwork.medium === 'poetry') {
-                    // Extract text snippet from poetry description or title
-                    const poetryText = artwork.description || artwork.title || 'Poetry artwork';
-                    const snippet = poetryText.length > 60 ? poetryText.substring(0, 60) + '...' : poetryText;
-                    
-                    artworkEl.innerHTML = `
-                        <div class="poetry-preview">
-                            <div class="poetry-snippet">${snippet}</div>
-                        </div>
-                        <div class="artwork-info">
-                            <h3>${artwork.title}</h3>
-                            <p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>
-                        </div>
-                    `;
-                } else {
-                    // Non-poetry artworks get the blurred image treatment
-                    artworkEl.innerHTML = `
-                        <img src="${artwork.imageUrl}" alt="${artwork.title}" class="blurred" loading="lazy" decoding="async" fetchpriority="low">
-                        <div class="artwork-info">
-                            <h3>${artwork.title}</h3>
-                            <p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>
-                        </div>
-                    `;
+            // If showcase containers exist, use sticky hero + right grid for first 4 items
+            const useShowcase = !!(stickyHero && stickyGrid);
+            if (useShowcase) {
+                stickyHero.innerHTML = '';
+                stickyGrid.innerHTML = '';
+                artworksContainer.innerHTML = '';
+
+                const hero = artworks[0];
+                const rightCol = artworks.slice(1, 4);
+                const rest = artworks.slice(4);
+
+                if (hero) {
+                    const heroCard = createArtworkCard(hero, ['hero']);
+                    stickyHero.appendChild(heroCard);
                 }
-                
-                artworkEl.addEventListener('click', () => {
-                    window.location.href = `/artwork.html?id=${artwork._id}`;
+                rightCol.forEach(a => {
+                    const card = createArtworkCard(a);
+                    stickyGrid.appendChild(card);
                 });
-                artworksContainer.appendChild(artworkEl);
-            });
+
+                // Featured rhythm for the remaining list
+                rest.forEach((a, idx) => {
+                    const classes = [];
+                    if (idx % 7 === 0) classes.push('featured');
+                    else if (idx % 3 === 0) classes.push('tall');
+                    const card = createArtworkCard(a, classes);
+                    artworksContainer.appendChild(card);
+                });
+            } else {
+                // Fallback: original single grid behavior
+                artworksContainer.innerHTML = '';
+                artworks.forEach(a => artworksContainer.appendChild(createArtworkCard(a)));
+            }
         } catch (error) {
             console.error('Failed to fetch artworks:', error);
             artworksContainer.innerHTML = '<p>Could not load artworks.</p>';
