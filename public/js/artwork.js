@@ -31,6 +31,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Populate Page Elements
         document.title = artwork.title; // Set page title
         document.getElementById('artwork-image-container').innerHTML = `<img src="${artwork.imageUrl}" alt="${artwork.title}" decoding="async" fetchpriority="high">`;
+        // Immersive additions
+        const mainImg = document.querySelector('#artwork-image-container img');
+        if (mainImg) {
+            setupAmbientBg(artwork.imageUrl);
+            setupLightbox(mainImg, artwork.imageUrl);
+            setupFocusMode();
+        }
         document.getElementById('artwork-title').textContent = artwork.title;
         
         // Handle description section - hide if empty
@@ -112,6 +119,103 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelector('main').innerHTML = `<h1>Error: ${error.message}</h1>`;
     }
 });
+
+// -------- Immersive helpers --------
+function setupAmbientBg(imageUrl) {
+    const ambient = document.getElementById('ambient-bg');
+    if (ambient && imageUrl) {
+        ambient.style.backgroundImage = `url('${imageUrl}')`;
+    }
+}
+
+function setupLightbox(triggerImg, imageUrl) {
+    const overlay = document.getElementById('lightbox');
+    const overlayImg = document.getElementById('lightbox-img');
+    if (!overlay || !overlayImg || !triggerImg) return;
+
+    const open = () => {
+        overlayImg.src = imageUrl || triggerImg.src;
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+        document.documentElement.style.overflow = 'hidden';
+        resetZoom();
+    };
+    const close = () => {
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden', 'true');
+        document.documentElement.style.overflow = '';
+        resetZoom();
+    };
+
+    // Open on click of main image
+    triggerImg.style.cursor = 'zoom-in';
+    triggerImg.addEventListener('click', open);
+
+    // Close when clicking backdrop
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) close();
+    });
+    // ESC to close
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && overlay.classList.contains('open')) close();
+    });
+
+    // Zoom/pan interactions
+    let scale = 1;
+    let pos = { x: 0, y: 0 };
+    let start = null;
+
+    function applyTransform() {
+        overlayImg.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${scale})`;
+        overlayImg.classList.toggle('zoomed', scale > 1);
+    }
+    function resetZoom() {
+        scale = 1; pos = { x: 0, y: 0 }; start = null; applyTransform();
+    }
+    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+    overlayImg.addEventListener('click', () => {
+        // Toggle zoom on click
+        if (scale === 1) {
+            scale = 2.5;
+        } else {
+            scale = 1; pos = { x: 0, y: 0 };
+        }
+        applyTransform();
+    });
+
+    overlayImg.addEventListener('pointerdown', (e) => {
+        if (scale === 1) return; // only pan when zoomed
+        overlayImg.setPointerCapture(e.pointerId);
+        start = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    });
+    overlayImg.addEventListener('pointermove', (e) => {
+        if (!start || scale === 1) return;
+        const maxX = Math.max(0, (overlayImg.naturalWidth * scale - window.innerWidth) / 2 + 50);
+        const maxY = Math.max(0, (overlayImg.naturalHeight * scale - window.innerHeight) / 2 + 50);
+        pos.x = clamp(e.clientX - start.x, -maxX, maxX);
+        pos.y = clamp(e.clientY - start.y, -maxY, maxY);
+        applyTransform();
+    });
+    const endPan = () => { start = null; };
+    overlayImg.addEventListener('pointerup', endPan);
+    overlayImg.addEventListener('pointercancel', endPan);
+}
+
+function setupFocusMode() {
+    const body = document.body;
+    if (!body.classList.contains('artwork-page')) return;
+    let timer;
+    const reset = () => {
+        body.classList.remove('focus-mode');
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => body.classList.add('focus-mode'), 1800);
+    };
+    ['mousemove','keydown','touchstart','pointerdown','scroll'].forEach(evt => {
+        document.addEventListener(evt, reset, { passive: true });
+    });
+    reset();
+}
 
 function updateCollectButton(isCollected) {
     const collectBtn = document.getElementById('collect-btn');

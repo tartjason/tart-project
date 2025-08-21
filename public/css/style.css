@@ -1306,3 +1306,60 @@ body.artwork-page #artwork-image-container img {
 body.artwork-page .section-divider {
     margin: 12px 0; /* tighter spacing between sections on artwork page */
 }
+
+/* Immersive viewing: ambient background behind content */
+body.artwork-page header,
+body.artwork-page main {
+    position: relative;
+    z-index: 1; /* keep content above ambient bg */
+}
+
+body.artwork-page #ambient-bg {
+    position: fixed;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(28px) saturate(120%) brightness(0.9);
+    opacity: 0.25;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Lightbox overlay */
+#lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+#lightbox.open { display: flex; }
+
+#lightbox img {
+    max-width: 92vw;
+    max-height: 92vh;
+    user-select: none;
+    -webkit-user-drag: none;
+    cursor: zoom-in;
+    transition: transform 0.08s ease-out;
+}
+
+#lightbox img.zoomed {
+    cursor: grab;
+}
+
+/* Focus mode: fade chrome when idle */
+body.artwork-page header,
+body.artwork-page .artwork-meta,
+body.artwork-page .artwork-footer {
+    transition: opacity 200ms ease;
+}
+
+body.artwork-page.focus-mode header,
+body.artwork-page.focus-mode .artwork-meta,
+body.artwork-page.focus-mode .artwork-footer {
+    opacity: 0;
+}
