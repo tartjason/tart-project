@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Poetry Editor</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --panel: #151823;
+      --text: #e6e7eb;
+      --muted: #9aa3b2;
+      --accent: #7aa2f7;
+      --chip1: #e66b6b;
+      --chip2: #e0a75e;
+      --chip3: #80c07b;
+      --chip4: #5db7e8;
+      --chip5: #b48ef7;
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple Color Emoji, Segoe UI Emoji;
+    }
+    .wrap {
+      max-width: 900px; margin: 24px auto; padding: 0 16px;
+    }
+    header {
+      display: flex; align-items: center; gap: 12px; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    header .hint { color: var(--muted); font-size: 13px; }
+    .btn {
+      background: var(--panel); color: var(--text);
+      border: 1px solid #23283a; border-radius: 8px; padding: 8px 12px;
+      cursor: pointer;
+    }
+    .btn:hover { border-color: #2b3250; }
+
+    #editor-shell {
+      background: var(--panel);
+      border: 1px solid #23283a; border-radius: 12px;
+      padding: 18px 16px; position: relative;
+    }
+
+    #poem-editor {
+      outline: none; min-height: 120vh;
+      white-space: pre-wrap; /* preserve multiple spaces */
+    }
+
+    .poem-line {
+      white-space: pre-wrap;
+      color: var(--line-color, var(--text));
+      margin-left: calc(var(--indent, 0) * 2ch);
+      margin-block-start: calc(var(--line-gap, 0) * 0.75rem);
+    }
+    .poem-line:focus { outline: none; }
+
+    /* Floating toolbar removed */
+
+    footer { color: var(--muted); font-size: 12px; margin-top: 10px; }
+    footer kbd { background: #0d101a; border: 1px solid #23283a; padding: 0 4px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="hint">Enter = new line · Tab/Shift+Tab = indent · ⌘/Ctrl+↑↓ move line</div>
+      <div>
+        <button class="btn" id="export-json">Export JSON</button>
+      </div>
+    </header>
+
+    <div id="editor-shell">
+      <!-- Editor mount -->
+      <div id="poem-editor" aria-label="Poem editor"></div>
+    </div>
+
+    <footer>
+      Tip: Paste multi-line text to auto-split into lines. Leading spaces are preserved. Shift+Enter inserts a soft break inside a line.
+    </footer>
+  </div>
+
+  <script src="/js/poem-editor.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const el = document.getElementById('poem-editor');
+      const editor = new window.PoemEditor(el, { useFloatingToolbar: false });
+      window.poemEditor = editor; // expose for console
+
+      document.getElementById('export-json').addEventListener('click', () => {
+        const json = editor.toJSON();
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'poem.json'; a.click();
+        URL.revokeObjectURL(url);
+      });
+    });
+  </script>
+</body>
+</html>

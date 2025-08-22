@@ -6,6 +6,13 @@ body {
     background-color: #f4f4f4;
     color: #333;
 }
+/* Disabled button state */
+.btn:disabled,
+.btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(25%);
+}
 
 h1, h2, h3 {
     line-height: 1.2;
@@ -952,7 +959,7 @@ body.upload-page .upload-container {
 
 /* Artwork Detail Page */
 .artwork-detail-container {
-    max-width: 700px;
+    max-width: 900px;
     margin: 2rem auto;
     padding: 1rem;
 }
@@ -1611,3 +1618,261 @@ body.artwork-page.focus-mode .artwork-footer {
 }
 
 .signature { margin-top: 16px; font-style: italic; color: #444; }
+
+/* ==========================
+ * Upload Page (minimal UI)
+ * ========================== */
+body.upload-page header,
+body.upload-page main {
+    position: relative;
+    z-index: 1;
+}
+
+body.upload-page #ambient-bg {
+    position: fixed;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    filter: blur(28px) saturate(120%) brightness(0.9);
+    opacity: 0.25;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* on-class retained for JS toggling; no style difference needed */
+
+/* Layout */
+body.upload-page main { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+
+body.upload-page .upload-topbar { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+
+body.upload-page .upload-topbar label { font-size: 0.9rem; color: #333; }
+
+body.upload-page .upload-topbar select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.95rem;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Image upload area */
+body.upload-page .image-upload-area {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    background: transparent;
+    border: none;
+    padding: 0;
+    min-height: 0;
+    /* center the small control roughly in the viewport */
+    margin: 30vh auto 24px;
+}
+
+body.upload-page .image-upload-area input[type="file"] { display: none; }
+
+body.upload-page .image-upload-area .camera-overlay { display: inline-flex; align-items: center; gap: 8px; color: #475569; transition: opacity 220ms ease; }
+
+body.upload-page .image-upload-area.has-image {
+    display: block;
+    /* mirror artwork.html container width and spacing */
+    max-width: 900px;
+    margin: 6rem auto; /* overrides initial 30vh centering */
+    text-align: center;
+    padding: 1rem;
+}
+
+body.upload-page .image-upload-area.has-image img {
+    width: 100%;
+    height: auto;
+    margin: 0 auto 0.75rem;
+    display: block;
+    border-radius: 8px;
+}
+
+/* Simple camera icon */
+body.upload-page .camera-icon {
+    width: 56px; height: 56px; margin: 0 auto 8px auto;
+    border: none; border-radius: 50%; position: relative;
+}
+body.upload-page .camera-icon::before {
+    content: "";
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 18px; height: 18px; border: 2px solid #64748b; border-radius: 50%;
+}
+
+/* Poetry editor */
+body.upload-page .poetry-editor-area {
+    background: rgba(255,255,255,0.75);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    /* Match non-poetry artwork spacing above and below */
+    margin: 6rem auto;
+}
+
+body.upload-page #poem-editor {
+    min-height: 540px;
+    /* Nudge text slightly down and right inside the editor box */
+    padding: 12px 14px;
+}
+
+body.upload-page .poem-line {
+    color: var(--line-color, #111);
+    padding-left: calc(var(--indent, 0) * 1rem);
+    margin-top: calc(var(--line-gap, 0) * 0.5rem);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* Floating toolbar removed on upload page */
+
+/* Shared metadata */
+body.upload-page .meta-fields {
+    margin-top: 16px;
+    display: grid;
+    gap: 12px;
+    /* narrower and centered for better aesthetics */
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Neutralize wrapper frames on upload page to avoid double boxes */
+body.upload-page .title-section,
+body.upload-page .description-section {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+body.upload-page .meta-fields input,
+body.upload-page .meta-fields textarea,
+body.upload-page .meta-fields select {
+    width: 100%;
+    /* transparent look over ambient bg, keep readability */
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 12px;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    box-shadow: none;
+    box-sizing: border-box; /* include padding & border in width to avoid sticking out */
+}
+
+body.upload-page .meta-fields textarea { min-height: 120px; resize: vertical; }
+
+/* Location row: make inputs share width evenly */
+body.upload-page .location-selectors { display: flex; flex-direction: column; gap: 10px; align-items: center; max-width: 360px; width: 100%; margin: 0 auto; }
+body.upload-page .location-selectors input { flex: 0 0 auto; width: 100%; }
+
+/* Metrics row: compact width/height with units */
+body.upload-page .metrics-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  max-width: 360px;
+  width: 100%;
+  margin: 0 auto;
+  align-items: center;
+}
+body.upload-page .metrics-fields input,
+body.upload-page .metrics-fields select { width: 100%; }
+/* Small label above metrics inputs */
+body.upload-page .metrics-label {
+  font-size: 0.9rem;
+  color: #6b7280; /* gray-500 */
+  font-weight: 400;
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 6px;
+}
+/* 3D metrics: 3 equal columns without units picker */
+body.upload-page .metrics-fields.three-cols {
+  grid-template-columns: 1fr 1fr 1fr;
+  max-width: 540px;
+}
+/* 3D metrics with units: 3 inputs + units select */
+body.upload-page .metrics-fields.four-cols {
+  grid-template-columns: 1fr 1fr 1fr auto;
+  max-width: 640px;
+}
+
+/* Meta carousel */
+body.upload-page .meta-carousel { position: relative; overflow: hidden; }
+body.upload-page .meta-carousel .slides { display: flex; transform: translateX(0); transition: transform 250ms ease; will-change: transform; }
+body.upload-page .meta-carousel .slide { min-width: 100%; box-sizing: border-box; display: grid; gap: 12px; }
+/* Ensure hidden slides are removed from layout */
+body.upload-page .meta-carousel .slide[hidden] { display: none !important; }
+/* Poetry mode: force-hide Metrics slide, ensure AI/Human is visible */
+body.upload-page.poetry-mode .meta-carousel .slide[data-slide="2"] { display: none !important; }
+body.upload-page.poetry-mode .meta-carousel .slide[data-slide="3"] { display: grid; }
+body.upload-page .meta-carousel .carousel-nav { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; }
+body.upload-page .meta-carousel .carousel-btn { background: rgba(0,0,0,0.65); color: #fff; border: none; border-radius: 9999px; padding: 8px 14px; font-size: 0.9rem; cursor: pointer; }
+body.upload-page .meta-carousel .carousel-btn[disabled] { opacity: 0.4; cursor: default; }
+body.upload-page .meta-carousel .carousel-dots { display: flex; align-items: center; gap: 8px; }
+body.upload-page .meta-carousel .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(0,0,0,0.25); display: inline-block; }
+body.upload-page .meta-carousel .dot.active { background: rgba(0,0,0,0.7); }
+
+/* Prevent horizontal page movement during carousel interactions */
+body.upload-page { overflow-x: hidden; overscroll-behavior-x: none; }
+body.upload-page .meta-carousel { overscroll-behavior-x: none; }
+
+/* AI-generated question styling */
+body.upload-page .ai-generated-field {
+  display: grid;
+  gap: 10px;
+  max-width: 360px;
+  width: 100%;
+  margin: 0 auto;
+}
+body.upload-page .ai-generated-field .field-label {
+  font-size: 0.95rem;
+  color: #222;
+}
+body.upload-page .ai-generated-field .choice-group {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center; /* prevent children from stretching vertically */
+}
+body.upload-page .ai-generated-field .choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  padding: 6px 14px; /* compact vertical padding */
+  cursor: pointer;
+  user-select: none;
+  flex: 0 0 auto; /* do not stretch to container height */
+  height: 40px; /* comfortable fixed height */
+  white-space: nowrap; /* keep label on one line so card doesn't grow tall */
+}
+
+@media (max-width: 768px) {
+  body.upload-page .meta-fields { max-width: 100%; padding: 0 12px; }
+  body.upload-page .location-selectors { flex-direction: column; }
+}
+
+/* Utility */
+body.upload-page .hidden { display: none !important; }
+
+/* Publish actions */
+body.upload-page .publish-actions {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0 48px;
+  margin-top: 80px; /* extra space above publish button */
+}
+body.upload-page .publish-actions .btn {
+  min-width: 160px;
+}
