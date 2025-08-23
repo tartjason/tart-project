@@ -1,0 +1,388 @@
+/* Home Page: Showcase, Gallery & Artwork Cards, Poetry Preview */
+
+/* Showcase (sticky hero + right grid) */
+.showcase {
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* Wider hero vs right column */
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto 2rem auto;
+}
+
+.showcase-left {
+    position: sticky;
+    top: 2rem;
+    align-self: start;
+    height: fit-content;
+}
+
+.showcase-right .showcase-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+    justify-items: start; /* so max-width cards align left */
+}
+
+/* Ensure right-column items are smaller than hero on desktop */
+@media (min-width: 901px) {
+    .showcase-right .artwork-card { max-width: 400px; width: 100%; }
+}
+
+/* Showcase media aspect ratios */
+/* Hero: landscape 16:9 */
+.artwork-card.hero img,
+.artwork-card.hero .poetry-preview {
+    aspect-ratio: 16 / 9;
+    height: auto;
+}
+
+/* Right column items: slightly wide (reduce height) */
+.showcase-right .artwork-card img,
+.showcase-right .artwork-card .poetry-preview {
+    aspect-ratio: 5 / 4; /* was 1 / 1 */
+    height: auto;
+}
+
+/* Hero variant: larger media height */
+.artwork-card.hero { --media-h: 520px; }
+
+/* Featured rhythm variants for the main gallery */
+.artwork-card.tall { --media-h: 420px; }
+.artwork-card.featured { --media-h: 420px; grid-column: span 2; }
+
+/* Mobile/tablet responsive behavior */
+@media (max-width: 900px) {
+    .showcase {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+    }
+    .showcase-left { position: static; top: auto; }
+}
+
+@media (max-width: 768px) {
+    .artwork-card.featured { grid-column: auto; }
+}
+
+/* Header avatar + dropdown */
+.avatar-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.header-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+}
+
+.avatar-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+    min-width: 160px;
+    padding: 6px 0;
+    display: none;
+    z-index: 1000;
+}
+
+/* Invisible bridge to prevent hover gap between avatar and dropdown */
+.avatar-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 0;
+    right: 0;
+    height: 8px;
+}
+
+/* Show on hover (desktop) */
+.avatar-wrapper:hover .avatar-dropdown { display: block; }
+/* Show when toggled open (touch/click) */
+.avatar-wrapper.open .avatar-dropdown { display: block; }
+
+.avatar-dropdown .dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 8px 12px;
+    text-decoration: none;
+    color: #111;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+.avatar-dropdown .dropdown-item:hover {
+    background: #f5f5f5;
+}
+
+/* Sidebar + App Shell */
+.app {
+    position: relative;
+    min-height: 100vh;
+}
+
+/* Ensure the app content has no unintended left padding */
+.content {
+    padding: 0;
+}
+
+/* In-page layout below header */
+.page-layout {
+    --sidebar-w: 220px;
+    display: grid;
+    grid-template-columns: var(--sidebar-w) 1fr;
+    gap: 0;
+    align-items: start;
+    transition: grid-template-columns 200ms ease;
+}
+
+.sidebar {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    color: #111;
+    border-right: none;
+    display: flex;
+}
+
+.sidebar-inner {
+    padding: 20px 8px 20px 0;
+    width: 100%;
+    overflow-y: auto;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.nav-item {
+    text-align: left;
+    background: transparent;
+    border: none;
+    color: #111;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+.nav-item:hover { background: rgba(0,0,0,0.04); }
+.nav-item.active { background: rgba(0,0,0,0.08); color: #111; }
+
+.main-panel {
+    transition: transform 200ms ease, filter 200ms ease;
+    transform-origin: left center;
+}
+
+.app.sidebar-open .page-layout { --sidebar-w: 220px; }
+.app.sidebar-closed .page-layout { --sidebar-w: 0px; grid-template-columns: 0 1fr !important; }
+.app.sidebar-open .main-panel { transform: scale(0.985); }
+.app.sidebar-closed .main-panel { transform: none; }
+
+/* Ensure grid spans full width */
+.page-layout { width: 100%; }
+
+/* When sidebar is closed, clip any inner padding/overflow so it fully hides */
+.app.sidebar-closed .sidebar { 
+    overflow: hidden; 
+    width: 0 !important; 
+    min-width: 0 !important;
+    max-width: 0 !important; 
+    flex: 0 0 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    visibility: hidden; 
+    pointer-events: none;
+}
+.app.sidebar-open .sidebar { visibility: visible; }
+.app.sidebar-closed .sidebar-inner { padding: 0 !important; overflow: hidden; width: 0 !important; min-width: 0 !important; }
+
+/* Tiny toggle button near logo (mimics compact left control) */
+.header-left { display: flex; align-items: center; gap: 10px; }
+
+.sidebar-toggle {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* Icon container: draws the rounded-rectangle outline */
+.sidebar-toggle .toggle-icon {
+    position: relative;
+    width: 18px;   /* visual width of the icon */
+    height: 16px;  /* visual height of the icon */
+    border-radius: 5px;
+    box-sizing: border-box;
+}
+
+/* Open = showing side panel (first icon): dark outline, thick bar at left */
+.app.sidebar-open .sidebar-toggle .toggle-icon {
+    border: 1.5px solid #111;
+}
+.app.sidebar-open .sidebar-toggle .toggle-icon::after {
+    content: '';
+    position: absolute;
+    left: 4px;               /* place near left edge to suggest sidebar */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;              /* slightly thinner bar */
+    height: 60%;
+    background: #111;
+    border-radius: 2px;
+}
+
+/* Closed = not showing (second icon): grey outline, thin centered divider */
+.app.sidebar-closed .sidebar-toggle .toggle-icon {
+    border: 1.5px solid #9ca3af; /* gray-400 */
+}
+.app.sidebar-closed .sidebar-toggle .toggle-icon::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;              /* thinner divider */
+    height: 60%;
+    background: #9ca3af;
+    border-radius: 1px;
+}
+
+/* Hover/focus polish */
+.sidebar-toggle:hover .toggle-icon { filter: brightness(0.9); }
+.sidebar-toggle:focus-visible { outline: 2px solid #111; outline-offset: 2px; border-radius: 8px; }
+
+/* When page hosts an in-page sidebar, let content be full-bleed */
+main.page-has-sidebar {
+    max-width: none;
+    margin: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+/* Gallery & Artwork Cards */
+.gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto 2rem auto;
+}
+
+.artwork-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.artwork-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+}
+
+.artwork-card { --media-h: 200px; }
+
+.artwork-card img {
+    width: 100%;
+    height: var(--media-h);
+    object-fit: cover;
+    transition: transform 200ms ease;
+}
+
+.artwork-card .blurred {
+    filter: blur(14px);
+    transition: filter 0.3s ease-in-out;
+}
+
+.artwork-card:hover .blurred {
+    filter: blur(0);
+}
+
+/* Subtle image scale on hover */
+.artwork-card:hover img {
+    transform: scale(1.02);
+}
+
+.artwork-card .artwork-info {
+    padding: 1rem;
+}
+
+.artwork-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+}
+
+.artwork-card p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+/* Poetry preview styling */
+.poetry-preview {
+    width: 100%;
+    height: var(--media-h);
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+    overflow: hidden;
+}
+
+.poetry-snippet {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 16px;
+    line-height: 1.6;
+    color: #2c3e50;
+    text-align: center;
+    font-style: italic;
+    max-width: 100%;
+    word-wrap: break-word;
+    position: relative;
+    z-index: 1;
+}
+
+.poetry-preview::before {
+    content: '"';
+    position: absolute;
+    top: 10px;
+    left: 15px;
+    font-size: 48px;
+    color: rgba(44, 62, 80, 0.1);
+    font-family: 'Georgia', serif;
+    z-index: 0;
+}
+
+.poetry-preview::after {
+    content: '"';
+    position: absolute;
+    bottom: 10px;
+    right: 15px;
+    font-size: 48px;
+    color: rgba(44, 62, 80, 0.1);
+    font-family: 'Georgia', serif;
+    z-index: 0;
+}

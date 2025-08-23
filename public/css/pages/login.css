@@ -1,0 +1,208 @@
+/* Login page styles */
+
+/* Login popup page */
+body.login-page {
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+.login-container {
+    width: 100%;
+    max-width: 320px;
+    padding: 20px;
+}
+
+.login-brand-fixed {
+    position: fixed;
+    top: 24px;
+    left: 24px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #000;
+}
+
+.login-brand {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-align: left;
+    margin-bottom: 80px;
+    color: #000;
+}
+
+.login-card {
+    text-align: center;
+}
+
+.login-card h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0 0 28px;
+    color: #000;
+}
+
+.email-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.password-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px; /* base spacing */
+    margin-bottom: 18px;
+}
+
+/* Fallback spacing for browsers without flex gap on flex containers */
+.password-form .email-input { 
+    margin-bottom: 20px; /* ensures spacing even if gap unsupported */
+}
+
+/* Explicit spacing on the Log in button for consistency */
+#password-section #login-btn {
+    margin-top: 20px; /* add extra separation from the input */
+}
+
+.email-input {
+    width: 100%;
+    height: 48px;
+    padding: 12px 18px;
+    border: 1px solid #d9d9e3;
+    border-radius: 9999px;
+    font-size: 15px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.email-input:focus {
+    border-color: #10a37f;
+    box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+}
+
+.continue-btn {
+    height: 48px;
+    padding: 12px 18px;
+    background: #1a1a1a;
+    color: white;
+    border: none;
+    border-radius: 9999px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.continue-btn:hover {
+    background: #000;
+}
+
+.signup-link {
+    color: #6e6e80;
+    font-size: 14px;
+    margin: 18px 0 24px;
+    line-height: 1.6;
+}
+
+.signup-link a {
+    color: #10a37f;
+    text-decoration: none;
+}
+
+.signup-link a:hover {
+    text-decoration: underline;
+}
+
+.divider {
+    display: flex;
+    align-items: center;
+    margin: 24px 0;
+    color: #6e6e80;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.divider::before,
+.divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #c2c8d0;
+}
+
+.divider span {
+    padding: 0 16px;
+}
+
+.oauth-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.oauth-btn {
+    width: 100%;
+    height: 48px;
+    padding: 12px 18px;
+    background: #fff;
+    border: 1px solid #d9d9e3;
+    border-radius: 9999px;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 14px;
+    transition: all 0.2s;
+    color: #000;
+    font-weight: 400;
+}
+
+/* Ensure the label text is not bold while keeping icon unaffected */
+.oauth-btn span { font-weight: 400; }
+
+.oauth-btn:hover {
+    background: #f7f7f8;
+    border-color: #a0a0a0;
+}
+
+.oauth-icon {
+    flex-shrink: 0;
+}
+
+.error-msg {
+    color: #ef4444;
+    margin-top: 12px;
+    font-size: 14px;
+    text-align: left;
+    background: #fef2f2;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #fecaca;
+}
+
+.login-footer {
+    margin-top: 32px;
+    text-align: center;
+    font-size: 12px;
+}
+
+.login-footer a {
+    color: #6e6e80;
+    text-decoration: none;
+}
+
+.login-footer a:hover {
+    text-decoration: underline;
+}
+
+ .login-footer .separator {
+    margin: 0 8px;
+    color: #c2c8d0;
+}
