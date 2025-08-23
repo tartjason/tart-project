@@ -409,3 +409,77 @@ main {
 }
 
 .signature { margin-top: 16px; font-style: italic; color: #444; }
+
+/* Shared animations and utilities */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.8s ease-out both;
+    animation-delay: var(--stagger, 0ms);
+}
+
+/* Pre-reveal hidden state for IntersectionObserver */
+.will-reveal {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* Line expand animation for ruler/underline effects (used in Tart tagline) */
+@keyframes lineExpand {
+    from { width: 0; }
+    to   { width: 40px; }
+}
+
+/* Tart wordmark baseline style to match header logo weight/size */
+.tart-wordmark {
+    font-size: 1.5rem;
+    font-weight: 400;
+    letter-spacing: 0;
+    margin: 0;
+}
+
+/* CTA link shared style */
+.cta-link {
+    display: inline-block;
+    margin-top: 24px;
+    padding: 12px 48px 12px 24px;
+    background: #000;
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.cta-link::after {
+    content: '→';
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.2s ease;
+}
+
+.cta-link:hover {
+    padding-right: 64px;
+    background: #111;
+}
+
+.cta-link:hover::after {
+    transform: translateY(-50%) translateX(4px);
+}
+
+/* Reduced motion respect */
+@media (prefers-reduced-motion: reduce) {
+    .fade-in { animation: none !important; }
+    .will-reveal { opacity: 1 !important; transform: none !important; }
+    .cta-link { transition: none !important; }
+    .cta-link::after { transition: none !important; }
+}

@@ -217,6 +217,29 @@ document.addEventListener('DOMContentLoaded', () => {
         return truncated.join('<br>');
     }
 
+    // -------- Reveal-on-scroll helpers --------
+    let revealObserver;
+    function ensureRevealObserver() {
+        if (revealObserver) return revealObserver;
+        revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    const el = entry.target;
+                    el.classList.remove('will-reveal');
+                    el.classList.add('fade-in');
+                    revealObserver.unobserve(el);
+                }
+            });
+        }, { root: null, threshold: 0.1 });
+        return revealObserver;
+    }
+
+    function observeNewReveals(root) {
+        const obs = ensureRevealObserver();
+        const scope = root || document;
+        scope.querySelectorAll('.will-reveal').forEach(el => obs.observe(el));
+    }
+
     function createArtworkCard(artwork, extraClasses = []) {
         const el = document.createElement('div');
         el.classList.add('artwork-card', ...extraClasses);
@@ -283,73 +306,260 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderTartHTML() {
         return `
-            <h2>What is Tart</h2>
-            <p>We are building a new home for artists — simple tools, expressive canvases, and a community that values creativity.</p>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-img" aria-hidden="true"></div>
-                    <div class="feature-body">
-                        <h3>Creative Canvas</h3>
-                        <p>Compose poetry, images, and layouts with intuitive controls designed for flow.</p>
-                    </div>
+          <style>
+            .tart-container {
+              background: #fff;
+              min-height: 100vh;
+              padding: 80px 40px;
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+              color: #000;
+            }
+            
+            .content-wrapper {
+              max-width: 1400px;
+              margin: 0 auto;
+            }
+            
+            /* Header */
+            .header-section {
+              display: grid;
+              grid-template-columns: auto 1fr 1fr 1fr;
+              align-items: start;
+              column-gap: 60px;
+              margin-bottom: 160px;
+            }
+            
+            .tagline-group {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 60px;
+              max-width: 900px;
+              grid-column: 2 / -1; /* place to the right of wordmark */
+            }
+            
+            .tagline-item {
+              position: relative;
+              padding-left: 60px;
+              font-size: 15px;
+              line-height: 1.6;
+              color: #000;
+            }
+            
+            .tagline-item::before {
+              content: '';
+              position: absolute;
+              left: 0;
+              top: 8px;
+              width: 40px;
+              height: 1px;
+              background: #000;
+              animation: lineExpand 0.6s ease-out;
+              animation-delay: var(--stagger, 0ms);
+              animation-fill-mode: both;
+            }
+            
+            /* Features */
+            .features-section {
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 80px;
+            }
+            
+            .feature { }
+            
+            .feature-number {
+              font-size: 14px;
+              color: #999;
+              margin-bottom: 40px;
+              font-weight: 400;
+            }
+            
+            .feature-title {
+              font-size: 24px;
+              font-weight: 400;
+              margin-bottom: 32px;
+              line-height: 1.3;
+              letter-spacing: -0.01em;
+            }
+            
+            .feature-description {
+              font-size: 15px;
+              line-height: 1.7;
+              color: #333;
+            }
+            
+            .feature-description p {
+              margin: 0 0 16px 0;
+            }
+            
+            .feature-description strong {
+              font-weight: 500;
+              color: #000;
+            }
+            
+            .feature-description em {
+              font-style: normal;
+              color: #666;
+              font-size: 14px;
+            }
+            
+            /* CTA styles moved to global stylesheet */
+            
+            /* Responsive */
+            @media (max-width: 1024px) {
+              .header-section {
+                grid-template-columns: 1fr; /* stack wordmark above taglines */
+                row-gap: 24px;
+              }
+              .tagline-group {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                max-width: 500px;
+                grid-column: auto;
+              }
+              
+              .features-section {
+                grid-template-columns: 1fr;
+                gap: 100px;
+              }
+            }
+            
+            @media (max-width: 640px) {
+              .tart-container {
+                padding: 60px 24px;
+              }
+              
+              .header-section {
+                margin-bottom: 100px;
+              }
+              
+              .tart-wordmark {
+                font-size: 28px;
+                margin-bottom: 60px;
+              }
+              
+              .tagline-item {
+                padding-left: 50px;
+              }
+              
+              .feature-title {
+                font-size: 20px;
+              }
+            }
+            
+            /* Subtle hover states */
+            @media (hover: hover) {
+              .feature {
+                transition: transform 0.3s ease;
+              }
+              
+              .feature:hover {
+                transform: translateX(8px);
+              }
+            }
+          </style>
+          
+          <div class="tart-container">
+            <div class="content-wrapper">
+              <!-- Header -->
+              <header class="header-section">
+                <h1 class="tart-wordmark">Tart</h1>
+                
+                <div class="tagline-group">
+                  <div class="tagline-item fade-in" style="--stagger: 100ms">
+                    <strong>Slow experience.</strong>
+                  </div>
+                  <div class="tagline-item fade-in" style="--stagger: 200ms">
+                    <strong>Artist empowerment.</strong>
+                  </div>
+                  <div class="tagline-item fade-in" style="--stagger: 300ms">
+                    <strong>Natural discovery.</strong>
+                  </div>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-img" aria-hidden="true"></div>
-                    <div class="feature-body">
-                        <h3>Showcase First</h3>
-                        <p>Your work takes center stage with immersive presentation and clean typography.</p>
-                    </div>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-img" aria-hidden="true"></div>
-                    <div class="feature-body">
-                        <h3>Own Your Space</h3>
-                        <p>Publish a beautiful site in minutes and keep full control over your content.</p>
-                    </div>
-                </div>
+              </header>
+              
+              <!-- Features -->
+              <section class="features-section">
+                <!-- Feature 1 -->
+                <article class="feature fade-in" style="--stagger: 400ms">
+                  <div class="feature-number">01</div>
+                  <h2 class="feature-title">A slow, clean experience</h2>
+                  <div class="feature-description">
+                    <p><strong>Focus Mode</strong>: surrounding UI is minimized so the piece takes center stage — follows, likes, numbers, gone.</p>
+                    <p><strong>Blurred Browsing</strong>: nothing is forced upon you; wander at your own pace.</p>
+                  </div>
+                </article>
+                
+                <!-- Feature 2 -->
+                <article class="feature fade-in" style="--stagger: 500ms">
+                  <div class="feature-number">02</div>
+                  <h2 class="feature-title">Artist empowerment</h2>
+                  <div class="feature-description">
+                    <p><strong>Portfolio website in under 5 minutes</strong>.</p>
+                    <p>Your personal website on your own domain — just a few clicks.</p>
+                    <p><strong>And it's Free.</strong></p>
+                    <a href="/survey.html" class="cta-link">Start your site</a>
+                  </div>
+                </article>
+                
+                <!-- Feature 3 -->
+                <article class="feature fade-in" style="--stagger: 600ms">
+                  <div class="feature-number">03</div>
+                  <h2 class="feature-title">Natural discovery</h2>
+                  <div class="feature-description">
+                    <p><em>Upcoming:</em> Discovery Through Language & Emotion (NLX)</p>
+                    <p>Search and discovery through natural language.</p>
+                    <p>Art surfaced by moods, themes, and intent — not just popularity.</p>
+                  </div>
+                </article>
+              </section>
             </div>
-            <div class="section-divider" style="margin:24px 0"></div>
-            <h3>Our philosophy</h3>
-            <p>Great tools should disappear. Tart focuses on clarity and speed so artists can stay in the moment — from spark to shareable work.</p>
+          </div>
         `;
     }
 
     function renderAboutHTML() {
-        return `
-            <h2>About us</h2>
-            <div class="letter">
-                <p>Dear creators,</p>
-                <p>We started Tart to make a calmer, kinder place for art online. A place where your ideas are respected and your pages load fast. We obsess over the details so you can focus on the work.</p>
-                <p>Thank you for building with us. We can’t wait to see what you publish.</p>
-                <div class="signature">— The Founder, Tart</div>
-            </div>
-        `;
+    return `
+        <h2 class="will-reveal" style="--stagger: 0ms">About us</h2>
+        <div class="letter will-reveal" style="--stagger: 120ms">
+            <p>Dear creators,</p>
+            <p>We started Tart to make a calmer, kinder place for art online. A place where your ideas are respected and your pages load fast. We obsess over the details so you can focus on the work.</p>
+            <p>Thank you for building with us. We can’t wait to see what you publish.</p>
+            <div class="signature">— Jason Lin, Tart</div>
+        </div>
+    `;
+}
+
+function showPage(page) {
+    const showcase = document.getElementById('showcase');
+    if (!page || page === 'home') {
+        // Show artworks
+        setActiveNav('nav-home');
+        pageContent.hidden = true;
+        showcase && (showcase.style.display = '');
+        artworksContainer.style.display = '';
+        // Re-render artworks if container is empty
+        if (!artworksContainer.children.length) fetchArtworks();
+        // observe any pending reveals in artworks containers
+        observeNewReveals(document);
+    } else if (page === 'tart') {
+        setActiveNav('nav-tart');
+        pageContent.hidden = false;
+        pageContent.innerHTML = renderTartHTML();
+        showcase && (showcase.style.display = 'none');
+        artworksContainer.style.display = 'none';
+        // Tart uses direct fade-in; still observe in case future will-reveal exists
+        observeNewReveals(pageContent);
+    } else if (page === 'about') {
+        setActiveNav('nav-about');
+        pageContent.hidden = false;
+        pageContent.innerHTML = renderAboutHTML();
+        showcase && (showcase.style.display = 'none');
+        artworksContainer.style.display = 'none';
+        observeNewReveals(pageContent);
     }
 
-    function showPage(page) {
-        const showcase = document.getElementById('showcase');
-        if (!page || page === 'home') {
-            // Show artworks
-            setActiveNav('nav-home');
-            pageContent.hidden = true;
-            showcase && (showcase.style.display = '');
-            artworksContainer.style.display = '';
-            // Re-render artworks if container is empty
-            if (!artworksContainer.children.length) fetchArtworks();
-        } else if (page === 'tart') {
-            setActiveNav('nav-tart');
-            pageContent.hidden = false;
-            pageContent.innerHTML = renderTartHTML();
-            showcase && (showcase.style.display = 'none');
-            artworksContainer.style.display = 'none';
-        } else if (page === 'about') {
-            setActiveNav('nav-about');
-            pageContent.hidden = false;
-            pageContent.innerHTML = renderAboutHTML();
-            showcase && (showcase.style.display = 'none');
-            artworksContainer.style.display = 'none';
-        }
-    }
+}
 
     if (sidebarToggle && appEl) {
         sidebarToggle.addEventListener('click', () => {
@@ -394,18 +604,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 if (hero) {
                     const heroCard = createArtworkCard(hero, ['hero']);
+                    heroCard.classList.add('will-reveal');
+                    heroCard.style.setProperty('--stagger', '0ms');
                     stickyHero.appendChild(heroCard);
                 }
-                rightCol.forEach(a => {
+                rightCol.forEach((a, i) => {
                     const card = createArtworkCard(a);
+                    card.classList.add('will-reveal');
+                    card.style.setProperty('--stagger', `${(i + 1) * 100}ms`);
                     stickyGrid.appendChild(card);
                 });
 
                 // Uniform grid for the remaining list (no tall/featured variants)
-                rest.forEach((a) => {
+                rest.forEach((a, i) => {
                     const card = createArtworkCard(a);
+                    card.classList.add('will-reveal');
+                    const delay = (i % 10) * 60; // cap stagger cycles for long lists
+                    card.style.setProperty('--stagger', `${delay}ms`);
                     artworksContainer.appendChild(card);
                 });
+
+                // Start observing reveals for home items
+                observeNewReveals(document);
             } else {
                 // Fallback: original single grid behavior
                 artworksContainer.innerHTML = '';
