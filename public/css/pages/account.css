@@ -106,3 +106,26 @@
     color: #666;
     text-decoration: none;
 }
+
+/* Collection: keep poetry preview height consistent with image cards */
+#artist-collection-container .artwork-card .poetry-preview,
+.artworks-grid .artwork-card .poetry-preview {
+    height: var(--media-h); /* match .artwork-card img height (default 180px) */
+}
+
+/* Account page gallery: force 3 columns on desktop, keep mobile breakpoints */
+#gallery .gallery {
+    display: grid; /* ensure grid in case of overrides */
+    grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 680px) {
+    #gallery .gallery { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+    #gallery .gallery { grid-template-columns: 1fr; }
+}
+
+/* Remove the divider below the profile header link on Account page */
+.profile-container .section-divider {
+    display: none;
+}

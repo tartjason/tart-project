@@ -8,6 +8,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+// -------- Poem rendering --------
+function renderPoem(container, poem) {
+    if (!container) return;
+    container.innerHTML = '';
+    const lines = (poem && Array.isArray(poem.lines)) ? poem.lines : [];
+    lines.forEach((line) => {
+        const div = document.createElement('div');
+        div.className = 'poem-line';
+        const indent = Number.isFinite(line.indent) ? line.indent : 0;
+        const spacing = Number.isFinite(line.spacing) ? line.spacing : 0;
+        // Inline styles derived from numeric metadata
+        const pad = indent > 0 ? `${indent * 2}em` : '0';
+        const marginTop = spacing > 0 ? `${spacing * 0.4}em` : '0';
+        div.style.paddingLeft = pad;
+        if (marginTop !== '0') div.style.marginTop = marginTop;
+        // HTML has been sanitized server-side
+        div.innerHTML = String(line.html || '');
+        container.appendChild(div);
+    });
+}
+
     let currentUserId = null;
     if (token) {
         try {
@@ -30,13 +51,48 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Populate Page Elements
         document.title = artwork.title; // Set page title
-        document.getElementById('artwork-image-container').innerHTML = `<img src="${artwork.imageUrl}" alt="${artwork.title}" decoding="async" fetchpriority="high">`;
-        // Immersive additions
-        const mainImg = document.querySelector('#artwork-image-container img');
-        if (mainImg) {
-            setupAmbientBg(artwork.imageUrl);
-            setupLightbox(mainImg, artwork.imageUrl);
+        const imageContainer = document.getElementById('artwork-image-container');
+        const poemContainer = document.getElementById('poem-container');
+        const hasPoemLines = !!(artwork.poem && Array.isArray(artwork.poem.lines) && artwork.poem.lines.length > 0);
+
+        // Reset page state to non-poetry first (prevents stale poetry layout)
+        document.body.classList.remove('poetry-mode');
+        if (poemContainer) { poemContainer.hidden = true; poemContainer.style.display = 'none'; poemContainer.innerHTML = ''; }
+        if (imageContainer) { imageContainer.style.display = 'block'; imageContainer.innerHTML = ''; }
+        if (artwork.medium === 'poetry' || hasPoemLines) {
+            // Poetry rendering
+            if (imageContainer) imageContainer.innerHTML = '';
+            if (imageContainer) imageContainer.style.display = 'none';
+            if (poemContainer) {
+                poemContainer.hidden = false;
+                poemContainer.style.display = 'block';
+                renderPoem(poemContainer, artwork.poem);
+            }
+            document.body.classList.add('poetry-mode');
+            // Enable focus mode for poetry as well
             setupFocusMode();
+        } else {
+            // Image rendering
+            // Make sure poetry mode is off first to avoid CSS hiding the image
+            document.body.classList.remove('poetry-mode');
+            if (imageContainer) {
+                imageContainer.style.display = 'block';
+                imageContainer.innerHTML = `<img src="${artwork.imageUrl}" alt="${artwork.title}" decoding="async" fetchpriority="high">`;
+            }
+            if (poemContainer) {
+                poemContainer.hidden = true;
+                poemContainer.style.display = 'none';
+                poemContainer.innerHTML = '';
+            }
+            // Immersive additions
+            const mainImg = document.querySelector('#artwork-image-container img');
+            if (mainImg) {
+                setupAmbientBg(artwork.imageUrl);
+                setupLightbox(mainImg, artwork.imageUrl);
+                setupFocusMode();
+            }
+            // Ensure poetry mode is off for non-poetry (redundant safety)
+            document.body.classList.remove('poetry-mode');
         }
         document.getElementById('artwork-title').textContent = artwork.title;
         
@@ -72,11 +128,73 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         document.getElementById('artwork-time').textContent = new Date(artwork.createdAt).toLocaleDateString();
-        document.getElementById('artwork-location').textContent = artwork.location || 'Unknown';
+        document.getElementById('artwork-location').textContent = artwork.locationDisplay || artwork.location || 'Unknown';
+        // Source (optional)
+        const sourceEl = document.getElementById('artwork-source');
+        if (artwork.source) {
+            const label = artwork.source === 'ai' ? 'AI generated' : 'Human made';
+            sourceEl.textContent = `Source: ${label}`;
+        } else {
+            sourceEl.textContent = '';
+        }
+
+        // Metrics (optional)
+        const metricsWrap = document.getElementById('artwork-metrics');
+        const metricsText = document.getElementById('artwork-metrics-text');
+        let metricsOut = '';
+        if (artwork.metrics2d && (artwork.metrics2d.width !== undefined || artwork.metrics2d.height !== undefined) && artwork.metrics2d.units) {
+            const w = artwork.metrics2d.width;
+            const h = artwork.metrics2d.height;
+            const u = artwork.metrics2d.units;
+            if (w !== undefined && h !== undefined) {
+                metricsOut = `${w} × ${h} ${u}`;
+            } else if (w !== undefined) {
+                metricsOut = `Width: ${w} ${u}`;
+            } else if (h !== undefined) {
+                metricsOut = `Height: ${h} ${u}`;
+            }
+        } else if (artwork.metrics3d && (artwork.metrics3d.length !== undefined || artwork.metrics3d.width !== undefined || artwork.metrics3d.height !== undefined) && artwork.metrics3d.units) {
+            const L = artwork.metrics3d.length;
+            const W = artwork.metrics3d.width;
+            const H = artwork.metrics3d.height;
+            const U = artwork.metrics3d.units;
+            const parts = [];
+            if (L !== undefined) parts.push(L);
+            if (W !== undefined) parts.push(W);
+            if (H !== undefined) parts.push(H);
+            if (parts.length) metricsOut = `${parts.join(' × ')} ${U}`;
+        }
+        const dividerBeforeMetrics = metricsWrap ? metricsWrap.previousElementSibling : null; // expected: .section-divider
+        const dividerAfterMetrics = metricsWrap ? metricsWrap.nextElementSibling : null;   // expected: .section-divider
+        // Divider right after Description section (to prevent double lines when metrics are hidden)
+        const descSectionForDividers = document.querySelector('.artwork-inspiration');
+        const dividerAfterDescription = descSectionForDividers ? descSectionForDividers.nextElementSibling : null;
+        if (metricsOut) {
+            metricsWrap.hidden = false;
+            metricsText.textContent = metricsOut;
+            if (dividerBeforeMetrics && dividerBeforeMetrics.classList.contains('section-divider')) {
+                dividerBeforeMetrics.style.display = '';
+            }
+            if (dividerAfterMetrics && dividerAfterMetrics.classList.contains('section-divider')) {
+                dividerAfterMetrics.style.display = '';
+            }
+        } else {
+            // Keep the divider after metrics (separator before footer), hide the one before metrics
+            if (dividerBeforeMetrics && dividerBeforeMetrics.classList.contains('section-divider')) {
+                dividerBeforeMetrics.style.display = 'none';
+            }
+            if (dividerAfterMetrics && dividerAfterMetrics.classList.contains('section-divider')) {
+                dividerAfterMetrics.style.display = '';
+            }
+            // Hide the divider immediately after Description to avoid two consecutive lines
+            if (dividerAfterDescription && dividerAfterDescription.classList.contains('section-divider')) {
+                dividerAfterDescription.style.display = 'none';
+            }
+        }
 
         // Populate Artist Info
         const artist = artwork.artist;
-        document.getElementById('artist-avatar').src = artist.profilePictureUrl || '/assets/default-avatar.png';
+        document.getElementById('artist-avatar').src = artist.profilePictureUrl || '/assets/default-avatar.svg';
         document.getElementById('artist-name').textContent = artist.name;
         // Artist link removed since public artist profiles don't exist
         const artistLink = document.getElementById('artist-link');

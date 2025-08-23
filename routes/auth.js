@@ -6,7 +6,7 @@ const Artist = require('../models/artist');
 const Portfolio = require('../models/portfolio');
 const Artwork = require('../models/artwork');
 const VerificationCode = require('../models/VerificationCode');
-const { sendEmail } = require('../utils/ses');
+const { sendEmail } = require('../utils/email');
 const passport = require('../middleware/passport');
 const { putBuffer, getUploadsKey, getPublicUrl, deleteObject } = require('../utils/s3');
 
@@ -116,7 +116,7 @@ router.post('/otp/email/request', async (req, res) => {
         try {
             await sendEmail({ to: email, subject, text, html });
         } catch (e) {
-            console.error('SES sendEmail error:', e);
+            console.error('Email send error:', e);
             return res.status(500).json({ msg: 'Failed to send email' });
         }
 

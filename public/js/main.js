@@ -108,15 +108,149 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Helper: strip HTML tags to plain text
+    function stripHtml(html) {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = String(html || '');
+        return (tmp.textContent || tmp.innerText || '').trim();
+    }
+
+    // Helper: escape text for safe HTML insertion (legacy poetryData)
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    // Helper: convert escaped <font color> to safe <span style="color:"> for legacy poems
+    function convertEscapedFontToSpan(html) {
+        if (typeof html !== 'string') return '';
+        // First, decode common entities so we can operate on real elements if needed
+        const decoded = html
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'");
+
+        // Use DOM to robustly replace <font> with <span style="color:">
+        const container = document.createElement('div');
+        container.innerHTML = decoded;
+        const fonts = container.querySelectorAll('font');
+        fonts.forEach((font) => {
+            const color = (font.getAttribute('color') || '').trim();
+            const span = document.createElement('span');
+            if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
+                span.style.color = color;
+            }
+            span.innerHTML = font.innerHTML;
+            font.replaceWith(span);
+        });
+        return container.innerHTML;
+    }
+
+    // Minimal sanitizer for legacy poetryData to allow safe inline markup
+    function sanitizeLineHtml(html) {
+        if (typeof html !== 'string') return '';
+        let clean = String(html);
+        // Strip scripts
+        clean = clean.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, '');
+        // Remove inline event handlers
+        clean = clean.replace(/ on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+        // Convert tags
+        clean = clean.replace(/<\/?([a-zA-Z0-9-]+)([^>]*)>/g, (m, tag, attrs) => {
+            const isClosing = m.startsWith('</');
+            const t = String(tag).toLowerCase();
+            if (['b','i','u','s','strike','strong','em','br'].includes(t)) {
+                return isClosing ? `</${t}>` : `<${t}>`;
+            }
+            if (t === 'font') {
+                if (isClosing) return '</span>';
+                const colorMatch = attrs && attrs.match(/color\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i);
+                const color = colorMatch ? (colorMatch[2] || colorMatch[3] || colorMatch[4] || '').trim() : '';
+                if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
+                    return `<span style="color: ${color}">`;
+                }
+                return '<span>';
+            }
+            if (t === 'span') {
+                if (isClosing) return '</span>';
+                let color = '';
+                const styleMatch = attrs && attrs.match(/style\s*=\s*("([^"]*)"|'([^']*)')/i);
+                const style = styleMatch ? (styleMatch[2] || styleMatch[3] || '') : '';
+                const colorMatch = style.match(/color\s*:\s*([^;]+)/i);
+                if (colorMatch) color = colorMatch[1].trim();
+                return color ? `<span style="color: ${color}">` : '<span>';
+            }
+            // Escape any other tag types
+            return m.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        });
+        // Also handle escaped <font> that slipped in
+        clean = convertEscapedFontToSpan(clean);
+        return clean;
+    }
+
+    // Helper: get poetry first N lines (preferred) with sensible fallbacks
+    function getPoetryPreview(artwork, linesCount = 1) {
+        const MAX_PER_LINE = 60;
+        const lines = [];
+        if (artwork && artwork.poem && Array.isArray(artwork.poem.lines) && artwork.poem.lines.length) {
+            for (let i = 0; i < Math.min(linesCount, artwork.poem.lines.length); i++) {
+                const raw = artwork.poem.lines[i]?.html || '';
+                const txt = stripHtml(raw).replace(/\s+/g, ' ').trim();
+                if (txt) lines.push(txt);
+            }
+        } else if (artwork && Array.isArray(artwork.poetryData) && artwork.poetryData.length) {
+            for (let i = 0; i < Math.min(linesCount, artwork.poetryData.length); i++) {
+                const raw = artwork.poetryData[i]?.text || '';
+                const txt = String(raw || '').replace(/\s+/g, ' ').trim();
+                if (txt) lines.push(txt);
+            }
+        }
+        // Fallback if no lines available
+        if (!lines.length) {
+            const fallback = (artwork.description || artwork.title || '').trim();
+            return fallback.length > MAX_PER_LINE ? fallback.slice(0, MAX_PER_LINE) + '...' : fallback;
+        }
+        // Truncate each line and join with a line break
+        const truncated = lines.map(l => (l.length > MAX_PER_LINE ? l.slice(0, MAX_PER_LINE) + '...' : l));
+        return truncated.join('<br>');
+    }
+
     function createArtworkCard(artwork, extraClasses = []) {
         const el = document.createElement('div');
         el.classList.add('artwork-card', ...extraClasses);
         if (artwork.medium === 'poetry') {
-            const poetryText = artwork.description || artwork.title || 'Poetry artwork';
-            const snippet = poetryText.length > 60 ? poetryText.substring(0, 60) + '...' : poetryText;
+            el.classList.add('poetry');
+            // Build up to 2 faithful lines using poem metadata when available
+            let lines = [];
+            if (artwork && artwork.poem && Array.isArray(artwork.poem.lines) && artwork.poem.lines.length) {
+                lines = artwork.poem.lines.slice(0, 2).map((line) => ({
+                    html: convertEscapedFontToSpan(String(line.html || '')),
+                    indent: Number.isFinite(line.indent) ? line.indent : 0,
+                    spacing: Number.isFinite(line.spacing) ? line.spacing : 0
+                }));
+            } else if (artwork && Array.isArray(artwork.poetryData) && artwork.poetryData.length) {
+                lines = artwork.poetryData.slice(0, 2).map((l) => ({
+                    html: sanitizeLineHtml(l.text || ''),
+                    indent: 0,
+                    spacing: 0
+                }));
+            } else {
+                // Fallback single line from description/title
+                lines = [{ html: escapeHtml(artwork.description || artwork.title || ''), indent: 0, spacing: 0 }];
+            }
+
+            const linesHtml = lines.map((ln, idx) => {
+                const pad = ln.indent > 0 ? `${ln.indent * 2}em` : '0';
+                const mt = ln.spacing > 0 ? `${ln.spacing * 0.4}em` : '0';
+                const mtStyle = mt !== '0' ? `margin-top: ${mt};` : '';
+                return `<div class="poem-line" style="padding-left: ${pad}; ${mtStyle}">${ln.html}</div>`;
+            }).join('');
+
             el.innerHTML = `
                 <div class="poetry-preview">
-                    <div class="poetry-snippet">${snippet}</div>
+                    <div class="poem-viewer">${linesHtml}</div>
                 </div>
                 <div class="artwork-info">
                     <h3>${artwork.title}</h3>
@@ -267,12 +401,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     stickyGrid.appendChild(card);
                 });
 
-                // Featured rhythm for the remaining list
-                rest.forEach((a, idx) => {
-                    const classes = [];
-                    if (idx % 7 === 0) classes.push('featured');
-                    else if (idx % 3 === 0) classes.push('tall');
-                    const card = createArtworkCard(a, classes);
+                // Uniform grid for the remaining list (no tall/featured variants)
+                rest.forEach((a) => {
+                    const card = createArtworkCard(a);
                     artworksContainer.appendChild(card);
                 });
             } else {

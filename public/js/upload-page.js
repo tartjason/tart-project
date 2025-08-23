@@ -81,7 +81,11 @@
       let ready = false;
       if (medium === 'poetry') {
         const hasPoemContent = !!(poemEditor && typeof poemEditor.toJSON === 'function' &&
-          poemEditor.toJSON().lines.some(l => (l.text || '').trim().length > 0));
+          poemEditor.toJSON().lines.some(l => {
+            const html = String(l.html || '');
+            const text = html.replace(/<[^>]*>/g, '').trim();
+            return text.length > 0;
+          }));
         ready = hasTitle && hasDesc && hasCountry && hasCity && hasSource && hasPoemContent;
       } else {
         const hasImage = !!(uploadSection && uploadSection.classList.contains('has-image'));
@@ -228,10 +232,87 @@
     // Poetry editor content affects readiness
     on(poetrySection, 'input', updatePublishEnabled);
 
-    // Publish button (no-op for now)
-    on(publishBtn, 'click', () => {
-      console.log('[upload] Publish clicked');
-      // TODO: gather form data and submit to backend
+    // Publish button
+    on(publishBtn, 'click', async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to publish.');
+        return;
+      }
+      const medium = mediumSelect ? mediumSelect.value : 'photography';
+      const title = titleInput ? titleInput.value.trim() : '';
+      const description = descriptionInput ? descriptionInput.value.trim() : '';
+      const locationCountry = countryInput ? countryInput.value.trim() : '';
+      const locationCity = cityInput ? cityInput.value.trim() : '';
+      const sourceEl = document.querySelector('input[name="ai-generated"]:checked');
+      const source = sourceEl ? sourceEl.value : undefined; // 'human' | 'ai'
+
+      publishBtn.disabled = true;
+      const originalText = publishBtn.textContent;
+      publishBtn.textContent = 'Publishing...';
+      try {
+        let res;
+        if (medium === 'poetry') {
+          const poem = poemEditor && typeof poemEditor.toJSON === 'function' ? poemEditor.toJSON() : { lines: [] };
+          res = await fetch('/api/artworks', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-auth-token': token
+            },
+            body: JSON.stringify({ title, description, medium, locationCountry, locationCity, source, poem })
+          });
+        } else {
+          const fd = new FormData();
+          // file
+          const file = (qs('#artwork-file') && qs('#artwork-file').files && qs('#artwork-file').files[0]) || null;
+          if (!file) { throw new Error('Please choose an image'); }
+          fd.append('artworkImage', file);
+          // shared fields
+          fd.append('title', title);
+          fd.append('description', description);
+          fd.append('medium', medium);
+          fd.append('locationCountry', locationCountry);
+          fd.append('locationCity', locationCity);
+          if (source) fd.append('source', source);
+          // metrics
+          if (medium === 'photography' || medium === 'painting') {
+            const w = qs('#artwork-width')?.value;
+            const h = qs('#artwork-height')?.value;
+            const u = qs('#artwork-units')?.value;
+            if (w) fd.append('width', w);
+            if (h) fd.append('height', h);
+            if (u) fd.append('units', u);
+          } else if (medium === 'industrial-design') {
+            const L = qs('#artwork-length')?.value;
+            const W = qs('#artwork-width-3d')?.value;
+            const H = qs('#artwork-height-3d')?.value;
+            const U = qs('#artwork-units-3d')?.value;
+            if (L) fd.append('length', L);
+            if (W) fd.append('width3d', W);
+            if (H) fd.append('height3d', H);
+            if (U) fd.append('units3d', U);
+          }
+          res = await fetch('/api/artworks', {
+            method: 'POST',
+            headers: { 'x-auth-token': token },
+            body: fd
+          });
+        }
+
+        if (!res.ok) {
+          let msg = 'Failed to publish';
+          try { const data = await res.json(); if (data && data.msg) msg = data.msg; } catch {}
+          throw new Error(msg);
+        }
+        const saved = await res.json();
+        window.location.href = `/artwork.html?id=${encodeURIComponent(saved._id)}`;
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'Failed to publish');
+        publishBtn.disabled = false;
+        publishBtn.textContent = originalText;
+      }
     });
 
 

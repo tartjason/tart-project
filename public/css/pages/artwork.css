@@ -9,7 +9,7 @@
 #artwork-image-container img {
     width: 100%;
     border-radius: 8px;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0;
 }
 
 .artwork-meta {
@@ -126,10 +126,8 @@ body.artwork-page .artwork-detail-container {
     padding-bottom: 0;
 }
 
-/* Reduce gap between image and next section */
-body.artwork-page #artwork-image-container img {
-    margin-bottom: 0.75rem;
-}
+/* Reduce gap between image and next section handled by container margin */
+body.artwork-page #artwork-image-container img { margin-bottom: 0; }
 
 body.artwork-page .section-divider {
     margin: 12px 0; /* tighter spacing between sections on artwork page */
@@ -182,12 +180,81 @@ body.artwork-page #ambient-bg {
 /* Focus mode: fade chrome when idle */
 body.artwork-page header,
 body.artwork-page .artwork-meta,
+body.artwork-page .artwork-metrics,
+body.artwork-page .section-divider,
 body.artwork-page .artwork-footer {
     transition: opacity 200ms ease;
 }
 
 body.artwork-page.focus-mode header,
 body.artwork-page.focus-mode .artwork-meta,
+body.artwork-page.focus-mode .artwork-metrics,
+body.artwork-page.focus-mode .section-divider,
 body.artwork-page.focus-mode .artwork-footer {
     opacity: 0;
+}
+
+/* Poem viewer */
+.poem-viewer {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 1.05em;
+    line-height: 1.7;
+    color: #111;
+    padding: 0.5rem 0;
+}
+.poem-viewer .poem-line {
+    white-space: normal; /* allow wrapping */
+    word-wrap: break-word;
+}
+.poem-viewer .poem-line + .poem-line {
+    margin-top: 0.25em;
+}
+
+/* Metrics section */
+.artwork-metrics {
+    margin: 1rem 0;
+}
+.artwork-metrics h3 {
+    margin: 0 0 0.5rem 0;
+}
+.artwork-origin #artwork-source {
+    margin-top: 4px;
+    color: #666;
+}
+
+/* Poetry mode layout */
+/* Spacing system for artwork block (image or poem) */
+body.artwork-page {
+    --artwork-gap-top: 8rem;     /* space above artwork block */
+    --artwork-gap-bottom: 8rem;     /* space below artwork block before title/meta */
+}
+/* Apply consistent spacing to the image container */
+#artwork-image-container {
+    margin-top: var(--artwork-gap-top);
+    margin-bottom: var(--artwork-gap-bottom);
+}
+#artwork-image-container img {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 0; /* spacing handled by container now */
+}
+/* Poetry mode should keep normal document flow; center horizontally via width + auto margins */
+body.poetry-mode .artwork-detail-container {
+    width: 100%;
+}
+body.poetry-mode #poem-container {
+    display: block !important;
+    background: transparent;
+    max-width: 760px;
+    width: min(760px, 90vw);
+    /* Unified spacing above/below; allow short poems extra bottom slack */
+    margin-top: var(--artwork-gap-top);
+    margin-right: auto;
+    margin-left: auto;
+    margin-bottom: clamp(var(--artwork-gap-bottom), 15vh, 10rem);
+    padding: 0 1rem;
+}
+/* In poetry mode, only hide the image; keep meta/description/footer visible */
+body.poetry-mode #artwork-image-container {
+    display: none !important;
 }

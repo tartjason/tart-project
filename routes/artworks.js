@@ -28,6 +28,11 @@ const upload = multer({
 
 // Custom middleware to handle multer upload and errors
 const uploadMiddleware = (req, res, next) => {
+    // Only run Multer when the request is multipart/form-data.
+    // For JSON submissions (e.g., poetry), skip Multer entirely so req.body stays parsed by express.json().
+    if (!req.is('multipart/form-data')) {
+        return next();
+    }
     upload(req, res, function (err) {
         if (err) {
             console.error('--- MULTER ERROR ---');
@@ -152,7 +157,51 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ msg: 'Artwork not found' });
         }
 
-        res.json(artwork);
+        // Prepare output object with legacy fallbacks and computed fields
+        const obj = artwork.toObject({ virtuals: true });
+        if (!obj.poem && Array.isArray(obj.poetryData) && obj.poetryData.length) {
+            // Legacy: convert simple poetryData to poem.lines with escaped text
+            const escape = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            obj.poem = {
+                lines: obj.poetryData.map((p) => ({
+                    html: escape(p.text || ''),
+                    color: p.color || undefined,
+                    indent: 0,
+                    spacing: 0
+                }))
+            };
+        }
+        // Convert previously stored escaped <font color> tags to safe <span style="color:"> for rendering
+        if (obj.poem && Array.isArray(obj.poem.lines)) {
+            const convertEscapedFontToSpan = (html) => {
+                if (typeof html !== 'string') return '';
+                // Handle escaped opening font tags
+                html = html.replace(/&lt;\s*font([^&]*)&gt;/gi, (m, attrs) => {
+                    const colorMatch = String(attrs).match(/color\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i);
+                    const color = colorMatch ? (colorMatch[2] || colorMatch[3] || colorMatch[4] || '').trim() : '';
+                    // Only allow hex colors
+                    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
+                        return `<span style="color: ${color}">`;
+                    }
+                    return '<span>';
+                });
+                // Handle escaped closing font tags
+                html = html.replace(/&lt;\s*\/\s*font\s*&gt;/gi, '</span>');
+                return html;
+            };
+            obj.poem.lines = obj.poem.lines.map((ln) => ({
+                ...ln,
+                html: convertEscapedFontToSpan(ln.html)
+            }));
+        }
+        if (!obj.locationDisplay) {
+            const parts = [];
+            if (obj.locationCity) parts.push(obj.locationCity);
+            if (obj.locationCountry) parts.push(obj.locationCountry);
+            obj.locationDisplay = parts.length ? parts.join(', ') : (obj.location || 'Unknown');
+        }
+
+        res.json(obj);
     } catch (err) {
         console.error(err.message);
         if (err.kind === 'ObjectId') {
@@ -181,16 +230,123 @@ function checkFileType(file, cb) {
 // @desc    Create an artwork
 // @access  Private
 router.post('/', [auth, uploadMiddleware], async (req, res) => {
-    const { title, description, medium, location } = req.body;
-
-    if (!req.file) {
-        return res.status(400).json({ msg: 'Please upload a file' });
-    }
-
     try {
-        console.log('Processing artwork upload:', { title, medium, location, originalname: req.file.originalname, size: req.file.size });
+        // Shared fields (available for both JSON and multipart)
+        const body = req.body || {};
+        const title = (body.title || '').trim();
+        const description = (body.description || '').trim();
+        const medium = String(body.medium || '').toLowerCase();
+        const source = body.source ? String(body.source).toLowerCase() : undefined; // 'human' | 'ai'
+        const locationCountry = (body.locationCountry || '').trim();
+        const locationCity = (body.locationCity || '').trim();
+        const legacyLocation = (body.location || '').trim();
 
-        // Upload to S3
+        if (!title) {
+            return res.status(400).json({ msg: 'Title is required' });
+        }
+        if (!medium) {
+            return res.status(400).json({ msg: 'Medium is required' });
+        }
+
+        // Helpers
+        const clampNum = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) && n >= 0 ? n : undefined;
+        };
+        const validUnit = (u) => (['cm', 'in', 'mm'].includes(String(u)) ? String(u) : undefined);
+        const composeLocation = () => {
+            const parts = [];
+            if (locationCity) parts.push(locationCity);
+            if (locationCountry) parts.push(locationCountry);
+            if (parts.length) return parts.join(', ');
+            return legacyLocation || 'Not specified';
+        };
+
+        // Minimal HTML sanitizer for poem lines (allow b,i,u,s/strike,strong,em, br, span[color]; convert <font color> to span)
+        function sanitizeLineHtml(html) {
+            if (typeof html !== 'string') return '';
+            let clean = html
+                .replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, '')
+                .replace(/ on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+            clean = clean.replace(/<\/?([a-zA-Z0-9-]+)([^>]*)>/g, (m, tag, attrs) => {
+                const isClosing = m.startsWith('</');
+                const t = tag.toLowerCase();
+                if (['b', 'i', 'u', 's', 'strike', 'strong', 'em', 'br'].includes(t)) {
+                    return isClosing ? `</${t}>` : `<${t}>`;
+                }
+                if (t === 'font') {
+                    if (isClosing) return '</span>';
+                    const colorMatch = attrs && attrs.match(/color\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i);
+                    const color = colorMatch ? (colorMatch[2] || colorMatch[3] || colorMatch[4] || '').trim() : '';
+                    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
+                        return `<span style="color: ${color}">`;
+                    }
+                    return '<span>';
+                }
+                if (t === 'span') {
+                    if (isClosing) return '</span>';
+                    let color = '';
+                    const styleMatch = attrs && attrs.match(/style\s*=\s*("([^"]*)"|'([^']*)')/i);
+                    const style = styleMatch ? (styleMatch[2] || styleMatch[3] || '') : '';
+                    const colorMatch = style.match(/color\s*:\s*([^;]+)/i);
+                    if (colorMatch) color = colorMatch[1].trim();
+                    return color ? `<span style="color: ${color}">` : '<span>';
+                }
+                // Escape other tags
+                return m
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+            });
+            return clean;
+        }
+
+        // --- Poetry flow (JSON, no image required) ---
+        if (medium === 'poetry') {
+            const poem = body.poem && typeof body.poem === 'object' ? body.poem : null;
+            if (!poem || !Array.isArray(poem.lines)) {
+                return res.status(400).json({ msg: 'Poem content is required' });
+            }
+            // Size limits
+            const MAX_LINES = 300;
+            const MAX_HTML = 4000;
+            const safeLines = poem.lines.slice(0, MAX_LINES).map((line) => ({
+                html: sanitizeLineHtml(String(line.html || '').slice(0, MAX_HTML)),
+                color: typeof line.color === 'string' ? line.color : undefined,
+                indent: clampNum(line.indent) ?? 0,
+                spacing: clampNum(line.spacing) ?? 0
+            }));
+
+            const artworkData = {
+                title,
+                description,
+                medium,
+                artist: req.artist.id,
+                location: composeLocation(),
+                locationCountry: locationCountry || undefined,
+                locationCity: locationCity || undefined,
+                source: source && ['human', 'ai'].includes(source) ? source : undefined,
+                poem: { lines: safeLines }
+            };
+
+            const newArtwork = new Artwork(artworkData);
+            const saved = await newArtwork.save();
+            console.log('Poetry artwork saved:', saved._id);
+            return res.json(saved);
+        }
+
+        // --- Non-poetry flow (multipart with image) ---
+        if (!req.file) {
+            return res.status(400).json({ msg: 'Please upload a file' });
+        }
+
+        console.log('Processing artwork upload:', {
+            title,
+            medium,
+            originalname: req.file.originalname,
+            size: req.file.size
+        });
+
+        // Upload to S3 (required for non-poetry)
         const Bucket = process.env.S3_BUCKET;
         if (!Bucket) {
             return res.status(500).json({ msg: 'S3 is not configured' });
@@ -199,27 +355,49 @@ router.post('/', [auth, uploadMiddleware], async (req, res) => {
         await putBuffer({ Bucket, Key, Body: req.file.buffer, ContentType: req.file.mimetype });
         const publicUrl = getPublicUrl(Bucket, Key);
 
+        // Metrics parsing
+        let metrics2d, metrics3d;
+        if (medium === 'photography' || medium === 'painting') {
+            const w = clampNum(body.width);
+            const h = clampNum(body.height);
+            const u = validUnit(body.units);
+            if ((w !== undefined || h !== undefined) && u) {
+                metrics2d = { width: w, height: h, units: u };
+            }
+        } else if (medium === 'industrial-design' || medium === 'furniture') {
+            const L = clampNum(body.length);
+            const W = clampNum(body.width3d);
+            const H = clampNum(body.height3d);
+            const U = validUnit(body.units3d);
+            if ((L !== undefined || W !== undefined || H !== undefined) && U) {
+                metrics3d = { length: L, width: W, height: H, units: U };
+            }
+        }
+
         const artworkData = {
             title,
             description,
             medium,
-            location: location || 'Not specified',
             artist: req.artist.id,
+            location: composeLocation(),
+            locationCountry: locationCountry || undefined,
+            locationCity: locationCity || undefined,
+            source: source && ['human', 'ai'].includes(source) ? source : undefined,
             imageUrl: publicUrl,
-            imageKey: Key
+            imageKey: Key,
+            ...(metrics2d ? { metrics2d } : {}),
+            ...(metrics3d ? { metrics3d } : {})
         };
 
         console.log('Creating artwork with data:', artworkData);
-        
         const newArtwork = new Artwork(artworkData);
         const artwork = await newArtwork.save();
-
         console.log('Artwork saved successfully:', artwork._id);
-        res.json(artwork);
+        return res.json(artwork);
     } catch (err) {
         console.error('Artwork upload error:', err);
         console.error('Error stack:', err.stack);
-        res.status(500).json({ msg: 'Server Error', error: err.message });
+        return res.status(500).json({ msg: 'Server Error', error: err.message });
     }
 });
 

@@ -280,10 +280,21 @@ main.page-has-sidebar {
 /* Gallery & Artwork Cards */
 .gallery {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
     max-width: 1200px;
     margin: 0 auto 2rem auto;
+}
+
+/* Responsive columns for gallery */
+@media (max-width: 1024px) {
+    .gallery { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 680px) {
+    .gallery { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 420px) {
+    .gallery { grid-template-columns: 1fr; }
 }
 
 .artwork-card {
@@ -300,13 +311,20 @@ main.page-has-sidebar {
     box-shadow: 0 10px 20px rgba(0,0,0,0.12);
 }
 
-.artwork-card { --media-h: 200px; }
+.artwork-card { --media-h: 180px; }
 
 .artwork-card img {
     width: 100%;
     height: var(--media-h);
     object-fit: cover;
     transition: transform 200ms ease;
+}
+
+/* Match gallery card media ratio to right-column items (5:4) */
+.gallery .artwork-card img,
+.gallery .artwork-card .poetry-preview {
+    aspect-ratio: 5 / 4;
+    height: auto;
 }
 
 .artwork-card .blurred {
@@ -385,4 +403,53 @@ main.page-has-sidebar {
     color: rgba(44, 62, 80, 0.1);
     font-family: 'Georgia', serif;
     z-index: 0;
+}
+
+/* Poetry card variant: meta, transparent, faithful layout */
+.artwork-card.poetry {
+    background: transparent;
+    border-radius: 8px; /* match non-poetry cards */
+    box-shadow: none;
+    overflow: hidden; /* clip inner backgrounds to rounded corners */
+    border: 1px solid transparent; /* reserve space for hover outline */
+    transition: border-color 160ms ease, background-color 160ms ease;
+}
+.artwork-card.poetry:hover {
+    transform: translateY(-5px); /* regain float-up */
+    box-shadow: none; /* keep flat (no elevation shadow) */
+    border-color: rgba(17,17,17,0.08); /* faint outline on hover */
+}
+.artwork-card.poetry .artwork-info {
+    background: transparent; /* transparent by default */
+    border-top: 1px solid transparent;
+    transition: background-color 160ms ease, border-color 160ms ease;
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+.artwork-card.poetry:hover .artwork-info {
+    background: #fff; /* regain white card look for info section */
+    border-top: 1px solid rgba(17,17,17,0.06); /* subtle separator */
+}
+.artwork-card.poetry .poetry-preview {
+    background: transparent;
+    display: block; /* cancel flex centering */
+    padding: 0.5rem 1rem;
+    overflow: visible; /* allow line spacing to breathe */
+    height: auto; /* let poem content define height */
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+.artwork-card.poetry.hero .poetry-preview,
+.showcase-right .artwork-card.poetry .poetry-preview {
+    aspect-ratio: auto; /* cancel fixed ratios for poetry */
+    height: auto; /* ensure no fixed height */
+}
+.artwork-card.poetry .poetry-preview::before,
+.artwork-card.poetry .poetry-preview::after {
+    content: none !important;
+    display: none !important; /* remove decorative quotes */
+}
+.artwork-card.poetry .poetry-preview .poem-viewer {
+    /* Inherits typography from pages/artwork.css */
+    padding: 0.25rem 0; /* slightly tighter for cards */
 }

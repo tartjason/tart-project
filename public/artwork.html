@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Artwork Details</title>
     <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/pages/artwork.css">
 </head>
 <body class="artwork-page">
     <header>
@@ -16,8 +17,10 @@
 
     <main>
         <div class="artwork-detail-container">
-            <!-- Artwork Image will be loaded here -->
+            <!-- Artwork Image (non-poetry) -->
             <div id="artwork-image-container"></div>
+            <!-- Poem Viewer (poetry) -->
+            <div id="poem-container" class="poem-viewer" hidden></div>
 
             <div class="artwork-meta">
                 <div class="artwork-description">
@@ -37,10 +40,19 @@
 
             <div class="section-divider"></div>
 
+            <!-- Metrics (optional) -->
+            <div class="artwork-metrics" id="artwork-metrics" hidden>
+                <h3>Specifications</h3>
+                <p id="artwork-metrics-text"></p>
+            </div>
+
+            <div class="section-divider"></div>
+
             <div class="artwork-footer">
                 <div class="artwork-origin">
                     <p id="artwork-time"></p>
                     <p id="artwork-location"></p>
+                    <p id="artwork-source"></p>
                 </div>
                 <div class="artist-info-footer">
                     <a href="#" id="artist-link">
