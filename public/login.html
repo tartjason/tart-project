@@ -62,6 +62,9 @@
     </div>
   </div>
 
+  <!-- Toast container -->
+  <div id="toast" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+
   <script>
     (function(){
       const params = new URLSearchParams(window.location.search);
@@ -70,6 +73,9 @@
         const el = document.getElementById('error');
         el.style.display = 'block';
         el.textContent = 'Sign-in failed. Please try again.';
+      }
+      if (params.get('registered') === '1') {
+        showToast('Account created. Please log in with your password.', 'success');
       }
       const btn = document.getElementById('google-btn');
       if (btn) {
@@ -107,6 +113,17 @@
         if (!errorEl) return;
         errorEl.style.display = msg ? 'block' : 'none';
         errorEl.textContent = msg || '';
+      }
+
+      function showToast(message, type) {
+        const toast = document.getElementById('toast');
+        if (!toast) return;
+        toast.textContent = String(message || '');
+        toast.classList.remove('toast-success');
+        if (type === 'success') toast.classList.add('toast-success');
+        toast.classList.add('show');
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => toast.classList.remove('show'), 3000);
       }
 
       function startCooldown(secs) {
@@ -165,7 +182,7 @@
           const res = await fetch('/api/auth/otp/email/request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
+            body: JSON.stringify({ email, purpose: (mode === 'signup' ? 'signup' : 'login') })
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -193,13 +210,20 @@
           const res = await fetch('/api/auth/otp/email/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code })
+            body: JSON.stringify({ email, code, purpose: (mode === 'signup' ? 'signup' : 'login') })
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
             setError(data && data.msg ? data.msg : 'Verification failed');
             return;
           }
+          // Signup flow -> redirect to set password with token
+          if (data && data.next === 'set_password' && data.token) {
+            const url = `/set-password.html?token=${encodeURIComponent(data.token)}`;
+            window.location.href = url;
+            return;
+          }
+          // Backward compatibility: if server returns a login token
           const token = data && data.token;
           if (token) {
             try {

@@ -180,7 +180,7 @@
         <a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">
           <div style="background:#fff;">
             ${img}
-            <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div>
+            <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${title}</div>
           </div>
         </a>
       `;
@@ -227,7 +227,7 @@
           ${a && a.imageUrl ? `<img src="${a.imageUrl}" alt="${((a && a.title)||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
             <div style=\"height: 180px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; color:#999;\">${(a && a.title)||'Untitled'}</div>
           `}
-          <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#7a2ea6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${(a && a.title) || 'Untitled'}</div>
+          <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${(a && a.title) || 'Untitled'}</div>
         </div>
       </a>
     `;
@@ -253,6 +253,7 @@
     return renderTemplate(tpl, {
       single_work_style: '',
       single_work_content: contentHtml,
+      single_title: (a && a.title) ? a.title : 'Untitled',
       single_index: String(n > 0 ? idx + 1 : 0),
       single_total: String(n)
     });

@@ -7,6 +7,11 @@
     display: block;
 }
 
+/* Extra spacing below the first question heading */
+#step-1 > h2 {
+    margin-bottom: 10rem;
+}
+
 /* Medium Selection Styles */
 .medium-options {
     display: flex;
@@ -24,11 +29,15 @@
     border-radius: 8px;
     transition: all 0.3s;
     min-width: 120px;
+    transform: translateY(0);
+    will-change: transform, box-shadow;
 }
 
 .medium-option:hover {
     border-color: #007bff;
     background-color: #f8f9fa;
+    transform: translateY(-6px);
+    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.08);
 }
 
 .medium-option.selected {
@@ -362,58 +371,7 @@
     .preview-side { order: -1; }
 }
 
-/* Step 5: Style Customization Styles */
-.style-customization {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
-    margin: 2rem 0;
-}
-
-.style-controls {
-    padding: 1.5rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-}
-
-.control-group {
-    margin-bottom: 1.5rem;
-}
-
-.control-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-}
-
-.control-group input[type="range"] {
-    width: 100%;
-    margin-bottom: 0.5rem;
-}
-
-.control-group input[type="color"] {
-    width: 100%;
-    height: 40px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.value-display {
-    font-size: 0.875rem;
-    color: #666;
-}
-
-.style-preview {
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.style-preview .preview-frame {
-    height: 400px;
-    background-color: white;
-}
+/* Style customization removed */
 
 /* Layout Selection Styles */
 .layout-options {

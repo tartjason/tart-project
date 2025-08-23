@@ -8,10 +8,9 @@
 </head>
 <body>
     <header>
-        <h1>My Account</h1>
-        <nav>
-            <a href="/" class="btn">Home</a>
-            <a href="#" id="logout-btn" class="btn">Logout</a>
+        <a href="/" class="header-text-link header-back-link" aria-label="Back to home">&lt;</a>
+        <nav aria-label="Account">
+            <a href="#" id="logout-btn" class="header-text-link">Log out</a>
         </nav>
     </header>
 
@@ -27,10 +26,11 @@
                 </div>
                 <div class="profile-info">
                     <h2 id="artist-name">Artist Name</h2>
-                    <p id="artist-id">@username</p>
+                    <p id="artist-region">City, Country</p>
                     <p id="artist-connections">0 Connections</p>
                 </div>
                 <div class="profile-actions">
+                    <button id="edit-profile-btn" class="btn" type="button">Edit Profile</button>
                      <a href="/upload.html" class="btn">Upload Artwork</a>
                      <a href="/survey.html" class="btn">Portfolio Website</a>
                 </div>
@@ -60,6 +60,34 @@
             </section>
         </div>
     </main>
+
+    <!-- Inline Notification Container -->
+    <div id="notice-container" aria-live="polite" aria-atomic="true" style="position:fixed; top:12px; left:50%; transform:translateX(-50%); z-index:1100; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none;"></div>
+
+    <!-- Edit Profile Modal -->
+    <div id="edit-profile-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; padding:20px; border-radius:8px; width:90%; max-width:420px; box-shadow:0 10px 30px rgba(0,0,0,0.2);">
+            <h3 style="margin-top:0;">Edit Profile</h3>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                <label>
+                    <span>Name</span>
+                    <input id="edit-name" type="text" style="width:100%; max-width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; display:block;" />
+                </label>
+                <label>
+                    <span>City</span>
+                    <input id="edit-city" type="text" style="width:100%; max-width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; display:block;" />
+                </label>
+                <label>
+                    <span>Country</span>
+                    <input id="edit-country" type="text" style="width:100%; max-width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; display:block;" />
+                </label>
+            </div>
+            <div style="margin-top:16px; display:flex; gap:8px; justify-content:flex-end;">
+                <button id="cancel-profile-btn" class="btn" type="button">Cancel</button>
+                <button id="save-profile-btn" class="btn" type="button">Save</button>
+            </div>
+        </div>
+    </div>
 
     <script src="js/account.js"></script>
 </body>

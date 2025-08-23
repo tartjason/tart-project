@@ -6,6 +6,14 @@ const artistSchema = new Schema({
         type: String,
         required: true
     },
+    city: {
+        type: String,
+        required: false
+    },
+    country: {
+        type: String,
+        required: false
+    },
     email: {
         type: String,
         required: true,

@@ -85,10 +85,11 @@ router.post('/register', async (req, res) => {
 router.post('/otp/email/request', async (req, res) => {
     try {
         const email = String((req.body && req.body.email) || '').trim().toLowerCase();
+        const purpose = (req.body && req.body.purpose) ? String(req.body.purpose) : 'signup'; // 'signup' | 'login'
         if (!isValidEmail(email)) return res.status(400).json({ msg: 'Invalid email' });
 
         const now = new Date();
-        let record = await VerificationCode.findOne({ email, purpose: 'login' }).sort({ createdAt: -1 });
+        let record = await VerificationCode.findOne({ email, purpose }).sort({ createdAt: -1 });
         if (record) {
             if (record.lockedUntil && record.lockedUntil > now) {
                 const secs = Math.ceil((record.lockedUntil - now) / 1000);
@@ -105,7 +106,7 @@ router.post('/otp/email/request', async (req, res) => {
         const resendAvailableAt = new Date(Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
 
         await VerificationCode.findOneAndUpdate(
-            { email, purpose: 'login' },
+            { email, purpose },
             { code, attempts: 0, maxAttempts: MAX_ATTEMPTS, lockedUntil: new Date(0), expiresAt, resendAvailableAt },
             { upsert: true }
         );
@@ -134,10 +135,11 @@ router.post('/otp/email/verify', async (req, res) => {
     try {
         const email = String((req.body && req.body.email) || '').trim().toLowerCase();
         const code = String((req.body && req.body.code) || '').trim();
+        const purpose = (req.body && req.body.purpose) ? String(req.body.purpose) : 'signup'; // default to signup flow
         if (!isValidEmail(email) || !/^\d{6}$/.test(code)) return res.status(400).json({ msg: 'Invalid request' });
 
         const now = new Date();
-        let record = await VerificationCode.findOne({ email, purpose: 'login' }).sort({ createdAt: -1 });
+        let record = await VerificationCode.findOne({ email, purpose }).sort({ createdAt: -1 });
         if (!record || record.expiresAt <= now) {
             return res.status(400).json({ msg: 'Code expired. Request a new one.' });
         }
@@ -155,27 +157,72 @@ router.post('/otp/email/verify', async (req, res) => {
             return res.status(400).json({ msg: 'Incorrect code' });
         }
 
-        // Success: upsert artist, issue JWT
+        // Success: for signup, issue a short-lived token for setting password
+        // Do not create the user here; complete registration after password is set
+        const setPasswordToken = jwt.sign({ email, type: 'set_password' }, JWT_SECRET, { expiresIn: 15 * 60 });
+
+        // Invalidate the used code
+        await VerificationCode.deleteOne({ _id: record._id });
+
+        // Tell the client to proceed to set-password step
+        return res.json({ next: 'set_password', token: setPasswordToken });
+    } catch (err) {
+        console.error('OTP verify error:', err);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// Set password after email verification (signup completion)
+// @route   POST api/auth/set-password
+// @access  Public (secured by short-lived JWT from verify)
+router.post('/set-password', async (req, res) => {
+    try {
+        const token = req.body && req.body.token;
+        const password = req.body && String(req.body.password || '');
+        if (!token || !password) return res.status(400).json({ msg: 'Missing token or password' });
+
+        let payload;
+        try {
+            payload = jwt.verify(token, JWT_SECRET);
+        } catch (e) {
+            return res.status(401).json({ msg: 'Invalid or expired token' });
+        }
+        if (!payload || payload.type !== 'set_password' || !isValidEmail(payload.email)) {
+            return res.status(400).json({ msg: 'Invalid token payload' });
+        }
+
+        const email = String(payload.email).toLowerCase();
+
+        // Basic password policy (can be tightened later)
+        if (password.length < 8) return res.status(400).json({ msg: 'Password must be at least 8 characters' });
+
         let artist = await Artist.findOne({ email });
+        if (artist && artist.password) {
+            return res.status(400).json({ msg: 'Account already exists. Please log in.' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+
         if (!artist) {
-            artist = new Artist({ name: email.split('@')[0], email });
+            artist = new Artist({ name: email.split('@')[0], email, password: hash });
             await artist.save();
-            // Create default portfolio
+        } else {
+            artist.password = hash;
+            await artist.save();
+        }
+
+        // Ensure a default portfolio exists
+        if (!artist.portfolio) {
             const portfolio = new Portfolio({ artist: artist.id });
             await portfolio.save();
             artist.portfolio = portfolio.id;
             await artist.save();
         }
 
-        const payload = { artist: { id: artist.id } };
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: 3600 });
-
-        // Invalidate the used code
-        await VerificationCode.deleteOne({ _id: record._id });
-
-        return res.json({ token });
+        return res.json({ msg: 'Password set. You can log in now.' });
     } catch (err) {
-        console.error('OTP verify error:', err);
+        console.error('Set password error:', err);
         return res.status(500).json({ msg: 'Server error' });
     }
 });
@@ -358,6 +405,74 @@ router.post('/profile-picture', auth, (req, res) => {
             res.status(500).json({ message: 'Server error while updating profile picture' });
         }
     });
+});
+
+// @route   PUT api/auth/profile
+// @desc    Update profile fields: name, city, country
+// @access  Private
+router.put('/profile', auth, async (req, res) => {
+    try {
+        const body = req.body || {};
+        const set = {};
+        const unset = {};
+
+        const sanitize = (v) => String(v || '').trim();
+        const isNonEmpty = (v) => typeof v === 'string' && v.trim().length > 0;
+
+        if (isNonEmpty(body.name)) {
+            const name = sanitize(body.name);
+            if (name.length > 100) return res.status(400).json({ message: 'Name too long' });
+            set.name = name;
+        }
+        if (typeof body.city !== 'undefined') {
+            if (isNonEmpty(body.city)) {
+                const city = sanitize(body.city);
+                if (city.length > 100) return res.status(400).json({ message: 'City too long' });
+                set.city = city;
+            } else {
+                unset.city = '';
+            }
+        }
+        if (typeof body.country !== 'undefined') {
+            if (isNonEmpty(body.country)) {
+                const country = sanitize(body.country);
+                if (country.length > 100) return res.status(400).json({ message: 'Country too long' });
+                set.country = country;
+            } else {
+                unset.country = '';
+            }
+        }
+
+        if (Object.keys(set).length === 0 && Object.keys(unset).length === 0) {
+            return res.status(400).json({ message: 'No valid fields to update' });
+        }
+
+        const updateDoc = {};
+        if (Object.keys(set).length) updateDoc.$set = set;
+        if (Object.keys(unset).length) updateDoc.$unset = unset;
+
+        const updated = await Artist.findByIdAndUpdate(
+            req.artist.id,
+            updateDoc,
+            { new: true, runValidators: true, select: '-password' }
+        );
+
+        if (!updated) return res.status(404).json({ message: 'Artist not found' });
+
+        return res.json({
+            message: 'Profile updated',
+            artist: {
+                id: updated.id,
+                name: updated.name,
+                city: updated.city || '',
+                country: updated.country || '',
+                profilePictureUrl: updated.profilePictureUrl
+            }
+        });
+    } catch (err) {
+        console.error('Update profile error:', err);
+        return res.status(500).json({ message: 'Server error' });
+    }
 });
 
 module.exports = router;

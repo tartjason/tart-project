@@ -9,7 +9,10 @@
 </head>
 <body>
     <header>
-        <h1>Create Your Portfolio</h1>
+        <div class="header-left">
+            <a href="/account.html" class="header-text-link header-back-link" aria-label="Back to account">&lt;</a>
+            <h1>Create Your Portfolio</h1>
+        </div>
     </header>
 
     <main>
@@ -39,10 +42,6 @@
                             <div class="medium-icon">🎭</div>
                             <h3>Multi-Medium</h3>
                         </div>
-                    </div>
-                    <div class="step-navigation">
-                        <a href="account.html" class="btn prev-btn" id="back-to-account">Back</a>
-                        <button type="button" class="btn next-btn" disabled>Next</button>
                     </div>
                 </div>
 
@@ -457,11 +456,6 @@
                         </div>
                     </div>
                     <div class="step-navigation">
-                        <div id="published-url-container" style="display:none; font-size:0.95rem;">
-                            <span>Your site is live: </span>
-                            <a id="published-url-link" href="#" target="_blank" rel="noopener" style="text-decoration: underline;">view</a>
-                        </div>
-                        <button type="button" class="btn" id="open-style-tool">Customize Style</button>
                         <button type="button" class="btn primary" id="go-to-publish">Continue to Publish</button>
                     </div>
                 </div>
@@ -488,41 +482,7 @@
                     </div>
                 </div>
 
-                <!-- Style Customization Step (will be dynamically numbered) -->
-                <div id="step-style" class="survey-step">
-                    <h2>Customize Your Style</h2>
-                    <div class="style-customization">
-                        <div class="style-controls">
-                            <div class="control-group">
-                                <label for="font-size">Font Size</label>
-                                <input type="range" id="font-size" min="12" max="24" value="16">
-                                <span class="value-display" id="font-size-value">16px</span>
-                            </div>
-                            
-                            <div class="control-group">
-                                <label for="text-color">Text Color</label>
-                                <input type="color" id="text-color" value="#333333">
-                            </div>
-                            
-                            <div class="control-group">
-                                <label for="theme-color">Theme Color</label>
-                                <input type="color" id="theme-color" value="#007bff">
-                            </div>
-                        </div>
-                        
-                        <div class="style-preview">
-                            <div class="preview-container">
-                                <div class="preview-frame" id="style-preview">
-                                    <!-- Live style preview will be shown here -->
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="step-navigation">
-                        <button type="button" class="btn" id="back-to-preview">Back to Preview</button>
-                        <button type="button" class="btn" id="close-style-tool">Close</button>
-                    </div>
-                </div>
+                
             </form>
         </div>
     </main>

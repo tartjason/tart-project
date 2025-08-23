@@ -67,6 +67,14 @@ async function loadPublishedWebsiteInfo() {
         });
     }
 
+    // Edit Profile modal controls
+    const editBtn = document.getElementById('edit-profile-btn');
+    if (editBtn) editBtn.addEventListener('click', openEditProfileModal);
+    const cancelProfileBtn = document.getElementById('cancel-profile-btn');
+    if (cancelProfileBtn) cancelProfileBtn.addEventListener('click', closeEditProfileModal);
+    const saveProfileBtn = document.getElementById('save-profile-btn');
+    if (saveProfileBtn) saveProfileBtn.addEventListener('click', saveProfileChanges);
+
     // --- Page Specific Loaders ---
     if (document.querySelector('.profile-container')) {
         if (document.getElementById('artist-name')) {
@@ -119,8 +127,13 @@ async function loadProfileData() {
         const artist = await res.json();
 
         // Populate Profile Header
+        window.__currentArtist = artist; // cache for edit modal
         document.getElementById('artist-name').textContent = artist.name;
-        document.getElementById('artist-id').textContent = `@${artist.username || artist.name.toLowerCase().replace(/\s+/g, '')}`;
+        const regionEl = document.getElementById('artist-region');
+        if (regionEl) {
+            const region = formatRegion(artist.city, artist.country);
+            regionEl.textContent = region;
+        }
         document.querySelector('.profile-avatar').src = artist.profilePictureUrl || '/assets/default-avatar.svg';
 
         // --- Populate Gallery Tab ---
@@ -149,7 +162,138 @@ async function loadProfileData() {
     } catch (error) {
         console.error('Error loading profile data:', error);
         document.getElementById('artist-name').textContent = 'Error';
-        document.getElementById('artist-id').textContent = 'Could not load profile';
+        const regionEl = document.getElementById('artist-region');
+        if (regionEl) regionEl.textContent = 'City, Country';
+    }
+}
+
+// Helpers for region display
+function formatRegion(city, country) {
+    const c = String(city || '').trim();
+    const co = String(country || '').trim();
+    const region = [c, co].filter(Boolean).join(', ');
+    return region || 'City, Country';
+}
+
+// --- Inline Notification Helper ---
+function showNotice(message, type = 'info', timeoutMs) {
+    try {
+        const container = document.getElementById('notice-container') || (function () {
+            const c = document.createElement('div');
+            c.id = 'notice-container';
+            c.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:1100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;';
+            document.body.appendChild(c);
+            return c;
+        })();
+
+        const notice = document.createElement('div');
+        const colors = {
+            success: { bg: 'rgba(22,163,74,0.95)', border: '#16a34a' },
+            error: { bg: 'rgba(220,38,38,0.95)', border: '#dc2626' },
+            info: { bg: 'rgba(51,65,85,0.95)', border: '#334155' }
+        };
+        const palette = colors[type] || colors.info;
+        notice.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        notice.style.cssText = `
+            color: #fff;
+            background: ${palette.bg};
+            border: 1px solid ${palette.border};
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            max-width: 90vw;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity .2s ease, transform .2s ease;
+        `;
+        notice.textContent = String(message || '');
+        container.appendChild(notice);
+
+        // Animate in
+        requestAnimationFrame(() => {
+            notice.style.opacity = '1';
+            notice.style.transform = 'translateY(0)';
+        });
+
+        const autoTimeout = typeof timeoutMs === 'number' ? timeoutMs : (type === 'error' ? 5000 : 2500);
+        const close = () => {
+            notice.style.opacity = '0';
+            notice.style.transform = 'translateY(-6px)';
+            setTimeout(() => notice.remove(), 200);
+        };
+        const timer = setTimeout(close, autoTimeout);
+        notice.addEventListener('click', () => {
+            clearTimeout(timer);
+            close();
+        });
+    } catch (e) {
+        // Fallback if DOM not ready
+        console.log(`[${type}]`, message);
+    }
+}
+
+// --- Edit Profile Modal Logic ---
+function openEditProfileModal() {
+    const modal = document.getElementById('edit-profile-modal');
+    if (!modal) return;
+    const artist = window.__currentArtist || {};
+    const nameInput = document.getElementById('edit-name');
+    const cityInput = document.getElementById('edit-city');
+    const countryInput = document.getElementById('edit-country');
+    if (nameInput) nameInput.value = artist.name || '';
+    if (cityInput) cityInput.value = artist.city || '';
+    if (countryInput) countryInput.value = artist.country || '';
+    modal.style.display = 'flex';
+}
+
+function closeEditProfileModal() {
+    const modal = document.getElementById('edit-profile-modal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+async function saveProfileChanges() {
+    const token = localStorage.getItem('token');
+    if (!token) { showNotice('You must be logged in to edit your profile.', 'error'); return; }
+
+    const name = (document.getElementById('edit-name')?.value || '').trim();
+    const city = (document.getElementById('edit-city')?.value || '').trim();
+    const country = (document.getElementById('edit-country')?.value || '').trim();
+
+    if (!name) { showNotice('Name is required.', 'error'); return; }
+
+    try {
+        const res = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-auth-token': token
+            },
+            body: JSON.stringify({ name, city, country })
+        });
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: 'Failed to update profile' }));
+            throw new Error(err.message || 'Failed to update profile');
+        }
+
+        const data = await res.json();
+        const updated = data.artist || {};
+        // Update UI
+        const nameEl = document.getElementById('artist-name');
+        const regionEl = document.getElementById('artist-region');
+        if (nameEl && updated.name) nameEl.textContent = updated.name;
+        if (regionEl) regionEl.textContent = formatRegion(updated.city, updated.country);
+        // Cache
+        window.__currentArtist = Object.assign({}, window.__currentArtist, updated);
+
+        closeEditProfileModal();
+        showNotice('Profile updated', 'success');
+    } catch (e) {
+        console.error('Save profile error:', e);
+        showNotice(e.message || 'Failed to update profile', 'error');
     }
 }
 
@@ -341,17 +485,17 @@ async function deleteArtwork(artworkId, event) {
             }
             
             // Show success message
-            alert('Artwork deleted successfully!');
+            showNotice('Artwork deleted successfully!', 'success');
             
             // Refresh the gallery to update counts
             loadProfileData();
         } else {
             const errorData = await response.json().catch(() => ({ message: 'Failed to delete artwork' }));
-            alert(`Error: ${errorData.message}`);
+            showNotice(`Error: ${errorData.message}`, 'error');
         }
     } catch (error) {
         console.error('Error deleting artwork:', error);
-        alert('Failed to delete artwork. Please try again.');
+        showNotice('Failed to delete artwork. Please try again.', 'error');
     }
 }
 
@@ -380,7 +524,7 @@ function initializeProfilePictureUpload() {
                     reader.readAsDataURL(file);
                 } catch (error) {
                     console.error('Error processing image:', error);
-                    alert('Error processing image. Please try again.');
+                    showNotice('Error processing image. Please try again.', 'error');
                 }
             }
         });
@@ -515,14 +659,14 @@ async function uploadProfilePicture(file, modal) {
             // Close modal
             document.body.removeChild(modal);
             
-            alert('Profile picture updated successfully!');
+            showNotice('Profile picture updated successfully!', 'success');
         } else {
             const errorData = await response.json().catch(() => ({ message: 'Failed to upload profile picture' }));
-            alert(`Error: ${errorData.message}`);
+            showNotice(`Error: ${errorData.message}`, 'error');
         }
     } catch (error) {
         console.error('Error uploading profile picture:', error);
-        alert('Failed to upload profile picture. Please try again.');
+        showNotice('Failed to upload profile picture. Please try again.', 'error');
     }
 }
 
@@ -546,13 +690,13 @@ async function loadPortfolioData() {
 
     } catch (error) {
         console.error('Error loading portfolio settings:', error);
-        alert('Could not load your portfolio settings.');
+        showNotice('Could not load your portfolio settings.', 'error');
     }
 }
 
 async function savePortfolioSettings() {
     const token = localStorage.getItem('token');
-    if (!token) return alert('You must be logged in to save settings.');
+    if (!token) { showNotice('You must be logged in to save settings.', 'error'); return; }
 
     const settings = {
         artistStatement: document.getElementById('artist-statement').value,
@@ -576,17 +720,17 @@ async function savePortfolioSettings() {
             throw new Error(errorData.message || 'Failed to save settings');
         }
 
-        alert('Settings saved successfully!');
+        showNotice('Settings saved successfully!', 'success');
         window.location.href = '/account.html';
     } catch (error) {
         console.error('Error saving settings:', error);
-        alert(`Error: ${error.message}`);
+        showNotice(`Error: ${error.message}`, 'error');
     }
 }
 
 async function uploadArtwork() {
     const token = localStorage.getItem('token');
-    if (!token) return alert('You must be logged in to upload artwork.');
+    if (!token) { showNotice('You must be logged in to upload artwork.', 'error'); return; }
 
     const formData = new FormData();
     formData.append('title', document.getElementById('title').value);
@@ -617,11 +761,11 @@ async function uploadArtwork() {
             throw new Error(errorMessage);
         }
 
-        alert('Artwork uploaded successfully!');
+        showNotice('Artwork uploaded successfully!', 'success');
         window.location.href = '/account.html'; 
 
     } catch (error) {
         console.error('Upload error:', error);
-        alert(`Upload failed: ${error.message}`);
+        showNotice(`Upload failed: ${error.message}`, 'error');
     }
 }

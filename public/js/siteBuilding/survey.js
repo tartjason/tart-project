@@ -34,11 +34,6 @@ class PortfolioSurvey {
                 contactInfo: false
             },
             logo: null,
-            style: {
-                fontSize: 16,
-                textColor: '#333333',
-                themeColor: '#007bff'
-            },
             selectedArtworks: [],
             worksSelections: {}
         };
@@ -77,9 +72,8 @@ class PortfolioSurvey {
         this.setupWorksOrganization();
         this.setupAboutSections();
         this.setupLogoUpload();
-        // Delegate preview and style setup to renderer
+        // Delegate preview setup to renderer
         this.previewRenderer.setupWebsitePreview();
-        this.previewRenderer.setupStyleCustomization();
         this.setupNavigation();
         // Preload templates via renderer
         this.previewRenderer.loadTemplates();
@@ -88,41 +82,7 @@ class PortfolioSurvey {
         // Try loading an existing draft and jump directly to preview
         this.tryLoadDraftAndJumpToPreview();
 
-        // Wire preview/style tool navigation (outside of survey wizard)
-        const openStyleBtn = document.getElementById('open-style-tool');
-        if (openStyleBtn) {
-            openStyleBtn.addEventListener('click', () => {
-                // Hide all steps, then show style tool
-                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
-                const styleEl = document.getElementById('step-style');
-                if (styleEl) styleEl.classList.add('active');
-                this.previewRenderer.updateStylePreview();
-            });
-        }
-
-        const backToPreviewBtn = document.getElementById('back-to-preview');
-        if (backToPreviewBtn) {
-            backToPreviewBtn.addEventListener('click', async () => {
-                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
-                const previewEl = document.getElementById('step-preview');
-                if (previewEl) previewEl.classList.add('active');
-                await this.previewRenderer.ensureTemplatesLoaded();
-                await this.previewRenderer.generateWebsitePreview();
-                this.updatePreviewPublishUi();
-            });
-        }
-
-        const closeStyleBtn = document.getElementById('close-style-tool');
-        if (closeStyleBtn) {
-            closeStyleBtn.addEventListener('click', async () => {
-                document.querySelectorAll('.survey-step').forEach(el => el.classList.remove('active'));
-                const previewEl = document.getElementById('step-preview');
-                if (previewEl) previewEl.classList.add('active');
-                await this.previewRenderer.ensureTemplatesLoaded();
-                await this.previewRenderer.generateWebsitePreview();
-                this.updatePreviewPublishUi();
-            });
-        }
+        // (Removed) Style tool navigation wiring
 
         // Route to Publish step from Preview
         const goToPublishBtn = document.getElementById('go-to-publish');
@@ -166,10 +126,26 @@ class PortfolioSurvey {
                     headerUrlSpan.style.display = '';
                 }
                 if (urlContainer) urlContainer.style.display = 'block';
-                if (goToPublishBtn) goToPublishBtn.style.display = 'none';
+                if (goToPublishBtn) {
+                    // CSS sets .survey-step .step-navigation .btn { display: inline-flex !important; }
+                    // Use inline !important to override and hide the button.
+                    try {
+                        goToPublishBtn.style.setProperty('display', 'none', 'important');
+                    } catch (_) {
+                        // Fallback
+                        goToPublishBtn.style.display = 'none';
+                    }
+                }
             } else {
                 if (urlContainer) urlContainer.style.display = 'none';
-                if (goToPublishBtn) goToPublishBtn.style.display = '';
+                if (goToPublishBtn) {
+                    // Remove our inline display override so CSS can show it again
+                    try {
+                        goToPublishBtn.style.removeProperty('display');
+                    } catch (_) {
+                        goToPublishBtn.style.display = '';
+                    }
+                }
                 if (headerUrlSpan) headerUrlSpan.style.display = 'none';
             }
         } catch (e) {
@@ -179,7 +155,6 @@ class PortfolioSurvey {
     
     setupMediumSelection() {
         const mediumOptions = document.querySelectorAll('.medium-option');
-        const nextBtn = document.querySelector('#step-1 .next-btn');
         
         mediumOptions.forEach(option => {
             option.addEventListener('click', () => {
@@ -192,8 +167,10 @@ class PortfolioSurvey {
                 // Store selected medium
                 this.surveyData.medium = option.dataset.medium;
                 
-                // Enable next button
-                nextBtn.disabled = false;
+                // Immediately advance to the next step (no Next button on Step 1)
+                if (this.currentStep === 1) {
+                    this.nextStep();
+                }
             });
         });
     }
@@ -222,19 +199,19 @@ class PortfolioSurvey {
     }
     
     setupNavigation() {
-        // Next buttons (ignore preview/style tool sections)
+        // Next buttons (ignore preview section)
         document.querySelectorAll('.next-btn').forEach(btn => {
             const stepEl = btn.closest('.survey-step');
-            if (stepEl && (stepEl.id === 'step-preview' || stepEl.id === 'step-style')) return;
+            if (stepEl && stepEl.id === 'step-preview') return;
             btn.addEventListener('click', () => {
                 this.nextStep();
             });
         });
         
-        // Previous buttons (ignore preview/style tool sections)
+        // Previous buttons (ignore preview section)
         document.querySelectorAll('.prev-btn').forEach(btn => {
             const stepEl = btn.closest('.survey-step');
-            if (stepEl && (stepEl.id === 'step-preview' || stepEl.id === 'step-style')) return;
+            if (stepEl && stepEl.id === 'step-preview') return;
             // Allow dedicated Back-to-account link to navigate normally
             if (btn.id === 'back-to-account') return;
             btn.addEventListener('click', () => {
@@ -544,17 +521,16 @@ async nextStep() {
         this.showWorksOrganizationInput();
     }
         
-    if (this.currentStep === 5) {
-        // Validate works organization details
+    // Handle dynamic step validation
+    const currentStepId = this.stepOrder[this.currentStep - 1];
+    // Validate works organization details when leaving step-4 (instead of hard-coded index)
+    if (currentStepId === 'step-4') {
         if (!this.validateWorksDetails()) {
             const orgType = this.surveyData.features.worksOrganization;
             this.showToast(`Please enter at least one ${orgType === 'year' ? 'year' : 'theme'}.`, 'error');
             return;
         }
     }
-        
-    // Handle dynamic step validation
-    const currentStepId = this.stepOrder[this.currentStep - 1];
     if (currentStepId === 'step-logo') {
         // Finish survey: save + compile, then jump to preview (outside wizard)
         await this.completeSurvey();
@@ -644,6 +620,8 @@ async checkSlugAvailability(slug) {
             this.compiledJsonPath = state && state.compiledJsonPath ? state.compiledJsonPath : null;
             this.isPublished = !!(state && state.isPublished);
             this.publishedUrl = state && state.publishedUrl ? state.publishedUrl : null;
+            // Always update publish UI in case user is already published
+            this.updatePreviewPublishUi();
 
             // If compiled exists, jump to preview immediately
             if (this.compiledJsonPath || (state && state.surveyCompleted)) {

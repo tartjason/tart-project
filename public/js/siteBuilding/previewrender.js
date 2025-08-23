@@ -285,35 +285,6 @@
       } catch {}
     }
 
-    setupStyleCustomization() {
-      const fontSizeSlider = document.getElementById('font-size');
-      const fontSizeValue = document.getElementById('font-size-value');
-      const textColorPicker = document.getElementById('text-color');
-      const themeColorPicker = document.getElementById('theme-color');
-      if (!fontSizeSlider || !fontSizeValue || !textColorPicker || !themeColorPicker) return;
-
-      fontSizeSlider.addEventListener('input', (e) => {
-        const value = e.target.value;
-        this.surveyData.style.fontSize = parseInt(value);
-        fontSizeValue.textContent = `${value}px`;
-        this.updateStylePreview();
-      });
-      textColorPicker.addEventListener('change', (e) => {
-        this.surveyData.style.textColor = e.target.value;
-        this.updateStylePreview();
-      });
-      themeColorPicker.addEventListener('change', (e) => {
-        this.surveyData.style.themeColor = e.target.value;
-        this.updateStylePreview();
-      });
-    }
-
-    updateStylePreview() {
-      const stylePreviewFrame = document.getElementById('style-preview');
-      if (!stylePreviewFrame) return;
-      const styledHTML = this.createStyledPreviewHTML();
-      stylePreviewFrame.innerHTML = styledHTML;
-    }
 
     createHomePreview() {
       const { layouts } = this.surveyData;
@@ -707,32 +678,6 @@
     }
 
     // Editable + Save integration moved to public/js/preview-editable.js
-
-    createStyledPreviewHTML() {
-      const { medium, logo, style } = this.surveyData;
-      const { fontSize, textColor, themeColor } = style;
-      const logoHTML = logo ? `<img src="${logo.dataUrl}" alt="Logo" style="max-height: 40px;">` : `<div style="font-weight: bold; color: ${themeColor};">Your Portfolio</div>`;
-      return `
-        <div style="padding: 20px; font-family: Arial, sans-serif; font-size: ${fontSize}px; color: ${textColor};">
-          <header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid ${themeColor}; padding-bottom: 15px;">
-            ${logoHTML}
-            <nav style="display: flex; gap: 15px;">
-              <a href="#" style="text-decoration: none; color: ${themeColor}; font-weight: 500;">Home</a>
-              <a href="#" style="text-decoration: none; color: ${textColor};">About</a>
-              <a href="#" style="text-decoration: none; color: ${textColor};">Works</a>
-            </nav>
-          </header>
-          <main>
-            <h1 style="font-size: ${fontSize * 1.8}px; margin-bottom: 10px; color: ${themeColor};">My ${medium} Portfolio</h1>
-            <p style="color: ${textColor}; opacity: 0.8; margin-bottom: 20px;">Showcasing my creative works</p>
-            <div style="border: 1px solid ${themeColor}; padding: 15px; text-align: center; background: ${themeColor}10;">
-              <div style="background: #f0f0f0; height: 100px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: ${textColor};">Sample Work</div>
-              <h3 style="color: ${themeColor}; font-size: ${fontSize * 1.2}px;">Featured Piece</h3>
-            </div>
-          </main>
-        </div>
-      `;
-    }
   }
 
   // Expose globally
