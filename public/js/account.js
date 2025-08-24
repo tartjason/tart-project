@@ -6,6 +6,210 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('No token found. Functionality will be limited.');
     }
 
+// --- Connections Modal ---
+async function openConnectionsModal() {
+    try {
+        const artist = Object.assign({}, window.__currentArtist || {});
+        let followers = Array.isArray(artist.followers) ? artist.followers : [];
+        let following = Array.isArray(artist.following) ? artist.following : [];
+
+        // If arrays contain plain IDs or items without name, refresh from backend to get populated docs
+        const needsRefresh = followers.some(x => typeof x === 'string' || (x && !x.name))
+            || following.some(x => typeof x === 'string' || (x && !x.name));
+        if (needsRefresh) {
+            try {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
+                    if (res.ok) {
+                        const fresh = await res.json();
+                        window.__currentArtist = fresh;
+                        followers = Array.isArray(fresh.followers) ? fresh.followers : [];
+                        following = Array.isArray(fresh.following) ? fresh.following : [];
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not refresh connections:', e);
+            }
+        }
+
+        // Create overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        // Modal content
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: #fff;
+            padding: 16px;
+            border-radius: 8px;
+            width: 92%;
+            max-width: 520px;
+            max-height: 80vh;
+            overflow: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        `;
+
+        const title = document.createElement('h3');
+        title.textContent = 'Connections';
+        title.style.margin = '0 0 12px 0';
+        modal.appendChild(title);
+
+        // Tabs container
+        const tabs = document.createElement('div');
+        tabs.style.cssText = `
+            display:flex; gap:24px; align-items:flex-end; border-bottom:1px solid #e5e7eb; margin-bottom:8px;`;
+        const tabFollowing = document.createElement('button');
+        const tabFollowers = document.createElement('button');
+        [tabFollowing, tabFollowers].forEach(btn => {
+            btn.type = 'button';
+            btn.style.cssText = `
+                background:none; border:none; padding:8px 2px; cursor:pointer; font-size:16px;
+                color:#6b7280; position:relative; outline:none;`;
+        });
+        tabFollowing.textContent = 'Following';
+        tabFollowers.textContent = 'Followers';
+        tabs.appendChild(tabFollowing);
+        tabs.appendChild(tabFollowers);
+        modal.appendChild(tabs);
+
+        // Active underline helper
+        function setActive(tab) {
+            [tabFollowing, tabFollowers].forEach(btn => {
+                const active = (btn === tab);
+                btn.style.color = active ? '#111827' : '#6b7280';
+                // underline via bottom border highlight using pseudo replacement element
+                btn.style.borderBottom = active ? '2px solid #333' : '2px solid transparent';
+                btn.style.marginBottom = '-1px';
+                btn.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+        }
+
+        // Content container
+        const content = document.createElement('div');
+        modal.appendChild(content);
+
+        function renderList(which) {
+            const data = which === 'following' ? following : followers;
+            content.innerHTML = '';
+            if (!data || data.length === 0) {
+                const empty = document.createElement('p');
+                empty.textContent = which === 'following' ? 'Not following anyone yet.' : 'No followers yet.';
+                empty.style.color = '#555';
+                content.appendChild(empty);
+                return;
+            }
+
+            const list = document.createElement('ul');
+            list.style.listStyle = 'none';
+            list.style.padding = '0';
+            list.style.margin = '0';
+
+            data.forEach(item => {
+                const id = (item && (item._id || item.id)) ? (item._id || item.id) : String(item);
+                const name = (item && item.name) ? item.name : 'Unknown';
+                const avatar = (item && item.profilePictureUrl) ? item.profilePictureUrl : '/assets/default-avatar.svg';
+
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.alignItems = 'center';
+                li.style.gap = '10px';
+                li.style.padding = '8px 0';
+
+                const img = document.createElement('img');
+                img.src = avatar;
+                img.alt = '';
+                img.width = 36;
+                img.height = 36;
+                img.style.borderRadius = '50%';
+                img.style.objectFit = 'cover';
+
+                const span = document.createElement('span');
+                span.textContent = name;
+                span.style.flex = '1';
+
+                li.appendChild(img);
+                li.appendChild(span);
+
+                // Add toggle only for Following tab
+                if (which === 'following') {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn btn-secondary';
+                    btn.textContent = 'Following';
+                    btn.style.marginLeft = 'auto';
+                    btn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const token = localStorage.getItem('token');
+                        if (!token) { showNotice('You must be logged in to follow artists.', 'error'); return; }
+                        btn.disabled = true;
+                        try {
+                            const res = await fetch(`/api/artists/${id}/follow`, {
+                                method: 'PUT',
+                                headers: { 'x-auth-token': token }
+                            });
+                            if (!res.ok) {
+                                const err = await res.json().catch(() => ({ msg: 'Failed to update follow' }));
+                                throw new Error(err.msg || 'Failed to update follow');
+                            }
+                            const followingIds = await res.json();
+                            const isNowFollowing = followingIds.map(String).includes(String(id));
+                            btn.textContent = isNowFollowing ? 'Following' : 'Follow';
+                            if (window.__currentArtist) {
+                                window.__currentArtist.following = followingIds;
+                            }
+                        } catch (err) {
+                            console.error('Follow toggle error:', err);
+                            showNotice(err.message || 'Failed to update follow', 'error');
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    });
+                    li.appendChild(btn);
+                }
+
+                list.appendChild(li);
+            });
+
+            content.appendChild(list);
+        }
+
+        // Wire tabs
+        tabFollowing.addEventListener('click', () => { setActive(tabFollowing); renderList('following'); });
+        tabFollowers.addEventListener('click', () => { setActive(tabFollowers); renderList('followers'); });
+
+        // Default to Following tab
+        setActive(tabFollowing);
+        renderList('following');
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'margin-top:12px; display:flex; justify-content:flex-end;';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'Close';
+        closeBtn.addEventListener('click', () => document.body.removeChild(overlay));
+        actions.appendChild(closeBtn);
+        modal.appendChild(actions);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) document.body.removeChild(overlay);
+        });
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    } catch (e) {
+        console.error('Failed to open connections modal:', e);
+        showNotice('Could not open connections. Please try again.', 'error');
+    }
+}
+
 // Load published website info and render link under "Portfolio Website"
 async function loadPublishedWebsiteInfo() {
     const container = document.getElementById('account-published-url');
@@ -75,6 +279,25 @@ async function loadPublishedWebsiteInfo() {
     const saveProfileBtn = document.getElementById('save-profile-btn');
     if (saveProfileBtn) saveProfileBtn.addEventListener('click', saveProfileChanges);
 
+    // Connections: open followers/following modal on the paragraph (keep original look)
+    const connectionsEl = document.getElementById('artist-connections');
+    if (connectionsEl) {
+        connectionsEl.addEventListener('click', openConnectionsModal);
+        // keyboard accessibility without changing look
+        connectionsEl.setAttribute('role', 'button');
+        connectionsEl.tabIndex = 0;
+        // visual cue and prevent text selection when hovering/clicking
+        connectionsEl.style.cursor = 'pointer';
+        connectionsEl.style.userSelect = 'none';
+        connectionsEl.setAttribute('title', 'View followers and following');
+        connectionsEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openConnectionsModal();
+            }
+        });
+    }
+
     // --- Page Specific Loaders ---
     if (document.querySelector('.profile-container')) {
         if (document.getElementById('artist-name')) {
@@ -135,6 +358,15 @@ async function loadProfileData() {
             regionEl.textContent = region;
         }
         document.querySelector('.profile-avatar').src = artist.profilePictureUrl || '/assets/default-avatar.svg';
+
+        // Update connections text with combined unique count
+        const conEl = document.getElementById('artist-connections');
+        if (conEl) {
+            const followerIds = Array.isArray(artist.followers) ? artist.followers.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
+            const followingIds = Array.isArray(artist.following) ? artist.following.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
+            const uniqueCount = new Set([...followerIds, ...followingIds].map(String)).size;
+            conEl.textContent = `${uniqueCount} Connection${uniqueCount === 1 ? '' : 's'}`;
+        }
 
         // --- Populate Gallery Tab ---
         const galleryContainer = document.getElementById('artist-artworks-container');

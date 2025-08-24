@@ -348,13 +348,9 @@ function updateCollectButton(isCollected) {
 
 function updateFollowButton(isFollowing) {
     const followBtn = document.getElementById('follow-btn');
-    if (isFollowing) {
-        followBtn.textContent = 'Following';
-        followBtn.classList.add('btn-secondary');
-    } else {
-        followBtn.textContent = 'Follow';
-        followBtn.classList.remove('btn-secondary');
-    }
+    if (!followBtn) return;
+    // Keep the old light secondary style permanently; only toggle label
+    followBtn.textContent = isFollowing ? 'Following' : 'Follow';
 }
 
 async function handleCollect(artworkId, token, currentUserId) {

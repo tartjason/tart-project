@@ -116,7 +116,7 @@
 /* Artwork page spacing overrides */
 body.artwork-page main {
     padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
+    padding-bottom: 6rem; /* add more space at the bottom after everything */
 }
 
 body.artwork-page .artwork-detail-container {

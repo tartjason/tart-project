@@ -14,23 +14,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupAuthUI = async () => {
         const t = localStorage.getItem('token');
         if (t) {
-            // Fetch current user to get avatar URL
-            let avatarUrl = '/assets/default-avatar.svg';
-            try {
-                const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': t } });
-                if (res.ok) {
-                    const me = await res.json();
-                    if (me && me.profilePictureUrl) {
-                        avatarUrl = me.profilePictureUrl;
-                    }
-                }
-            } catch (e) {
-                // ignore and use default avatar
-            }
-
+            // Render immediately to reserve space and prevent layout shift
+            const initialAvatarUrl = '/assets/default-avatar.svg';
             authContainer.innerHTML = `
                 <div class="avatar-wrapper" id="header-avatar-wrapper">
-                    <img src="${avatarUrl}" alt="Account" class="header-avatar" id="header-avatar" />
+                    <img src="${initialAvatarUrl}" alt="Account" class="header-avatar" id="header-avatar" />
                     <div class="avatar-dropdown" id="avatar-dropdown">
                         <a href="/account.html" class="dropdown-item">My account</a>
                         <button class="dropdown-item btn-link" id="header-logout">Log out</button>
@@ -38,31 +26,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
 
-            const logoutBtn = document.getElementById('header-logout');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    localStorage.removeItem('token');
-                    window.location.reload();
-                });
-            }
-
-            // Toggle dropdown on click (better for touch devices)
-            const wrapper = document.getElementById('header-avatar-wrapper');
-            const avatarImg = document.getElementById('header-avatar');
-            if (wrapper && avatarImg) {
-                avatarImg.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    wrapper.classList.toggle('open');
-                });
-                document.addEventListener('click', () => {
-                    wrapper.classList.remove('open');
-                });
-                // Keep dropdown open when interacting inside
-                const dropdown = document.getElementById('avatar-dropdown');
-                if (dropdown) {
-                    dropdown.addEventListener('click', (e) => e.stopPropagation());
+            // Attach listeners once
+            const attachHeaderAuthListeners = () => {
+                const logoutBtn = document.getElementById('header-logout');
+                if (logoutBtn) {
+                    logoutBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        localStorage.removeItem('token');
+                        window.location.reload();
+                    });
                 }
+
+                const wrapper = document.getElementById('header-avatar-wrapper');
+                const avatarImg = document.getElementById('header-avatar');
+                if (wrapper && avatarImg) {
+                    avatarImg.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        wrapper.classList.toggle('open');
+                    });
+                    document.addEventListener('click', () => {
+                        wrapper.classList.remove('open');
+                    });
+                    const dropdown = document.getElementById('avatar-dropdown');
+                    if (dropdown) dropdown.addEventListener('click', (e) => e.stopPropagation());
+                }
+            };
+            attachHeaderAuthListeners();
+
+            // Fetch current user to update avatar URL without reflowing layout
+            try {
+                const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': t } });
+                if (res.ok) {
+                    const me = await res.json();
+                    if (me && me.profilePictureUrl) {
+                        const avatarImg = document.getElementById('header-avatar');
+                        if (avatarImg) avatarImg.src = me.profilePictureUrl;
+                    }
+                }
+            } catch (e) {
+                // ignore and keep default avatar
             }
         } else {
             // Simple pill button to open login popup
@@ -640,6 +642,6 @@ function showPage(page) {
     setupAuthUI();
     // Initial route
     const initial = location.hash.replace('#', '') || 'home';
-    if (initial === 'home') fetchArtworks();
+    // Do not pre-fetch here; showPage('home') will fetch if needed.
     showPage(initial);
 });

@@ -320,7 +320,9 @@ router.get('/me', auth, async (req, res) => {
                     path: 'artist',
                     select: 'name'
                 }
-            });
+            })
+            .populate('followers', 'name profilePictureUrl')
+            .populate('following', 'name profilePictureUrl');
 
         // Find all artworks by this artist and attach them to the response object
         const artworks = await Artwork.find({ artist: req.artist.id }).sort({ date: -1 });

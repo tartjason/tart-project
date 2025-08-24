@@ -64,6 +64,12 @@
 }
 
 /* Header avatar + dropdown */
+.app header #auth-container {
+    min-width: 120px; /* reserve space so the tagline doesn't shift when auth UI mounts */
+    display: flex;
+    justify-content: flex-end;
+}
+
 .avatar-wrapper {
     position: relative;
     display: inline-block;
