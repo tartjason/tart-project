@@ -17,8 +17,6 @@
       if (features.home) navOrder.push('home');
       if (features.works) navOrder.push('works');
       if (features.about) navOrder.push('about');
-      if (features.commission) navOrder.push('commission');
-      if (features.exhibition) navOrder.push('exhibition');
       if (navOrder.length === 0) navOrder.push('home');
 
       const logoHTML = logo && logo.dataUrl

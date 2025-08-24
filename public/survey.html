@@ -45,50 +45,26 @@
                     </div>
                 </div>
 
-                <!-- Step 2: Feature Selection -->
+                <!-- Step 2: Choose how to organize works -->
                 <div id="step-2" class="survey-step">
-                    <h2>Choose your portfolio features</h2>
+                    <h2>How would you like to organize your works?</h2>
+                    <p>Select one option. You'll add details in the next step.</p>
                     <div class="feature-options">
-                        <div class="feature-group mandatory">
-                            <h3>Essential Pages (included by default)</h3>
-                            <div class="feature-item selected" data-feature="home">
-                                <input type="checkbox" checked disabled>
-                                <label>Home</label>
-                            </div>
-                            <div class="feature-item selected" data-feature="about">
-                                <input type="checkbox" checked disabled>
-                                <label>About</label>
-                            </div>
-                            <div class="feature-item selected" data-feature="works">
-                                <input type="checkbox" checked disabled>
-                                <label>Works</label>
-                                <div class="sub-options">
-                                    <label>Organize works by:</label>
-                                    <div class="radio-group">
-                                        <input type="radio" name="works-organization" value="theme" id="theme">
-                                        <label for="theme">Theme</label>
-                                        <input type="radio" name="works-organization" value="year" id="year">
-                                        <label for="year">Year</label>
-                                    </div>
+                        <div class="feature-group mandatory" style="padding:16px;">
+                            <div class="sub-options">
+                                <label>Organize works by:</label>
+                                <div class="radio-group">
+                                    <input type="radio" name="works-organization" value="theme" id="org-theme">
+                                    <label for="org-theme">Theme</label>
+                                    <input type="radio" name="works-organization" value="year" id="org-year">
+                                    <label for="org-year">Year</label>
                                 </div>
-                            </div>
-                        </div>
-                        
-                        <div class="feature-group optional">
-                            <h3>Optional Pages</h3>
-                            <div class="feature-item" data-feature="commission">
-                                <input type="checkbox">
-                                <label>Commission</label>
-                            </div>
-                            <div class="feature-item" data-feature="exhibition">
-                                <input type="checkbox">
-                                <label>Exhibition</label>
                             </div>
                         </div>
                     </div>
                     <div class="step-navigation">
                         <button type="button" class="btn prev-btn">Previous</button>
-                        <button type="button" class="btn next-btn">Next</button>
+                        <button type="button" class="btn next-btn" disabled>Next</button>
                     </div>
                 </div>
 

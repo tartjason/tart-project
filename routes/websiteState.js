@@ -464,9 +464,7 @@ router.get('/', auth, async (req, res) => {
                     features: {
                         home: true,
                         about: true,
-                        works: true,
-                        commission: false,
-                        exhibition: false
+                        works: true
                     },
                     layouts: {},
                     worksDetails: {
@@ -484,9 +482,7 @@ router.get('/', auth, async (req, res) => {
                 content: {
                     homepage: {},
                     about: {},
-                    works: { selectedArtworks: [] },
-                    commission: {},
-                    exhibition: {}
+                    works: { selectedArtworks: [] }
                 },
                 customStyles: {},
                 isPublished: false
@@ -839,7 +835,7 @@ router.patch('/content/:section', auth, async (req, res) => {
         const { section } = req.params;
         const contentData = req.body;
         
-        const validSections = ['homepage', 'about', 'works', 'commission', 'exhibition'];
+        const validSections = ['homepage', 'about', 'works'];
         if (!validSections.includes(section)) {
             return res.status(400).json({ msg: 'Invalid section' });
         }

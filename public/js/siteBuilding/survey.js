@@ -8,16 +8,12 @@ class PortfolioSurvey {
                 home: true,
                 about: true,
                 works: true,
-                worksOrganization: null,
-                commission: false,
-                exhibition: false
+                worksOrganization: null
             },
             layouts: {
                 homepage: null,
                 about: null,
-                works: null,
-                commission: null,
-                exhibition: null
+                works: null
             },
             worksDetails: {
                 years: [],
@@ -38,9 +34,9 @@ class PortfolioSurvey {
             worksSelections: {}
         };
         
-        // Initialize basic step order (will be expanded after feature selection)
-        this.stepOrder = ['step-1', 'step-2'];
-        this.totalSteps = 2;
+        // Initialize step order (final order computed in generateStepOrder)
+        this.stepOrder = ['step-1'];
+        this.totalSteps = 1;
         
         // Index for single-focus selected artworks preview
         this.currentSelectedWorkIndex = 0;
@@ -176,23 +172,14 @@ class PortfolioSurvey {
     }
     
     setupFeatureSelection() {
-        // Handle optional feature checkboxes
-        const optionalCheckboxes = document.querySelectorAll('.feature-group.optional input[type="checkbox"]');
-        
-        optionalCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => {
-                const feature = checkbox.closest('.feature-item').dataset.feature;
-                this.surveyData.features[feature] = checkbox.checked;
-            });
-        });
-        
-        // Handle works organization radio buttons
+        // Handle works organization radio buttons (Step 2)
         const organizationRadios = document.querySelectorAll('input[name="works-organization"]');
-        
+        const step2NextBtn = document.querySelector('#step-2 .next-btn');
         organizationRadios.forEach(radio => {
             radio.addEventListener('change', () => {
                 if (radio.checked) {
                     this.surveyData.features.worksOrganization = radio.value;
+                    if (step2NextBtn) step2NextBtn.disabled = false;
                 }
             });
         });
@@ -424,30 +411,27 @@ class PortfolioSurvey {
     }
     
     generateStepOrder() {
-        this.stepOrder = ['step-1', 'step-2']; // Medium and features
-        
-        // Add layout selection steps for each selected feature
-        if (this.surveyData.features.home) this.stepOrder.push('step-3'); // Homepage layout
-        if (this.surveyData.features.works) {
-            this.stepOrder.push('step-4'); // Works organization details (moved from step-5)
-            this.stepOrder.push('step-5'); // Works layout (moved from step-6)
+        // Desired order:
+        // 1: medium (step-1)
+        // 3: homepage layout (step-3)
+        // 5: works layout (step-5)
+        // 2: choose organization (step-2)
+        // 4: organize your works details (step-4)
+        // 6: about layout (step-6)
+        // 7: about sections (step-7)
+        const steps = ['step-1'];
+        if (this.surveyData.features && this.surveyData.features.home !== false) {
+            steps.push('step-3');
         }
-        if (this.surveyData.features.about) {
-            this.stepOrder.push('step-6'); // About layout (moved to after works)
-            this.stepOrder.push('step-7'); // About sections selection
+        if (this.surveyData.features && this.surveyData.features.works !== false) {
+            steps.push('step-5', 'step-2', 'step-4');
         }
-        
-        // Add additional feature layout steps (to be implemented)
-        if (this.surveyData.features.commission) {
-            // this.stepOrder.push('step-commission');
+        if (this.surveyData.features && this.surveyData.features.about !== false) {
+            steps.push('step-6', 'step-7');
         }
-        if (this.surveyData.features.exhibition) {
-            // this.stepOrder.push('step-exhibition');
-        }
-        
-        // Add final steps
-        this.stepOrder.push('step-logo');
-        this.totalSteps = this.stepOrder.length;
+        steps.push('step-logo');
+        this.stepOrder = steps;
+        this.totalSteps = steps.length;
     }
     
     
@@ -501,29 +485,26 @@ class PortfolioSurvey {
         
 async nextStep() {
     const currentStepElement = document.querySelector(`#${this.stepOrder[this.currentStep - 1]}`);
-        
-    if (this.currentStep === 1) {
+    const currentStepId = this.stepOrder[this.currentStep - 1];
+
+    if (currentStepId === 'step-1') {
         // Validate medium selection
         if (!this.surveyData.medium) {
             this.showToast('Please select an artwork medium.', 'error');
             return;
         }
     }
-        
-    if (this.currentStep === 2) {
+
+    if (currentStepId === 'step-2') {
         // Validate works organization selection
         if (!this.surveyData.features.worksOrganization) {
             this.showToast('Please select how you want to organize your works.', 'error');
             return;
         }
-        // Generate step order after feature selection
-        this.generateStepOrder();
         this.showWorksOrganizationInput();
     }
-        
-    // Handle dynamic step validation
-    const currentStepId = this.stepOrder[this.currentStep - 1];
-    // Validate works organization details when leaving step-4 (instead of hard-coded index)
+
+    // Validate works organization details when leaving step-4
     if (currentStepId === 'step-4') {
         if (!this.validateWorksDetails()) {
             const orgType = this.surveyData.features.worksOrganization;
@@ -544,10 +525,10 @@ async nextStep() {
         }
         return;
     }
-        
+
     // Hide current step
-    currentStepElement.classList.remove('active');
-        
+    if (currentStepElement) currentStepElement.classList.remove('active');
+
     // Show next step
     this.currentStep++;
     const nextStepId = this.stepOrder[this.currentStep - 1];

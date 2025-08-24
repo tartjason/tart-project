@@ -16,16 +16,12 @@ const websiteStateSchema = new Schema({
             home: { type: Boolean, default: true },
             about: { type: Boolean, default: true },
             works: { type: Boolean, default: true },
-            worksOrganization: { type: String, enum: ['year', 'theme'] },
-            commission: { type: Boolean, default: false },
-            exhibition: { type: Boolean, default: false }
+            worksOrganization: { type: String, enum: ['year', 'theme'] }
         },
         layouts: {
             homepage: { type: String, enum: ['grid', 'split', 'hero'] },
             about: { type: String, enum: ['split', 'vertical'] },
-            works: { type: String, enum: ['grid', 'single'] },
-            commission: String,
-            exhibition: String
+            works: { type: String, enum: ['grid', 'single'] }
         },
         worksDetails: {
             years: [Number],
@@ -119,21 +115,6 @@ const websiteStateSchema = new Schema({
                 type: Schema.Types.ObjectId,
                 ref: 'Artwork'
             }],
-            customText: Schema.Types.Mixed
-        },
-        commission: {
-            title: String,
-            description: String,
-            process: [String],
-            pricing: String,
-            contactInfo: String,
-            customText: Schema.Types.Mixed
-        },
-        exhibition: {
-            title: String,
-            description: String,
-            upcomingExhibitions: [Schema.Types.Mixed],
-            pastExhibitions: [Schema.Types.Mixed],
             customText: Schema.Types.Mixed
         }
     },
