@@ -1,5 +1,91 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('token');
+    const authContainer = document.getElementById('auth-container');
+
+    // --- Header auth UI (avatar/login) mirroring home page ---
+    async function setupAuthUI() {
+        if (!authContainer) return;
+        const t = localStorage.getItem('token');
+        if (t) {
+            // Render avatar shell first to avoid layout shift
+            const initialAvatarUrl = '/assets/default-avatar.svg';
+            authContainer.innerHTML = `
+                <div class="avatar-wrapper" id="header-avatar-wrapper">
+                    <img src="${initialAvatarUrl}" alt="Account" class="header-avatar" id="header-avatar" />
+                    <div class="avatar-dropdown" id="avatar-dropdown">
+                        <a href="/account.html" class="dropdown-item">My account</a>
+                        <button class="dropdown-item btn-link" id="header-logout">Log out</button>
+                    </div>
+                </div>
+            `;
+            // Listeners
+            const logoutBtn = document.getElementById('header-logout');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    localStorage.removeItem('token');
+                    window.location.reload();
+                });
+            }
+            const wrapper = document.getElementById('header-avatar-wrapper');
+            const avatarImg = document.getElementById('header-avatar');
+            if (wrapper && avatarImg) {
+                avatarImg.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    wrapper.classList.toggle('open');
+                });
+                document.addEventListener('click', () => wrapper.classList.remove('open'));
+                const dropdown = document.getElementById('avatar-dropdown');
+                if (dropdown) dropdown.addEventListener('click', (e) => e.stopPropagation());
+            }
+            // Fetch user to update avatar image
+            try {
+                const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': t } });
+                if (res.ok) {
+                    const me = await res.json();
+                    if (me && me.profilePictureUrl) {
+                        const img = document.getElementById('header-avatar');
+                        if (img) img.src = me.profilePictureUrl;
+                    }
+                }
+            } catch (e) { /* keep default avatar */ }
+        } else {
+            authContainer.innerHTML = `<button id=\"open-login\" class=\"pill-dark-btn\">Log in</button>`;
+            const btn = document.getElementById('open-login');
+            if (btn) btn.addEventListener('click', () => openLoginPopup());
+            const onMessage = (event) => {
+                try {
+                    if (!event || event.origin !== window.location.origin) return;
+                    const data = event && event.data;
+                    if (data && data.type === 'oauthSuccess' && data.token) {
+                        localStorage.setItem('token', data.token);
+                        window.removeEventListener('message', onMessage);
+                        window.location.reload();
+                    }
+                } catch (_) { /* ignore */ }
+            };
+            window.addEventListener('message', onMessage);
+        }
+    }
+
+    function openLoginPopup() {
+        const w = 480;
+        const h = 640;
+        const dualScreenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
+        const dualScreenTop = window.screenTop !== undefined ? window.screenTop : window.screenY;
+        const width = window.innerWidth ? window.innerWidth : document.documentElement.clientWidth ? document.documentElement.clientWidth : screen.width;
+        const height = window.innerHeight ? window.innerHeight : document.documentElement.clientHeight ? document.documentElement.clientHeight : screen.height;
+        const left = ((width - w) / 2) + (dualScreenLeft || 0);
+        const top = ((height - h) / 2) + (dualScreenTop || 0);
+        const features = `scrollbars=yes, width=${w}, height=${h}, top=${top}, left=${left}`;
+        const popup = window.open('/login.html', 'tartLogin', features);
+        if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            window.location.href = '/login.html';
+        }
+    }
+
+    await setupAuthUI();
+
     const params = new URLSearchParams(window.location.search);
     const artworkId = params.get('id');
 
@@ -232,6 +318,10 @@ function renderPoem(container, poem) {
             collectBtn.addEventListener('click', () => handleCollect(artwork._id, token, currentUserId));
         }
 
+        // Fade-in reveals: mark sections and observe
+        markArtworkPageForReveal();
+        observeNewReveals(document.querySelector('.artwork-detail-container') || document);
+
     } catch (error) {
         console.error(error);
         document.querySelector('main').innerHTML = `<h1>Error: ${error.message}</h1>`;
@@ -333,6 +423,50 @@ function setupFocusMode() {
         document.addEventListener(evt, reset, { passive: true });
     });
     reset();
+}
+
+// -------- Fade-in reveal helpers (match home page behavior) --------
+let revealObserver;
+function ensureRevealObserver() {
+    if (revealObserver) return revealObserver;
+    revealObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+                const el = entry.target;
+                el.classList.remove('will-reveal');
+                el.classList.add('fade-in');
+                revealObserver.unobserve(el);
+            }
+        });
+    }, { root: null, threshold: 0.1 });
+    return revealObserver;
+}
+
+function observeNewReveals(root) {
+    const obs = ensureRevealObserver();
+    const scope = root || document;
+    scope.querySelectorAll('.will-reveal').forEach(el => obs.observe(el));
+}
+
+function markArtworkPageForReveal() {
+    const els = [];
+    const img = document.querySelector('#artwork-image-container img');
+    const poem = document.getElementById('poem-container');
+    const title = document.getElementById('artwork-title');
+    const desc = document.querySelector('.artwork-inspiration');
+    const metrics = document.getElementById('artwork-metrics');
+    const footer = document.querySelector('.artwork-footer');
+    if (img && img.offsetParent !== null) els.push(img);
+    if (poem && poem.hidden === false) els.push(poem);
+    if (title) els.push(title);
+    if (desc && desc.style.display !== 'none') els.push(desc);
+    if (metrics && metrics.hidden === false) els.push(metrics);
+    if (footer) els.push(footer);
+    els.forEach((el, i) => {
+        el.classList.remove('fade-in');
+        el.classList.add('will-reveal');
+        el.style.setProperty('--stagger', `${(i + 1) * 120}ms`);
+    });
 }
 
 function updateCollectButton(isCollected) {

@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const appEl = document.getElementById('app');
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const pageContent = document.getElementById('page-content');
+    const logoToggleContainer = document.querySelector('.logo-toggle');
     const navTart = document.getElementById('nav-tart');
     const navAbout = document.getElementById('nav-about');
     const navHome = document.getElementById('nav-home');
@@ -277,17 +278,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="poetry-preview">
                     <div class="poem-viewer">${linesHtml}</div>
                 </div>
-                <div class="artwork-info">
+                <div class="artwork-info${artwork.source === 'ai' ? ' has-badge' : ''}">
                     <h3>${artwork.title}</h3>
                     <p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>
+                    ${artwork.source === 'ai' ? '<span class="ai-badge" aria-label="AI generated">AI</span>' : ''}
                 </div>
             `;
         } else {
             el.innerHTML = `
                 <img src="${artwork.imageUrl}" alt="${artwork.title}" class="blurred" loading="lazy" decoding="async" fetchpriority="low">
-                <div class="artwork-info">
+                <div class="artwork-info${artwork.source === 'ai' ? ' has-badge' : ''}">
                     <h3>${artwork.title}</h3>
                     <p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>
+                    ${artwork.source === 'ai' ? '<span class="ai-badge" aria-label="AI generated">AI</span>' : ''}
                 </div>
             `;
         }
@@ -524,10 +527,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return `
         <h2 class="will-reveal" style="--stagger: 0ms">About us</h2>
         <div class="letter will-reveal" style="--stagger: 120ms">
+            <p>I'd much prefer to write a letter to you, than doing more boasting and showing a stupid profile picture of myself. So.</p>
             <p>Dear creators,</p>
-            <p>We started Tart to make a calmer, kinder place for art online. A place where your ideas are respected and your pages load fast. We obsess over the details so you can focus on the work.</p>
-            <p>Thank you for building with us. We can’t wait to see what you publish.</p>
-            <div class="signature">— Jason Lin, Tart</div>
+            <p>I will start by telling you two interesting anecdotes.</p>
+            <p>In 1929, Faulkner wrote, "I wish publishing was advanced enough to use colored ink... I'll just have to save the idea until publishing grows up." Publishing never did grow up—he wrote <em>The Sound and the Fury</em> in black and white.</p>
+            <p>The Victorian art critic John Ruskin, upon seeing Turner's Venice works, wrote: <em>"They are like visions seen in fever—unspeakable in their beauty, but trembling, perishing, before they are grasped."</em> Yet he also complained in <em>Modern Painters</em> that Turner's works were dismissed as "indistinct" because visitors simply couldn't view them under good conditions: <em>"He has hidden his light under bushels of dust and darkness."</em></p>
+            <p>I share their frustration. I've heard countless complaints about current social media platforms, about how hard it is for artists be seen—from friends at Brown and RISD with unseen talents, from artist friends, and from people I consider extremely talented who feel discouraged from even attempting to create because of the status quo. Unlike Faulkner and Ruskin, however, we have the advantage of living in the 21st century with AI and the internet at our disposal. Things can be and will be different. This website is the first step and I need your help. </p>
+            <p>Upload your artwork. Share this website with friends. Let your art be seen and felt. Don't hide your light under bushels of dust and darkness.</p>
+            <p>Thank you for building with us. We can't wait to see what you publish. :)</p>
+            <p style="margin-top: 32px;">Cheers,<br />
+            Jason Lin</p>
         </div>
     `;
 }
@@ -563,13 +572,52 @@ function showPage(page) {
 
 }
 
+    // Update labels/titles for toggle and logo area based on sidebar state
+    function updateSidebarToggleA11y() {
+        const isOpen = appEl && appEl.classList.contains('sidebar-open');
+        const label = isOpen ? 'Close sidebar' : 'Open sidebar';
+        if (sidebarToggle) {
+            sidebarToggle.setAttribute('aria-label', label);
+            sidebarToggle.setAttribute('title', label);
+        }
+        if (logoToggleContainer) {
+            logoToggleContainer.setAttribute('title', label);
+        }
+    }
+
     if (sidebarToggle && appEl) {
         sidebarToggle.addEventListener('click', () => {
             const open = appEl.classList.contains('sidebar-open');
             appEl.classList.toggle('sidebar-open', !open);
             appEl.classList.toggle('sidebar-closed', open);
+            updateSidebarToggleA11y();
         });
     }
+
+    if (logoToggleContainer && appEl) {
+        // Toggle when clicking the logo area (but ignore real button clicks to prevent double-toggle)
+        logoToggleContainer.addEventListener('click', (e) => {
+            if (e.target && e.target.closest('#sidebar-toggle')) return;
+            const open = appEl.classList.contains('sidebar-open');
+            appEl.classList.toggle('sidebar-open', !open);
+            appEl.classList.toggle('sidebar-closed', open);
+            updateSidebarToggleA11y();
+        });
+        // Improve accessibility for keyboard users
+        logoToggleContainer.setAttribute('role', 'button');
+        logoToggleContainer.setAttribute('tabindex', '0');
+        logoToggleContainer.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const open = appEl.classList.contains('sidebar-open');
+                appEl.classList.toggle('sidebar-open', !open);
+                appEl.classList.toggle('sidebar-closed', open);
+                updateSidebarToggleA11y();
+            }
+        });
+    }
+    // Initialize correct labels/titles on load
+    updateSidebarToggleA11y();
 
     navTart && navTart.addEventListener('click', () => {
         if (location.hash !== '#tart') location.hash = '#tart';

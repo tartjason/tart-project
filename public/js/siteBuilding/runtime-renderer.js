@@ -244,16 +244,23 @@
     const a = selection[idx];
 
     // Provide content as <img> to preserve original aspect ratio; fall back to text when absent
-    const contentHtml = a
-      ? (a.imageUrl
-          ? `<img src="${a.imageUrl}" alt="${((a.title||'Untitled')).replace(/"/g,'&quot;')}" style="display:block; max-width: 100%; max-height: 75vh; width:auto; height:auto; margin:0 auto 16px;" />`
-          : `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${(a.title||'Untitled')}</div>`)
-      : `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${config.emptyArtworksMessage}</div>`;
+    const linkHref = a && a._id ? `/artwork.html?id=${encodeURIComponent(a._id)}` : null;
+    const baseImgHtml = a && a.imageUrl
+      ? `<img src="${a.imageUrl}" alt="${((a && a.title) || 'Untitled').replace(/"/g,'&quot;')}" style="display:block; max-width: 100%; max-height: 75vh; width:auto; height:auto; margin:0 auto 16px;" />`
+      : (a
+          ? `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${(a.title||'Untitled')}</div>`
+          : `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${config.emptyArtworksMessage}</div>`);
+    const contentHtml = linkHref
+      ? `<a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">${baseImgHtml}</a>`
+      : baseImgHtml;
 
     return renderTemplate(tpl, {
       single_work_style: '',
       single_work_content: contentHtml,
-      single_title: (a && a.title) ? a.title : 'Untitled',
+      single_title: (function(){
+        const t = (a && a.title) ? a.title : 'Untitled';
+        return linkHref ? `<a href="${linkHref}" style="text-decoration:none; color:inherit;">${t}</a>` : t;
+      })(),
       single_index: String(n > 0 ? idx + 1 : 0),
       single_total: String(n)
     });

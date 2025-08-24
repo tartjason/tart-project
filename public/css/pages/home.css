@@ -216,7 +216,28 @@
 .app.sidebar-closed .sidebar-inner { padding: 0 !important; overflow: hidden; width: 0 !important; min-width: 0 !important; }
 
 /* Tiny toggle button near logo (mimics compact left control) */
-.header-left { display: flex; align-items: center; gap: 10px; }
+.logo-toggle { display: inline-flex; align-items: center; gap: 0; position: relative; cursor: pointer; }
+
+/* Smoothly fade logo text when revealing toggle */
+.logo-toggle h1 { margin: 0; transition: opacity 160ms ease; }
+
+/* Place toggle directly over the logo; hidden until hover/focus */
+.logo-toggle .sidebar-toggle {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease;
+}
+
+/* On hover over the logo area, swap text for toggle */
+.logo-toggle:hover h1 { opacity: 0; }
+.logo-toggle:hover .sidebar-toggle { opacity: 1; pointer-events: auto; }
+
+/* Also reveal toggle when focused for keyboard accessibility */
+.logo-toggle .sidebar-toggle:focus-visible { opacity: 1; pointer-events: auto; }
 
 .sidebar-toggle {
     width: 30px;
@@ -233,9 +254,9 @@
 /* Icon container: draws the rounded-rectangle outline */
 .sidebar-toggle .toggle-icon {
     position: relative;
-    width: 18px;   /* visual width of the icon */
+    width: 20px;   /* visual width of the icon */
     height: 16px;  /* visual height of the icon */
-    border-radius: 5px;
+    border-radius: 4px;
     box-sizing: border-box;
 }
 
@@ -246,14 +267,13 @@
 .app.sidebar-open .sidebar-toggle .toggle-icon::after {
     content: '';
     position: absolute;
-    left: 4px;               /* place near left edge to suggest sidebar */
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;              /* slightly thinner bar */
-    height: 60%;
+    left: 0;
+    top: 0;
+    width: 40%;
+    height: 100%;
     background: #111;
-    border-radius: 2px;
-}
+    border-radius: 0;
+  }
 
 /* Closed = not showing (second icon): grey outline, thin centered divider */
 .app.sidebar-closed .sidebar-toggle .toggle-icon {
@@ -262,13 +282,13 @@
 .app.sidebar-closed .sidebar-toggle .toggle-icon::after {
     content: '';
     position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    width: 1px;              /* thinner divider */
-    height: 60%;
+    left: 40%;               /* place divider at 40% of icon width */
+    top: 0;                  /* start at top */
+    transform: none;         /* no centering transform */
+    width: 1px;              /* thin divider */
+    height: 100%;            /* touch top and bottom */
     background: #9ca3af;
-    border-radius: 1px;
+    border-radius: 0;
 }
 
 /* Hover/focus polish */
@@ -349,6 +369,25 @@ main.page-has-sidebar {
 
 .artwork-card .artwork-info {
     padding: 1rem;
+}
+
+/* AI badge inside info section */
+.artwork-card .artwork-info { position: relative; }
+.artwork-card .artwork-info.has-badge { padding-right: 3rem; padding-bottom: 2rem; }
+.artwork-card .ai-badge {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    background: #111;
+    color: #fff;
+    border: 1px solid #222;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    pointer-events: none; /* avoid intercepting card clicks */
 }
 
 .artwork-card h3 {
