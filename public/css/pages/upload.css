@@ -27,7 +27,7 @@ body.upload-page .upload-topbar { display: flex; align-items: center; gap: 8px; 
 
 body.upload-page .upload-topbar label { font-size: 0.9rem; color: #333; }
 
-body.upload-page .upload-topbar select {
+body.upload-page .upload-topbar:not(.v4) select {
     appearance: none;
     -webkit-appearance: none;
     background: #fff;
@@ -36,6 +36,93 @@ body.upload-page .upload-topbar select {
     padding: 6px 10px;
     font-size: 0.95rem;
     box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Version 4: Split Layout (reference faithful) */
+body.upload-page .upload-topbar.v4 {
+  justify-content: space-between;
+  border-bottom: 1px solid #000;
+  padding-bottom: 20px;
+  margin-bottom: 40px;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+}
+
+body.upload-page .upload-topbar.v4 label {
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #888; /* match demo base tone */
+  margin-right: 0;
+}
+
+body.upload-page .upload-topbar.v4 .select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  border: none !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+body.upload-page .upload-topbar.v4 .select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  pointer-events: none;
+  width: 12px;
+  height: 12px;
+  border-right: 1.5px solid #000;
+  border-bottom: 1.5px solid #000;
+  transform: rotate(45deg) translateY(-50%);
+  top: 40%;
+  transition: transform 0.2s ease;
+}
+
+body.upload-page .upload-topbar.v4 .select-wrapper:hover::after {
+  transform: rotate(45deg) translateY(-40%);
+}
+
+body.upload-page .upload-topbar.v4 select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none;
+  border: 0 !important;
+  border-radius: 0;
+  padding: 0 28px 0 0;
+  font-size: 16px;
+  font-weight: 400;
+  color: #000;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  background-clip: padding-box;
+}
+
+/* Remove default blue focus outline just for the V4 topbar select */
+body.upload-page .upload-topbar.v4 select:focus,
+body.upload-page .upload-topbar.v4 select:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Ensure wrapper also doesn't show an outline in some browsers */
+body.upload-page .upload-topbar.v4 .select-wrapper:focus,
+body.upload-page .upload-topbar.v4 .select-wrapper:focus-within {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 /* Image upload area */
@@ -61,6 +148,49 @@ body.upload-page .image-upload-area:not(.has-image) {
 
 body.upload-page .image-upload-area .camera-overlay { display: inline-flex; align-items: center; gap: 8px; color: #475569; transition: opacity 220ms ease; }
 
+/* Version 3 upload prompt (dashed border with animated line) */
+body.upload-page .image-upload-area:not(.has-image) .v3-upload .v3-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(600px, calc(100% - 48px));
+  padding: 60px;
+  border: 1px dashed #e0e0e0;
+  border-radius: 0;
+  background: transparent;
+  transition: border-color 200ms ease, background-color 200ms ease;
+}
+
+body.upload-page .image-upload-area:not(.has-image) .v3-upload .v3-line {
+  width: 100px;
+  height: 1px;
+  background: #000;
+  border-radius: 1px;
+  transition: width 300ms ease;
+  margin: 0 auto 24px;
+}
+
+body.upload-page .image-upload-area:not(.has-image) .v3-upload .v3-copy { margin-top: 2px; text-align: center; }
+body.upload-page .image-upload-area:not(.has-image) .v3-upload .v3-title { margin: 0; font-size: 16px; font-weight: 400; color: #000; letter-spacing: -0.01em; }
+body.upload-page .image-upload-area:not(.has-image) .v3-upload .v3-hint { margin: 4px 0 0; font-size: 13px; color: #888; letter-spacing: 0.02em; }
+
+body.upload-page .image-upload-area:not(.has-image) .v3-upload:hover .v3-container {
+  border-color: #000;
+  background: #fafafa;
+}
+
+body.upload-page .image-upload-area:not(.has-image) .v3-upload:hover .v3-line {
+  width: 150px;
+}
+
+/* Focus state for keyboard accessibility */
+body.upload-page .image-upload-area:not(.has-image) .v3-upload .v3-container:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 3px;
+}
+
 body.upload-page .image-upload-area.has-image {
     display: block;
     /* mirror artwork.html container width and spacing */
@@ -71,11 +201,10 @@ body.upload-page .image-upload-area.has-image {
 }
 
 body.upload-page .image-upload-area.has-image img {
-    width: 100%;
+    max-width: 100%; /* allow natural size, but don't overflow container */
     height: auto;
     margin: 0 auto 0.75rem;
-    display: block;
-    border-radius: 8px;
+    display: inline-block; /* works with text-align:center on container */
 }
 
 /* Simple camera icon */

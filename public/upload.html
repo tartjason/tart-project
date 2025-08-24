@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload Artwork - Tart</title>
-    <link rel="stylesheet" href="css/style.css?v=1.2">
+    <link rel="stylesheet" href="css/style.css?v=1.4">
 </head>
 <body class="upload-page">
     <!-- Ambient background (blurred after image upload for non-poetry) -->
@@ -17,23 +17,30 @@
     </header>
 
     <main>
-        <!-- Top-left medium selector -->
-        <div id="upload-topbar" class="upload-topbar">
-            <label for="medium-select">Medium</label>
-            <select id="medium-select">
+        <!-- Top-left medium selector (Version 4: Split Layout) -->
+        <div id="upload-topbar" class="upload-topbar v4">
+            <label for="medium-select">Select Medium</label>
+            <div class="select-wrapper">
+                <select id="medium-select">
                 <option value="photography">Photography</option>
                 <option value="painting">Painting</option>
                 <option value="industrial-design">Industrial Design</option>
                 <option value="poetry">Poetry</option>
-            </select>
+                </select>
+            </div>
         </div>
 
         <!-- Non-poetry flow: upload prompt -->
         <section id="upload-section" class="image-upload-area" aria-label="Artwork uploader">
             <input id="artwork-file" type="file" accept="image/*" aria-label="Choose artwork image" />
-            <div class="camera-overlay" id="upload-overlay">
-                <div class="camera-icon" aria-hidden="true"></div>
-                <p>Upload your artwork</p>
+            <div class="camera-overlay v3-upload" id="upload-overlay">
+                <div class="v3-container" role="button" aria-label="Drop file here or click to upload">
+                    <div class="v3-line" aria-hidden="true"></div>
+                    <div class="v3-copy">
+                        <p class="v3-title">Drop file here</p>
+                        <p class="v3-hint">PNG, JPG up to 10MB</p>
+                    </div>
+                </div>
             </div>
         </section>
 
