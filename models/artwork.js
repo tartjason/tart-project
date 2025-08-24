@@ -23,7 +23,7 @@ const artworkSchema = new Schema({
     medium: {
         type: String,
         // Keep 'furniture' for backward-compat; add 'industrial-design' going forward
-        enum: ['poetry', 'painting', 'furniture', 'photography', 'industrial-design'],
+        enum: ['poetry', 'painting', 'oil-painting', 'ink-painting', 'colored-pencil', 'furniture', 'photography', 'industrial-design'],
         required: true
     },
     imageUrl: {

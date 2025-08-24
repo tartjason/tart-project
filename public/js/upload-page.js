@@ -276,7 +276,7 @@
           fd.append('locationCity', locationCity);
           if (source) fd.append('source', source);
           // metrics
-          if (medium === 'photography' || medium === 'painting') {
+          if (medium === 'photography' || medium === 'painting' || medium === 'oil-painting' || medium === 'ink-painting' || medium === 'colored-pencil') {
             const w = qs('#artwork-width')?.value;
             const h = qs('#artwork-height')?.value;
             const u = qs('#artwork-units')?.value;

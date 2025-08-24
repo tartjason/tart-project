@@ -399,7 +399,7 @@ body.upload-page .meta-carousel .carousel-nav { display: flex; align-items: cent
 body.upload-page .meta-carousel .carousel-btn { background: rgba(0,0,0,0.65); color: #fff; border: none; border-radius: 9999px; padding: 8px 14px; font-size: 0.9rem; cursor: pointer; }
 body.upload-page .meta-carousel .carousel-btn[disabled] { opacity: 0.4; cursor: default; }
 body.upload-page .meta-carousel .carousel-dots { display: flex; align-items: center; gap: 8px; }
-body.upload-page .meta-carousel .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(0,0,0,0.25); display: inline-block; }
+body.upload-page .meta-carousel .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(0,0,0,0.25); display: inline-block; }
 body.upload-page .meta-carousel .dot.active { background: rgba(0,0,0,0.7); }
 
 /* Prevent horizontal page movement during carousel interactions */

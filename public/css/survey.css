@@ -7,6 +7,40 @@
     display: block;
 }
 
+/* Full-bleed survey layout (override global page container) */
+
+.survey-step {
+    max-width: none; /* remove inner boxing */
+    margin: 0;
+    animation: fadeIn 0.6s ease-out;
+}
+
+/* Use white page background for survey to avoid framed/curtained feel */
+body { background-color: #fff; }
+
+
+/* Fade-in animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Typography */
+.survey-step h2 {
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+}
+
+.survey-step > p {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 60px;
+    font-weight: 400;
+}
+
 /* Extra spacing below the first question heading */
 #step-1 > h2 {
     margin-bottom: 10rem;
@@ -55,16 +89,14 @@
     font-size: 1rem;
 }
 
-/* Feature Selection Styles */
-.feature-options {
-    margin: 2rem 0;
-}
+/* Feature Selection Styles (Area17) */
+.feature-options { margin-bottom: 80px; }
 
 .feature-group {
     margin-bottom: 2rem;
-    padding: 1.5rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
 }
 
 .feature-group.mandatory {
@@ -92,62 +124,124 @@
     border-radius: 4px;
 }
 
-.sub-options {
-    margin-left: 1.5rem;
-    margin-top: 0.5rem;
+.sub-options { margin-left: 0; margin-top: 0; }
+.sub-options > label {
+    display: block;
+    font-size: 14px;
+    font-weight: 400;
+    color: #999;
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 32px;
 }
 
 .radio-group {
-    display: flex;
-    gap: 1rem;
-    margin-top: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
 }
 
 .radio-group input[type="radio"] {
-    margin-right: 0.25rem;
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
 }
 
-/* Navigation Styles */
+/* Radio card labels */
+.radio-group label {
+    padding: 40px 24px;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 400;
+    color: #000;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: -0.01em;
+    user-select: none;
+}
+
+/* Hover / checked */
+.radio-group label:hover {
+    border-color: #000;
+    background: #fafafa;
+}
+.radio-group input[type="radio"]:checked + label {
+    border-color: transparent; /* remove visible black border when selected */
+    background: #000;
+    color: #fff;
+    outline: none; /* remove extra outline when selected */
+}
+
+/* Keep border transparent even on hover when selected */
+.radio-group input[type="radio"]:checked + label:hover {
+    border-color: transparent;
+}
+
+/* Keyboard focus visibility */
+.radio-group input[type="radio"]:focus-visible + label {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+}
+
+/* Navigation Styles (Area17) */
 .step-navigation {
     display: flex;
     justify-content: space-between;
-    margin-top: 2rem;
-    padding: 10px 0;
-    align-items: center;
-    gap: 1rem;
+    padding-top: 60px;
+    border-top: 1px solid #f0f0f0;
 }
 
 
-/* Next button styles */
+/* Base button */
+.btn {
+    padding: 14px 32px;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    border: none;
+    background: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+/* Previous */
+.prev-btn { color: #999; padding-left: 24px; }
+.prev-btn:hover { color: #000; }
+.prev-btn::before {
+    content: '←';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.2s ease;
+}
+.prev-btn:hover::before { transform: translateY(-50%) translateX(-3px); }
+
+/* Next */
 .next-btn {
-    padding: 0.75rem 2rem;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-    transition: background-color 0.2s;
+    background: #000;
+    color: #fff;
+    padding-right: 40px;
+    position: relative;
 }
+.next-btn::after {
+    content: '→';
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform 0.2s ease;
+}
+.next-btn:hover:not(:disabled) { background: #111; }
+.next-btn:hover:not(:disabled)::after { transform: translateY(-50%) translateX(3px); }
+.next-btn:disabled { background: #f5f5f5; color: #ccc; cursor: not-allowed; opacity: 1; filter: none; }
+/* Ensure arrow matches disabled color */
+.next-btn:disabled::after { color: #ccc; }
 
-.next-btn:hover {
-    background-color: #0056b3;
-}
-
-.next-btn:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
-.prev-btn {
-    padding: 0.75rem 2rem;
-    background-color: #6c757d;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1rem;
-}
+/* Legacy .prev-btn styles removed in favor of Area17 button system */
 
 /* Step 3: Logo Upload Styles */
 .logo-upload-section {
@@ -245,17 +339,17 @@
     border-top: 1px solid #eee;
 }
 
-/* Ensure consistent survey navigation button styling */
-.survey-step .step-navigation .btn {
-    padding: 0.75rem 1.5rem !important;
-    background: #333 !important;
-    color: #fff !important;
+/* Ensure consistent survey navigation button styling (aligned with Area17)
+   Exclude .next-btn so its black background and arrow styles apply */
+.survey-step .step-navigation .btn:not(.next-btn) {
+    padding: 14px 32px !important;
+    background: none !important;
+    color: inherit !important;
     border: none !important;
-    border-radius: 5px !important;
-    font-size: 1rem !important;
+    border-radius: 0 !important;
+    font-size: 14px !important;
     cursor: pointer !important;
-    transition: background-color 0.2s !important;
-    text-align: center !important;
+    transition: all 0.2s ease !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -264,13 +358,12 @@
     appearance: none !important;
 }
 
-.survey-step .step-navigation .btn:hover {
-    background: #555 !important;
-}
+.survey-step .step-navigation .btn:not(.next-btn):hover { background: none !important; }
 
-/* Keep disabled state visible even with general !important overrides */
-.survey-step .step-navigation .btn:disabled {
-    background: #ccc !important;
+/* Keep disabled state visible */
+.survey-step .step-navigation .btn:not(.next-btn):disabled {
+    background: none !important;
+    color: #ccc !important;
     cursor: not-allowed !important;
 }
 
@@ -851,6 +944,16 @@
     }
 }
 
+/* Responsive tweaks (Area17) */
+@media (max-width: 640px) {
+    .survey-step h2 { font-size: 24px; }
+    .survey-step > p { font-size: 15px; margin-bottom: 40px; }
+    .radio-group { grid-template-columns: 1fr; }
+    .radio-group label { padding: 32px 20px; }
+    .step-navigation { padding-top: 40px; }
+    .btn { padding: 12px 24px; font-size: 13px; }
+}
+
 .layout-option h3 {
     margin: 0.5rem 0;
     color: #333;
@@ -868,15 +971,21 @@
 }
 
 .organization-input {
-    padding: 2rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background-color: #f8f9fa;
+    padding: 24px;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+    max-width: 720px; /* constrain width for symmetry */
+    margin: 0 auto;   /* center within full-bleed layout */
 }
 
 .organization-input h3 {
     margin-top: 0;
     color: #333;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-bottom: 8px;
 }
 
 .organization-input p {
@@ -886,13 +995,21 @@
 
 .organization-input textarea {
     width: 100%;
-    padding: 1rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
     font-size: 1rem;
     font-family: inherit;
     resize: vertical;
-    margin-bottom: 1.5rem;
+    margin-bottom: 16px;
+    box-sizing: border-box; /* keep within container width including padding/border */
+}
+
+.organization-input textarea:focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
 }
 
 .preview-nav {
@@ -905,28 +1022,29 @@
 }
 
 .nav-preview {
-    background-color: white;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    padding: 1rem;
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    padding: 12px;
     position: relative;
 }
 
 .nav-item {
     display: inline-block;
-    padding: 0.5rem 1rem;
-    background-color: #f5f1eb;
-    color: #666;
-    border: 1px solid #e8ddd4;
-    border-radius: 4px;
+    padding: 8px 12px;
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
     cursor: pointer;
     font-weight: 400;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .nav-item:hover {
-    background-color: #e8ddd4;
-    color: #555;
+    background: #efefef;
+    color: #000;
+    border-color: #d0d0d0;
 }
 
 .dropdown-preview {
@@ -934,14 +1052,20 @@
     top: 100%;
     left: 0;
     right: 0;
-    background-color: white;
-    border: 1px solid #ddd;
-    border-top: none;
-    border-radius: 0 0 4px 4px;
+    background: #fff;
+    border: 0; /* no border by default to avoid stray line when empty */
+    border-radius: 0 0 0 0;
     max-height: 200px;
     overflow-y: auto;
     z-index: 10;
-    margin-top: 0.5rem;
+    margin-top: 0; /* add margin only when populated */
+}
+
+/* Only show dropdown border and spacing when it has items */
+.dropdown-preview:not(:empty) {
+    border: 1px solid #e0e0e0;
+    border-top: none;
+    margin-top: 6px;
 }
 
 .dropdown-preview .dropdown-item {

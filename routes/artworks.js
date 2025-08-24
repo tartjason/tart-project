@@ -43,7 +43,8 @@ const uploadMiddleware = (req, res, next) => {
                 return res.status(400).json({ msg: err.message });
             } else {
                 // An unknown error occurred when uploading.
-                return res.status(400).json({ msg: err.message || 'An unknown upload error occurred' });
+                const message = (typeof err === 'string' ? err : err && err.message) || 'An unknown upload error occurred';
+                return res.status(400).json({ msg: message });
             }
         }
         // Everything went fine.
@@ -214,7 +215,7 @@ router.get('/:id', async (req, res) => {
 // Check File Type
 function checkFileType(file, cb) {
     // Allowed ext
-    const filetypes = /jpeg|jpg|png|gif/;
+    const filetypes = /jpeg|jpg|png|gif|webp|heic|heif/;
     // Check ext
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
     // Check mime
@@ -223,7 +224,7 @@ function checkFileType(file, cb) {
     if (mimetype && extname) {
         return cb(null, true);
     }
-    cb('Error: Images Only!');
+    cb(new Error('Images Only!'));
 }
 
 // @route   POST api/artworks
@@ -357,7 +358,7 @@ router.post('/', [auth, uploadMiddleware], async (req, res) => {
 
         // Metrics parsing
         let metrics2d, metrics3d;
-        if (medium === 'photography' || medium === 'painting') {
+        if (medium === 'photography' || medium === 'painting' || medium === 'oil-painting' || medium === 'ink-painting' || medium === 'colored-pencil') {
             const w = clampNum(body.width);
             const h = clampNum(body.height);
             const u = validUnit(body.units);
