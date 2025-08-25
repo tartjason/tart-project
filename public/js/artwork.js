@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <img src="${initialAvatarUrl}" alt="Account" class="header-avatar" id="header-avatar" />
                     <div class="avatar-dropdown" id="avatar-dropdown">
                         <a href="/account.html" class="dropdown-item">My account</a>
+                        <a href="/upload.html" class="dropdown-item">Upload</a>
                         <button class="dropdown-item btn-link" id="header-logout">Log out</button>
                     </div>
                 </div>
