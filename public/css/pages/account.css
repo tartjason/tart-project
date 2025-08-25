@@ -84,6 +84,24 @@
     max-width: 100%;
 }
 
+/* Desktop: ensure Settings button icon + text are perfectly aligned */
+.profile-actions .account-settings-btn {
+    display: inline-flex;            /* align icon + label horizontally */
+    align-items: center;             /* vertical centering */
+    justify-content: center;
+    gap: 8px;                        /* space between gear and text */
+    line-height: 1;                  /* avoid baseline misalignment */
+}
+.profile-actions .account-settings-btn svg {
+    display: block;                  /* remove inline SVG baseline gap */
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+.profile-actions .account-settings-btn .settings-text {
+    display: inline-block;           /* ensure consistent baseline */
+}
+
 /* Published site link under the buttons: prevent long URLs from expanding the container */
 #account-published-url {
     max-width: 100%;
@@ -247,4 +265,116 @@
 
 .notif-action {
     margin-left: auto;
+}
+
+/* --- Mobile: Account action row (Upload, Portfolio Website, Settings icon) --- */
+@media (max-width: 680px) {
+  /* Make Account page full-width on mobile */
+  body.account-page { overflow-x: hidden; }
+  body.account-page main {
+      padding: 0 !important; /* override global */
+      max-width: none;
+      margin: 0;
+  }
+  body.account-page .profile-container {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      border-radius: 0; /* flush to edges */
+      box-shadow: none; /* flatter mobile surface */
+      padding: 16px 12px; /* small inner padding */
+      box-sizing: border-box; /* include padding in width to avoid overflow */
+      overflow-x: hidden; /* guard against child overflow */
+  }
+  body.account-page .profile-header,
+  body.account-page .profile-content,
+  body.account-page .tabs,
+  body.account-page .tab-content {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+      box-sizing: border-box;
+  }
+  body.account-page img,
+  body.account-page video,
+  body.account-page canvas,
+  body.account-page iframe {
+      max-width: 100%;
+  }
+  /* Prevent notif dropdown from causing horizontal scroll */
+  body.account-page .notif-panel {
+      width: min(320px, calc(100vw - 24px));
+      right: 12px;
+      left: auto;
+  }
+
+  /* Settings dialog: taller on mobile and content padding for Save button */
+  body.account-page #settings-modal .settings-dialog {
+      min-height: 460px;                      /* a little taller */
+      max-height: calc(100vh - 24px);         /* fit viewport */
+  }
+  body.account-page #settings-modal .settings-dialog > section {
+      padding-bottom: 72px !important;        /* room for Save button */
+      overflow: auto;                         /* allow scroll if content grows */
+  }
+  body.account-page #privacy-save-anchor { bottom: 12px !important; }
+
+  /* Fix distorted toggles: prevent flex shrink and lock sizes */
+  body.account-page #settings-modal .privacy-row { align-items: center; }
+  body.account-page #settings-modal .privacy-row .switch {
+      flex: 0 0 46px !important;
+      width: 46px !important;
+      height: 26px !important;
+  }
+  body.account-page #settings-modal .privacy-row .slider {
+      border-radius: 26px !important;
+  }
+  body.account-page #settings-modal .privacy-row .slider:before {
+      height: 20px !important;
+      width: 20px !important;
+      left: 3px !important;
+      bottom: 3px !important;
+  }
+  body.account-page #settings-modal input:checked + .slider:before {
+      transform: translateX(20px) !important;
+  }
+  .profile-header { gap: 12px; }
+  /* Make the notifications bell larger on mobile */
+  #notif-bell {
+      width: 40px;
+      height: 40px;
+      border-radius: 20px;
+  }
+  #notif-bell svg { width: 22px; height: 22px; }
+  .profile-actions {
+      flex-direction: row;
+      gap: 8px;
+      flex: 0 0 100%;
+      width: 100%;
+      align-items: center;
+      justify-content: center; /* center the trio within the frame */
+  }
+  /* Compact primary buttons so two fit alongside a small icon */
+  .profile-actions .account-action-btn {
+      flex: 1 1 0; /* grow evenly and use full row width */
+      padding: 8px 12px;
+      font-size: 14px;
+      border-radius: 12px;
+      white-space: nowrap;
+      text-align: center;
+  }
+  /* Settings as a small square icon button */
+  .profile-actions .account-settings-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      width: 42px; /* wider capsule */
+      flex: 0 0 42px; /* do not shrink; fix base width */
+      min-width: 42px; /* ensure width is honored */
+      height: 36px;
+      border-radius: 16px;
+  }
+  .profile-actions .account-settings-btn svg { width: 18px; height: 18px; }
+  .profile-actions .account-settings-btn .settings-text { display: none; }
 }

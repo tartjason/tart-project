@@ -170,11 +170,19 @@ body.artwork-page .section-divider {
 }
 
 /* Immersive viewing: ambient background behind content */
-body.artwork-page header,
+/* Raise header above main so avatar dropdown stays clickable */
+body.artwork-page header {
+    position: relative;
+    z-index: 5; /* above main (1) but below lightbox (9999) */
+}
 body.artwork-page main {
     position: relative;
     z-index: 1; /* keep content above ambient bg */
 }
+/* Ensure avatar dropdown stacks above artwork */
+body.artwork-page header #auth-container,
+body.artwork-page header .avatar-wrapper { position: relative; z-index: 6; }
+body.artwork-page header .avatar-dropdown { z-index: 1001; }
 
 body.artwork-page #ambient-bg {
     position: fixed;
@@ -237,6 +245,16 @@ body.artwork-page.focus-mode .artwork-metrics,
 body.artwork-page.focus-mode .section-divider,
 body.artwork-page.focus-mode .artwork-footer {
     opacity: 0;
+}
+
+/* On small screens, fully hide metadata blocks in focus mode */
+@media (max-width: 680px) {
+  body.artwork-page.focus-mode .artwork-origin,
+  body.artwork-page.focus-mode .artist-info-footer,
+  body.artwork-page.focus-mode .section-divider {
+      visibility: hidden !important;   /* hide visually but preserve space */
+      pointer-events: none !important; /* avoid accidental taps */
+  }
 }
 
 /* Poem viewer */

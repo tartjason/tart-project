@@ -6,7 +6,7 @@
     <title>My Account - Tart</title>
     <link rel="stylesheet" href="css/style.css?v=1.1">
 </head>
-<body>
+<body class="account-page">
     <header>
         <a href="/" class="header-text-link header-back-link" aria-label="Back to home">&lt;</a>
         <nav aria-label="Account">
@@ -43,9 +43,16 @@
                     <p id="artist-connections">0 Connections</p>
                 </div>
                 <div class="profile-actions">
-                    <button id="edit-profile-btn" class="btn" type="button">Settings</button>
-                     <a href="/upload.html" class="btn">Upload Artwork</a>
-                     <a href="/survey.html" class="btn">Portfolio Website</a>
+                    <a href="/upload.html" class="btn account-action-btn">Upload Artwork</a>
+                    <a href="/survey.html" class="btn account-action-btn">Portfolio Website</a>
+                    <button id="edit-profile-btn" class="btn account-settings-btn" type="button" aria-label="Settings" title="Settings">
+                        <!-- Gear icon for Settings (text hidden on mobile via CSS) -->
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <span class="settings-text">Settings</span>
+                    </button>
                 </div>
                 <div id="account-published-url" style="display:none; margin-top:8px; font-size:0.95rem;">
                     <a id="account-published-url-link" href="#" target="_blank" rel="noopener">view</a>
@@ -79,7 +86,7 @@
 
     <!-- Settings Modal with side panel -->
     <div id="settings-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center;">
-        <div style="background:#fff; padding:0; border-radius:8px; width:92%; max-width:720px; box-shadow:0 10px 30px rgba(0,0,0,0.2); display:flex; min-height:380px; overflow:hidden;">
+        <div class="settings-dialog" style="background:#fff; padding:0; border-radius:8px; width:92%; max-width:720px; box-shadow:0 10px 30px rgba(0,0,0,0.2); display:flex; min-height:380px; overflow:hidden;">
             <!-- Side navigation -->
             <aside style="width:160px; border-right:1px solid #eee; padding:16px;">
                 <h3 style="margin:0 0 12px 0;">Settings</h3>
