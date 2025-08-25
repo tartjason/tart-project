@@ -14,6 +14,7 @@ router.use((req, res, next) => {
 // Models
 const Artwork = require('../models/artwork');
 const Artist = require('../models/artist');
+const Collect = require('../models/Collect');
 
 // --- Multer Setup for File Uploads (memory storage; upload to S3) ---
 const storage = multer.memoryStorage();
@@ -90,6 +91,13 @@ router.delete('/:id', auth, async (req, res) => {
             { collections: artwork._id },
             { $pull: { collections: artwork._id } }
         );
+
+        // Remove collection notification records for this artwork
+        try {
+            await Collect.deleteMany({ artwork: artwork._id });
+        } catch (e) {
+            console.warn('Failed to delete Collect records for artwork:', artwork._id, e);
+        }
         
         // Delete from S3 if we have an imageKey; otherwise fallback to local filesystem deletion
         if (artwork.imageKey) {
@@ -420,10 +428,30 @@ router.put('/:id/collect', auth, async (req, res) => {
             // --- Un-collect the artwork ---
             artist.collections.pull(artwork._id);
             artwork.collectedBy.pull(artist._id);
+            // Delete collection notification record
+            try {
+                await Collect.deleteOne({ collector: artist._id, artwork: artwork._id });
+            } catch (e) {
+                console.warn('Failed to remove Collect record on un-collect:', e);
+            }
         } else {
             // --- Collect the artwork ---
             artist.collections.push(artwork._id);
             artwork.collectedBy.push(artist._id);
+            // Create (or ensure) collection notification record for the artwork owner
+            try {
+                const ownerId = String(artwork.artist);
+                const collectorId = String(artist._id);
+                if (ownerId !== collectorId) {
+                    await Collect.updateOne(
+                        { collector: artist._id, artwork: artwork._id },
+                        { $setOnInsert: { toArtist: artwork.artist } },
+                        { upsert: true }
+                    );
+                }
+            } catch (e) {
+                console.warn('Failed to upsert Collect record on collect:', e);
+            }
         }
 
         await artwork.save();

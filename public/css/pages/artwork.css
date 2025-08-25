@@ -31,6 +31,17 @@
     padding: 1rem;
 }
 
+/* Gate: hide main artwork content until page is marked ready */
+body.artwork-page:not(.ready) .artwork-detail-container {
+    opacity: 0;
+    visibility: hidden;
+}
+body.artwork-page.ready .artwork-detail-container {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 200ms ease;
+}
+
 #artwork-image-container img {
     width: 100%;
     border-radius: 8px;
@@ -174,6 +185,15 @@ body.artwork-page #ambient-bg {
     opacity: 0.25;
     z-index: 0;
     pointer-events: none;
+}
+
+/* Fade in ambient background together with content when ready */
+body.artwork-page:not(.ready) #ambient-bg {
+    opacity: 0;
+}
+body.artwork-page.ready #ambient-bg {
+    opacity: 0.25;
+    transition: opacity 240ms ease;
 }
 
 /* Lightbox overlay */

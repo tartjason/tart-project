@@ -119,13 +119,16 @@
     padding: 6px 0;
     display: none;
     z-index: 1000;
+    /* Ensure child hover backgrounds don't bleed past rounded corners */
+    overflow: hidden;
 }
 
 /* Invisible bridge to prevent hover gap between avatar and dropdown */
 .avatar-dropdown::before {
     content: '';
     position: absolute;
-    top: -8px;
+    /* Keep the bridge inside the clipping area to avoid overflow artifacts */
+    top: 0;
     left: 0;
     right: 0;
     height: 8px;

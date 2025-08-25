@@ -92,6 +92,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!artworkId) {
         document.querySelector('main').innerHTML = '<h1>Artwork not found.</h1>';
+        // Ensure the page becomes visible even if there's no ID
+        document.body.classList.add('ready');
         return;
     }
 
@@ -343,13 +345,27 @@ function renderPoem(container, poem) {
             collectBtn.addEventListener('click', () => handleCollect(artwork._id, token, currentUserId));
         }
 
-        // Fade-in reveals: mark sections and observe
-        markArtworkPageForReveal();
-        observeNewReveals(document.querySelector('.artwork-detail-container') || document);
+        // Ready gate: reveal once content and first image (if any) are loaded
+        const isPoetry = (artwork.medium === 'poetry' || hasPoemLines);
+        if (isPoetry) {
+            setReadyAndReveal();
+        } else {
+            const mainImgLoadedEl = document.querySelector('#artwork-image-container img');
+            if (mainImgLoadedEl) {
+                // Wait for the image to load, but don't block forever
+                await Promise.race([
+                    imageLoaded(mainImgLoadedEl),
+                    new Promise((r) => setTimeout(r, 1600))
+                ]);
+            }
+            setReadyAndReveal();
+        }
 
     } catch (error) {
         console.error(error);
         document.querySelector('main').innerHTML = `<h1>Error: ${error.message}</h1>`;
+        // Avoid a stuck hidden state when errors occur
+        document.body.classList.add('ready');
     }
 });
 
@@ -492,6 +508,22 @@ function markArtworkPageForReveal() {
         el.classList.add('will-reveal');
         el.style.setProperty('--stagger', `${(i + 1) * 120}ms`);
     });
+}
+
+// Ready gate helpers
+function imageLoaded(img) {
+    return new Promise((resolve) => {
+        if (!img) return resolve();
+        if (img.complete && img.naturalWidth > 0) return resolve();
+        img.addEventListener('load', () => resolve(), { once: true });
+        img.addEventListener('error', () => resolve(), { once: true });
+    });
+}
+function setReadyAndReveal() {
+    if (document.body.classList.contains('ready')) return;
+    document.body.classList.add('ready');
+    markArtworkPageForReveal();
+    observeNewReveals(document.querySelector('.artwork-detail-container') || document);
 }
 
 function updateCollectButton(isCollected) {
