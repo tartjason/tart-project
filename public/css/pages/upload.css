@@ -387,8 +387,8 @@ body.upload-page .metrics-fields.four-cols {
 }
 
 /* Meta carousel */
-body.upload-page .meta-carousel { position: relative; overflow: hidden; }
-body.upload-page .meta-carousel .slides { display: flex; transform: translateX(0); transition: transform 250ms ease; will-change: transform; }
+body.upload-page .meta-carousel { position: relative; overflow: hidden; touch-action: pan-y; -ms-touch-action: pan-y; }
+body.upload-page .meta-carousel .slides { display: flex; transform: translateX(0); transition: transform 250ms ease; will-change: transform; touch-action: pan-y; -ms-touch-action: pan-y; }
 body.upload-page .meta-carousel .slide { min-width: 100%; box-sizing: border-box; display: grid; gap: 12px; }
 /* Ensure hidden slides are removed from layout */
 body.upload-page .meta-carousel .slide[hidden] { display: none !important; }

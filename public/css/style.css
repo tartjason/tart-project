@@ -8,20 +8,24 @@
 
 @import url('pages/login.css');
 
-/* General Body & Typography */
+/* =================================================================== */
+/* Global CSS Organization                                              */
+/* Sections:                                                            */
+/* 1) Base (reset, variables, body, typography)                         */
+/* 2) Layout (header, main containers)                                  */
+/* 3) Components (tabs, cards, etc.)                                    */
+/* 4) Forms & Buttons                                                   */
+/* 5) Utilities & Animations                                            */
+/* 6) Responsive                                                        */
+/* =================================================================== */
+
+/* Base: Body & Typography */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.6;
     margin: 0;
     background-color: #f4f4f4;
     color: #333;
-}
-/* Disabled button state */
-.btn:disabled,
-.btn[disabled] {
-    opacity: 0.5;
-    cursor: not-allowed;
-    filter: grayscale(25%);
 }
 
 h1, h2, h3 {
@@ -349,6 +353,13 @@ main {
     cursor: pointer;
     font-size: 1rem;
 }
+/* Disabled button state */
+.btn:disabled,
+.btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    filter: grayscale(25%);
+}
 
 #auth-container form {
     display: flex;
@@ -482,4 +493,23 @@ main {
     .will-reveal { opacity: 1 !important; transform: none !important; }
     .cta-link { transition: none !important; }
     .cta-link::after { transition: none !important; }
+}
+
+/* Mobile header override (placed late to win cascade): toggle left of tagline */
+@media (max-width: 680px) {
+  .app header {
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "logo auth"
+      "toggle tagline";
+    column-gap: 8px;
+    row-gap: 6px;
+    align-items: center;
+  }
+  .app header .logo-toggle { display: contents; }
+  .app header .logo-toggle h1 { grid-area: logo; margin: 0; }
+  .app header #auth-container { grid-area: auth; justify-self: end; margin-left: 0; }
+  .app header #sidebar-toggle { grid-area: toggle; position: static; opacity: 1; pointer-events: auto; margin: 0; }
+  .app header p { grid-area: tagline; margin: 0; text-align: left; font-size: 0.95rem; }
 }

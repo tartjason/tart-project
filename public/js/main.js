@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const pageContent = document.getElementById('page-content');
     const logoToggleContainer = document.querySelector('.logo-toggle');
+    const headerEl = document.querySelector('header');
     const navTart = document.getElementById('nav-tart');
     const navAbout = document.getElementById('nav-about');
     const navHome = document.getElementById('nav-home');
@@ -570,6 +571,8 @@ function showPage(page) {
         observeNewReveals(pageContent);
     }
 
+    // On mobile, auto-close the sidebar after navigation
+    closeSidebarOnMobile();
 }
 
     // Update labels/titles for toggle and logo area based on sidebar state
@@ -585,6 +588,20 @@ function showPage(page) {
         }
     }
 
+    // -------- Mobile helpers: detect and close sidebar --------
+    function isMobile() {
+        return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 680px)').matches;
+    }
+
+    function closeSidebarOnMobile() {
+        if (!appEl) return;
+        if (isMobile()) {
+            appEl.classList.remove('sidebar-open');
+            appEl.classList.add('sidebar-closed');
+            updateSidebarToggleA11y();
+        }
+    }
+
     if (sidebarToggle && appEl) {
         sidebarToggle.addEventListener('click', () => {
             const open = appEl.classList.contains('sidebar-open');
@@ -595,18 +612,20 @@ function showPage(page) {
     }
 
     if (logoToggleContainer && appEl) {
-        // Toggle when clicking the logo area (but ignore real button clicks to prevent double-toggle)
+        // Toggle when clicking the logo area on desktop only
         logoToggleContainer.addEventListener('click', (e) => {
             if (e.target && e.target.closest('#sidebar-toggle')) return;
+            if (isMobile()) return; // Do not toggle via logo on mobile
             const open = appEl.classList.contains('sidebar-open');
             appEl.classList.toggle('sidebar-open', !open);
             appEl.classList.toggle('sidebar-closed', open);
             updateSidebarToggleA11y();
         });
-        // Improve accessibility for keyboard users
+        // Improve accessibility for keyboard users on desktop only
         logoToggleContainer.setAttribute('role', 'button');
         logoToggleContainer.setAttribute('tabindex', '0');
         logoToggleContainer.addEventListener('keydown', (e) => {
+            if (isMobile()) return; // No-op on mobile
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 const open = appEl.classList.contains('sidebar-open');
@@ -619,17 +638,51 @@ function showPage(page) {
     // Initialize correct labels/titles on load
     updateSidebarToggleA11y();
 
+    // ------- Mobile header toggle placement -------
+    function moveToggleForMobile() {
+        if (!sidebarToggle || !headerEl) return;
+        const tagline = headerEl.querySelector('p');
+        if (!tagline) return;
+        if (sidebarToggle.dataset.moved === '1') return; // already moved
+        headerEl.insertBefore(sidebarToggle, tagline);
+        sidebarToggle.dataset.moved = '1';
+    }
+
+    function restoreToggleForDesktop() {
+        if (!sidebarToggle || !logoToggleContainer) return;
+        if (sidebarToggle.dataset.moved !== '1') return;
+        logoToggleContainer.appendChild(sidebarToggle);
+        delete sidebarToggle.dataset.moved;
+    }
+
+    function placeToggleBasedOnViewport() {
+        if (isMobile()) moveToggleForMobile();
+        else restoreToggleForDesktop();
+    }
+
+    // Initial placement and keep in sync on resize
+    placeToggleBasedOnViewport();
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(placeToggleBasedOnViewport, 150);
+    });
+
     navTart && navTart.addEventListener('click', () => {
         if (location.hash !== '#tart') location.hash = '#tart';
         else showPage('tart');
+        // Auto-close sidebar on mobile after clicking
+        closeSidebarOnMobile();
     });
     navAbout && navAbout.addEventListener('click', () => {
         if (location.hash !== '#about') location.hash = '#about';
         else showPage('about');
+        closeSidebarOnMobile();
     });
     navHome && navHome.addEventListener('click', () => {
         if (location.hash !== '#home') location.hash = '#home';
         else showPage('home');
+        closeSidebarOnMobile();
     });
 
     window.addEventListener('hashchange', () => {

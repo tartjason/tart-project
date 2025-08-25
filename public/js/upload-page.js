@@ -37,6 +37,16 @@
     const GESTURE_END_MS = 110; // time without wheel events to consider gesture ended
     const HORIZONTAL_EPS = 5; // ignore tiny momentum deltas to let gestures end
 
+    // Touch gesture state for mobile swipes (one slide per gesture)
+    let touchActive = false;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchDecidedHorizontal = false; // once true, we treat this gesture as horizontal swipe
+    let touchConsumed = false; // ensure only one slide change per gesture
+    const TOUCH_THRESHOLD = 24; // px finger travel to trigger when not instant
+    const INSTANT_TRIGGER_TOUCH_DX = 18; // px to instantly trigger on first decisive move
+    const DIRECTION_DECIDE_EPS = 5; // px before deciding horizontal vs vertical
+
     function getVisibleSlides() {
       if (!slides) return [];
       return Array.from(slides.children).filter(s => !s.hidden && getComputedStyle(s).display !== 'none');
@@ -367,6 +377,70 @@
           wheelAccumX = 0;
         }, GESTURE_END_MS);
       }, { passive: false, capture: true });
+    }
+
+    // Touch swipe support (mobile)
+    if (carousel) {
+      const shouldIgnoreSwipeTarget = (el) => {
+        if (!el) return false;
+        // Allow swipes starting on inputs/textarea to expand swipeable area.
+        // Still ignore links and contenteditable regions (e.g., poem editor), and explicit opt-out `.no-swipe`.
+        return !!el.closest('a, [contenteditable="true"], #poem-editor, .no-swipe');
+      };
+
+      carousel.addEventListener('touchstart', (e) => {
+        if (!slides) return;
+        if (e.touches.length !== 1) return; // single-finger only
+        const t = e.touches[0];
+        // If touch originates in a strictly ignored region, do not hijack
+        if (shouldIgnoreSwipeTarget(e.target)) return;
+        touchActive = true;
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        touchDecidedHorizontal = false;
+        touchConsumed = false;
+      }, { passive: true });
+
+      carousel.addEventListener('touchmove', (e) => {
+        if (!touchActive) return;
+        if (e.touches.length !== 1) return;
+        const t = e.touches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = t.clientY - touchStartY;
+
+        // Decide direction once finger has moved enough
+        if (!touchDecidedHorizontal) {
+          if (Math.abs(dx) < DIRECTION_DECIDE_EPS && Math.abs(dy) < DIRECTION_DECIDE_EPS) return;
+          // If vertical movement dominates, let browser scroll
+          if (Math.abs(dy) > Math.abs(dx) + 2) {
+            // treat as vertical scroll; stop tracking
+            touchActive = false;
+            return;
+          }
+          touchDecidedHorizontal = true;
+        }
+
+        // We are in a horizontal swipe
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!touchConsumed && Math.abs(dx) >= INSTANT_TRIGGER_TOUCH_DX) {
+          // Swipe left -> next, swipe right -> prev
+          if (dx < 0) { next(); } else { prev(); }
+          touchConsumed = true;
+        } else if (!touchConsumed && Math.abs(dx) >= TOUCH_THRESHOLD) {
+          if (dx < 0) { next(); } else { prev(); }
+          touchConsumed = true;
+        }
+      }, { passive: false, capture: true });
+
+      const endTouch = () => {
+        touchActive = false;
+        touchDecidedHorizontal = false;
+        touchConsumed = false;
+      };
+      carousel.addEventListener('touchend', endTouch, { passive: true });
+      carousel.addEventListener('touchcancel', endTouch, { passive: true });
     }
 
     // Initialize carousel UI

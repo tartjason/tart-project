@@ -70,12 +70,27 @@
     justify-content: flex-end;
 }
 
-/* Mobile: center the header tagline under the logo/auth */
+/* Mobile: layout header with CSS grid; toggle left of tagline */
 @media (max-width: 680px) {
-  .app header { flex-wrap: wrap; gap: 6px; }
-  .app header .header-left { order: 1; }
-  .app header p { order: 2; width: 100%; text-align: center; margin: 6px 0 0 0; }
-  .app header #auth-container { order: 3; min-width: 0; justify-content: center; width: 100%; }
+  .app header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "logo auth"
+      "toggle tagline";
+    column-gap: 8px;
+    row-gap: 6px;
+    align-items: center;
+  }
+  /* Flatten container so children can be grid items */
+  .app header .logo-toggle { display: contents; }
+  .app header .logo-toggle h1 { grid-area: logo; margin: 0; }
+  .app header #auth-container { grid-area: auth; justify-self: end; margin-left: 0; }
+  .app header #sidebar-toggle { grid-area: toggle; position: static; opacity: 1; pointer-events: auto; margin: 0; }
+  .app header p { grid-area: tagline; margin: 0; text-align: left; }
+  /* Disable hover-driven swap between logo and toggle on mobile */
+  .logo-toggle:hover h1 { opacity: 1 !important; }
+  .logo-toggle:hover .sidebar-toggle { opacity: 1 !important; pointer-events: auto !important; }
 }
 
 .avatar-wrapper {
@@ -222,6 +237,21 @@
 }
 .app.sidebar-open .sidebar { visibility: visible; }
 .app.sidebar-closed .sidebar-inner { padding: 0 !important; overflow: hidden; width: 0 !important; min-width: 0 !important; }
+
+/* Mobile-only: when sidebar is open, push main content fully off-screen and prevent horizontal scroll */
+@media (max-width: 680px) {
+  /* Avoid horizontal scroll revealing the main panel */
+  html, body, .app, .content { overflow-x: hidden; }
+  /* Expand grid so sidebar takes full width */
+  .app.sidebar-open .page-layout {
+    --sidebar-w: 100vw;
+    grid-template-columns: 100vw 1fr !important;
+  }
+  /* Move main panel out of view */
+  .app.sidebar-open .main-panel {
+    transform: translateX(100vw) !important;
+  }
+}
 
 /* Tiny toggle button near logo (mimics compact left control) */
 .logo-toggle { display: inline-flex; align-items: center; gap: 0; position: relative; cursor: pointer; }
