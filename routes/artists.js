@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Artist = require('../models/artist');
+const Follow = require('../models/Follow');
 
 // @route   PUT api/artists/:id/follow
 // @desc    Follow or un-follow an artist
@@ -27,10 +28,23 @@ router.put('/:id/follow', auth, async (req, res) => {
             // --- Un-follow the artist ---
             currentUser.following.pull(targetArtist._id);
             targetArtist.followers.pull(currentUser._id);
+            // Remove follow document (ignore if not present)
+            try { await Follow.deleteOne({ follower: currentUser._id, following: targetArtist._id }); } catch (_) {}
         } else {
             // --- Follow the artist ---
             currentUser.following.push(targetArtist._id);
             targetArtist.followers.push(currentUser._id);
+            // Upsert follow document to record timestamp
+            try {
+                await Follow.updateOne(
+                    { follower: currentUser._id, following: targetArtist._id },
+                    { $setOnInsert: { follower: currentUser._id, following: targetArtist._id } },
+                    { upsert: true }
+                );
+            } catch (e) {
+                // ignore duplicate errors
+                if (e && e.code !== 11000) console.warn('Follow upsert error:', e.message);
+            }
         }
 
         await currentUser.save();

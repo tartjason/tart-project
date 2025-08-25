@@ -6,6 +6,387 @@ document.addEventListener('DOMContentLoaded', () => {
         console.warn('No token found. Functionality will be limited.');
     }
 
+// --- Notifications Modal (match Connections look & feel) ---
+async function openNotificationsModal() {
+    try {
+        const bell = document.getElementById('notif-bell');
+        if (bell) bell.setAttribute('aria-expanded', 'true');
+
+        // Ensure we have rich follower/following data
+        const artist = Object.assign({}, window.__currentArtist || {});
+        let followers = Array.isArray(artist.followers) ? artist.followers : [];
+        let following = Array.isArray(artist.following) ? artist.following : [];
+
+        const needsRefresh = followers.some(x => typeof x === 'string' || (x && !x.name))
+            || following.some(x => typeof x === 'string' || (x && !x.name));
+        if (needsRefresh) {
+            try {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
+                    if (res.ok) {
+                        const fresh = await res.json();
+                        window.__currentArtist = fresh;
+                        followers = Array.isArray(fresh.followers) ? fresh.followers : [];
+                        following = Array.isArray(fresh.following) ? fresh.following : [];
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not refresh notifications data:', e);
+            }
+        }
+
+        // Always attempt to fetch recent follower notifications (with accurate createdAt timestamps)
+        try {
+            const token2 = localStorage.getItem('token');
+            if (token2) {
+                const resNotif = await fetch('/api/notifications/followers?limit=50', {
+                    headers: { 'x-auth-token': token2 }
+                });
+                if (resNotif.ok) {
+                    const events = await resNotif.json(); // [{ follower: {...}, createdAt }]
+                    const notifFollowers = (Array.isArray(events) ? events : []).map(ev => {
+                        const f = Object.assign({}, ev && ev.follower ? ev.follower : {});
+                        if (ev && ev.createdAt) f._followedAt = ev.createdAt; // prefer this in UI
+                        return f;
+                    }).filter(f => f && (f._id || f.id || f.name));
+                    if (notifFollowers.length) {
+                        followers = notifFollowers;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load notifications API, falling back to cached followers:', e);
+        }
+
+        // Mark notifications as seen and clear indicator
+        try {
+            localStorage.setItem('notif.lastSeen', String(Date.now()));
+            updateNotifBellIndicator(window.__currentArtist || {});
+        } catch (_) {}
+
+        // Overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        // Modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: #fff;
+            padding: 16px;
+            border-radius: 8px;
+            width: 92%;
+            max-width: 520px;
+            max-height: 80vh;
+            overflow: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+        `;
+
+        const title = document.createElement('h3');
+        title.textContent = 'Notifications';
+        title.style.margin = '0 0 12px 0';
+        modal.appendChild(title);
+
+        const content = document.createElement('div');
+        modal.appendChild(content);
+
+        function renderNotifications() {
+            content.innerHTML = '';
+            const followingIds = new Set((Array.isArray(following) ? following : []).map((a) => String(a && (a._id || a.id) ? (a._id || a.id) : a)));
+            if (!followers || followers.length === 0) {
+                const empty = document.createElement('p');
+                empty.textContent = 'No notifications yet.';
+                empty.style.color = '#555';
+                content.appendChild(empty);
+                return;
+            }
+
+            const list = document.createElement('ul');
+            list.style.listStyle = 'none';
+            list.style.padding = '0';
+            list.style.margin = '0';
+
+            followers.forEach(f => {
+                const id = (f && (f._id || f.id)) ? (f._id || f.id) : String(f);
+                const name = (f && f.name) ? f.name : 'Someone';
+                const avatar = (f && f.profilePictureUrl) ? f.profilePictureUrl : '/assets/default-avatar.svg';
+                const isFollowingBack = followingIds.has(String(id));
+
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.alignItems = 'center';
+                li.style.gap = '10px';
+                li.style.padding = '8px 0';
+
+                const img = document.createElement('img');
+                img.src = avatar;
+                img.alt = '';
+                img.width = 36;
+                img.height = 36;
+                img.style.borderRadius = '50%';
+                img.style.objectFit = 'cover';
+
+                const body = document.createElement('div');
+                body.style.flex = '1';
+                const text = document.createElement('div');
+                text.innerHTML = `<strong>${name}</strong> followed you.`;
+                text.style.fontSize = '14px';
+                const time = document.createElement('div');
+                const when = deriveDateFromFollower(f);
+                time.textContent = formatRelativeTime(when);
+                time.style.fontSize = '12px';
+                time.style.color = '#6b7280';
+                body.appendChild(text);
+                body.appendChild(time);
+
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-secondary follow-back-btn';
+                btn.textContent = isFollowingBack ? 'Following' : 'Follow back';
+                btn.style.marginLeft = 'auto';
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await followBackArtist(String(id), btn);
+                });
+
+                li.appendChild(img);
+                li.appendChild(body);
+                li.appendChild(btn);
+                list.appendChild(li);
+            });
+
+            content.appendChild(list);
+        }
+
+        renderNotifications();
+
+        const actions = document.createElement('div');
+        actions.style.cssText = 'margin-top:12px; display:flex; justify-content:flex-end;';
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'btn';
+        closeBtn.textContent = 'Close';
+        const close = () => {
+            if (bell) bell.setAttribute('aria-expanded', 'false');
+            document.body.removeChild(overlay);
+        };
+        closeBtn.addEventListener('click', close);
+        actions.appendChild(closeBtn);
+        modal.appendChild(actions);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) close();
+        });
+        const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+        document.addEventListener('keydown', onKey, { once: true });
+
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+    } catch (e) {
+        console.error('Failed to open notifications modal:', e);
+        showNotice('Could not open notifications. Please try again.', 'error');
+    }
+}
+
+// Expose notification helpers globally (used in various flows safely)
+window.initializeNotificationsUi = initializeNotificationsUi;
+window.renderNotificationsFromArtist = renderNotificationsFromArtist;
+window.updateNotifBellIndicator = updateNotifBellIndicator;
+window.followBackArtist = followBackArtist;
+window.openNotificationsModal = openNotificationsModal;
+
+// --- Notifications: Bell, Panel, Follow-Back ---
+function initializeNotificationsUi() {
+    try {
+        if (window.__notifUiInit) return; // idempotent
+        const bell = document.getElementById('notif-bell');
+        if (!bell) return;
+
+        bell.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openNotificationsModal();
+        });
+
+        // Initial indicator state if artist already cached
+        if (window.__currentArtist) updateNotifBellIndicator(window.__currentArtist);
+
+        window.__notifUiInit = true;
+    } catch (e) {
+        console.warn('Failed to initialize notifications UI:', e);
+    }
+}
+
+// Helper: convert various follower shapes to a Date when they likely followed
+function deriveDateFromFollower(f) {
+    try {
+        if (!f) return null;
+        const ts = f._followedAt || f.followedAt || f.followed_at || f.createdAt || f.updatedAt || null;
+        if (ts) {
+            const d = new Date(ts);
+            if (!isNaN(d.getTime())) return d;
+        }
+        // Fallback: try ObjectId timestamp
+        const oid = (f && (f._id || f.id)) ? String(f._id || f.id) : null;
+        if (oid && /^[a-f\d]{24}$/i.test(oid)) {
+            const seconds = parseInt(oid.substring(0, 8), 16);
+            if (!isNaN(seconds)) return new Date(seconds * 1000);
+        }
+    } catch (_) {}
+    return null;
+}
+
+// Helper: format relative time like "3 min ago"
+function formatRelativeTime(date) {
+    try {
+        if (!(date instanceof Date) || isNaN(date.getTime())) return 'recently';
+        const now = Date.now();
+        let diff = Math.floor((now - date.getTime()) / 1000); // seconds
+        if (diff < 0) diff = 0;
+        if (diff < 60) return 'just now';
+        if (diff < 3600) {
+            const m = Math.floor(diff / 60);
+            return `${m} min${m === 1 ? '' : 's'} ago`;
+        }
+        if (diff < 86400) {
+            const h = Math.floor(diff / 3600);
+            return `${h} hr${h === 1 ? '' : 's'} ago`;
+        }
+        if (diff < 2592000) { // < 30 days
+            const d = Math.floor(diff / 86400);
+            return `${d} day${d === 1 ? '' : 's'} ago`;
+        }
+        // 30+ days: show date
+        return date.toLocaleDateString();
+    } catch (_) {
+        return 'recently';
+    }
+}
+
+function renderNotificationsFromArtist(artist) {
+    const list = document.getElementById('notif-list');
+    const empty = document.getElementById('notif-empty');
+    if (!list || !empty) return;
+
+    const followers = Array.isArray(artist.followers) ? artist.followers : [];
+    const followingIds = new Set((Array.isArray(artist.following) ? artist.following : []).map((a) => String(a && (a._id || a.id) ? (a._id || a.id) : a)));
+
+    list.innerHTML = '';
+
+    if (!followers.length) {
+        empty.style.display = 'block';
+        updateNotifBellIndicator(artist);
+        return;
+    }
+
+    empty.style.display = 'none';
+
+    followers.forEach((f) => {
+        const id = (f && (f._id || f.id)) ? (f._id || f.id) : String(f);
+        const name = (f && f.name) ? f.name : 'Someone';
+        const avatar = (f && f.profilePictureUrl) ? f.profilePictureUrl : '/assets/default-avatar.svg';
+        const isFollowingBack = followingIds.has(String(id));
+
+        const li = document.createElement('li');
+        li.className = 'notif-item';
+
+        const img = document.createElement('img');
+        img.className = 'notif-avatar';
+        img.src = avatar;
+        img.alt = '';
+
+        const body = document.createElement('div');
+        body.className = 'notif-body';
+        const text = document.createElement('p');
+        text.className = 'notif-text';
+        text.innerHTML = `<strong>${name}</strong> followed you.`;
+        const time = document.createElement('p');
+        time.className = 'notif-time';
+        const when = deriveDateFromFollower(f);
+        time.textContent = formatRelativeTime(when);
+        body.appendChild(text);
+        body.appendChild(time);
+
+        const action = document.createElement('div');
+        action.className = 'notif-action';
+        const btn = document.createElement('button');
+        btn.className = 'btn-small follow-back-btn';
+        btn.setAttribute('data-artist-id', String(id));
+        btn.textContent = isFollowingBack ? 'Following' : 'Follow back';
+        if (isFollowingBack) btn.disabled = true;
+        action.appendChild(btn);
+
+        li.appendChild(img);
+        li.appendChild(body);
+        li.appendChild(action);
+        list.appendChild(li);
+    });
+
+    updateNotifBellIndicator(artist);
+}
+
+async function updateNotifBellIndicator(artist) {
+    const bell = document.getElementById('notif-bell');
+    if (!bell) return;
+    try {
+        const lastSeen = parseInt(localStorage.getItem('notif.lastSeen') || '0', 10) || 0;
+        const token = localStorage.getItem('token');
+        if (!token) { bell.removeAttribute('data-has-new'); return; }
+        const res = await fetch('/api/notifications/followers?limit=1', {
+            headers: { 'x-auth-token': token }
+        });
+        if (!res.ok) { bell.removeAttribute('data-has-new'); return; }
+        const events = await res.json();
+        const latest = Array.isArray(events) && events.length ? events[0] : null;
+        const ts = latest && latest.createdAt ? new Date(latest.createdAt) : null;
+        const latestMs = (ts && !isNaN(ts.getTime())) ? ts.getTime() : 0;
+        if (latestMs > lastSeen) bell.setAttribute('data-has-new', 'true');
+        else bell.removeAttribute('data-has-new');
+    } catch (_) {
+        // On error, do not show false positives
+        const bell = document.getElementById('notif-bell');
+        if (bell) bell.removeAttribute('data-has-new');
+    }
+}
+
+async function followBackArtist(targetId, button) {
+    const token = localStorage.getItem('token');
+    if (!token) { showNotice('You must be logged in to follow artists.', 'error'); return; }
+    try {
+        if (button) button.disabled = true;
+        const res = await fetch(`/api/artists/${encodeURIComponent(targetId)}/follow`, {
+            method: 'PUT',
+            headers: { 'x-auth-token': token }
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ msg: 'Failed to update follow' }));
+            throw new Error(err.msg || 'Failed to update follow');
+        }
+        const followingIds = await res.json();
+        // Update cache and UI
+        if (window.__currentArtist) {
+            window.__currentArtist.following = followingIds;
+            updateNotifBellIndicator(window.__currentArtist);
+        }
+        const isNowFollowing = Array.isArray(followingIds) && followingIds.some(x => String(x) === String(targetId));
+        if (button) {
+            button.textContent = isNowFollowing ? 'Following' : 'Follow back';
+            button.disabled = false;
+        }
+        showNotice(isNowFollowing ? 'You are now following.' : 'You unfollowed.', 'success');
+    } catch (err) {
+        console.error('Follow toggle error:', err);
+        showNotice(err.message || 'Failed to update follow', 'error');
+        if (button) button.disabled = false;
+    }
+}
+
 // --- Connections Modal ---
 async function openConnectionsModal() {
     try {
@@ -300,6 +681,8 @@ async function loadPublishedWebsiteInfo() {
 
     // --- Page Specific Loaders ---
     if (document.querySelector('.profile-container')) {
+        // Initialize notifications UI elements on account page
+        initializeNotificationsUi();
         if (document.getElementById('artist-name')) {
             loadProfileData();
             initializeProfilePictureUpload();
@@ -351,6 +734,13 @@ async function loadProfileData() {
 
         // Populate Profile Header
         window.__currentArtist = artist; // cache for edit modal
+        // Update notifications indicator and list if panel open
+        window.initializeNotificationsUi && window.initializeNotificationsUi();
+        window.updateNotifBellIndicator && window.updateNotifBellIndicator(artist);
+        const notifPanel = document.getElementById('notif-panel');
+        if (notifPanel && !notifPanel.hidden) {
+            window.renderNotificationsFromArtist && window.renderNotificationsFromArtist(artist);
+        }
         document.getElementById('artist-name').textContent = artist.name;
         const regionEl = document.getElementById('artist-region');
         if (regionEl) {

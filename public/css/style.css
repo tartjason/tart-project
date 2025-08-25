@@ -11,7 +11,7 @@
 /* =================================================================== */
 /* Global CSS Organization                                              */
 /* Sections:                                                            */
-/* 1) Base (reset, variables, body, typography)                         */
+/* 1) Basics (reset, variables, body, typography)                       */
 /* 2) Layout (header, main containers)                                  */
 /* 3) Components (tabs, cards, etc.)                                    */
 /* 4) Forms & Buttons                                                   */
@@ -19,7 +19,7 @@
 /* 6) Responsive                                                        */
 /* =================================================================== */
 
-/* Base: Body & Typography */
+/* 1) Basics: Body & Typography */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     line-height: 1.6;
@@ -32,7 +32,7 @@ h1, h2, h3 {
     line-height: 1.2;
 }
 
-/* Header */
+/* 2) Layout: Header & Navigation */
 header {
     background: #fff;
     padding: 1rem 2rem;
@@ -96,7 +96,7 @@ header nav[aria-label="Account"] {
     text-decoration: none; /* override header-text-link hover underline */
 }
 
-/* Main Content */
+/* 2) Layout: Main Content */
 main {
     padding: 2rem;
     max-width: 1200px;
@@ -104,7 +104,9 @@ main {
 }
 
 
-/* Upload page rules moved to pages/upload.css */
+/* 4) Forms & Inputs
+   Note: Upload page-specific rules were moved to pages/upload.css historically.
+   The remaining blocks here are generalized form components reused across pages. */
 
 .description-section {
     padding: 0;
@@ -293,7 +295,7 @@ main {
     border-color: #007bff;
 }
 
-/* Mobile Responsiveness */
+/* 6) Responsive: Forms & Pickers (mobile) */
 @media (max-width: 768px) {
     .description-section textarea {
         font-size: 16px; /* Prevent zoom on iOS */
@@ -307,7 +309,7 @@ main {
 
 
 
-/* Tabs */
+/* 3) Components: Tabs */
 .tabs {
     border-bottom: 1px solid #ccc;
     margin-bottom: 20px;
@@ -341,7 +343,7 @@ main {
     margin: 30px 0;
 }
 
-/* Buttons & Forms */
+/* 4) Buttons & Forms */
 .btn {
     display: inline-block;
     background: #333;
@@ -385,7 +387,7 @@ main {
 }
 
 
-/* Page content (Tart / About) */
+/* 3) Components: Page content (Tart / About) */
 .page-content { max-width: 900px; margin: 0 auto; padding: 1rem 0; }
 
 .features-grid {
@@ -421,7 +423,7 @@ main {
 
 .signature { margin-top: 16px; font-style: italic; color: #444; }
 
-/* Shared animations and utilities */
+/* 5) Utilities & Animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(20px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -487,7 +489,7 @@ main {
     transform: translateY(-50%) translateX(4px);
 }
 
-/* Reduced motion respect */
+/* 6) Responsive: Reduced motion */
 @media (prefers-reduced-motion: reduce) {
     .fade-in { animation: none !important; }
     .will-reveal { opacity: 1 !important; transform: none !important; }
@@ -495,7 +497,7 @@ main {
     .cta-link::after { transition: none !important; }
 }
 
-/* Mobile header override (placed late to win cascade): toggle left of tagline */
+/* 6) Responsive: Mobile header override (placed late to win cascade): toggle left of tagline */
 @media (max-width: 680px) {
   .app header {
     display: grid !important;

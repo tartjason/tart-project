@@ -24,6 +24,25 @@ body.login-page {
     font-size: 1.1rem;
     font-weight: 700;
     color: #000;
+    text-decoration: none; /* remove default underline on link */
+    cursor: pointer;
+}
+
+/* Preserve style and improve accessibility for the brand link */
+.login-brand-fixed:link,
+.login-brand-fixed:visited {
+    color: #000;
+    text-decoration: none;
+}
+
+.login-brand-fixed:hover {
+    text-decoration: none;
+}
+
+.login-brand-fixed:focus-visible {
+    outline: 2px solid #111;
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 .login-brand {
@@ -61,12 +80,12 @@ body.login-page {
 
 /* Fallback spacing for browsers without flex gap on flex containers */
 .password-form .email-input { 
-    margin-bottom: 20px; /* ensures spacing even if gap unsupported */
+    margin-bottom: 16px; /* fallback to match flex gap spacing */
 }
 
 /* Explicit spacing on the Log in button for consistency */
 #password-section #login-btn {
-    margin-top: 20px; /* add extra separation from the input */
+    margin-top: 0; /* rely on flex gap for consistent spacing */
 }
 
 /* Code verification form (OTP) */
@@ -114,6 +133,7 @@ body.login-page {
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s;
+    width: 100%; /* ensure full-width, matching input and oauth buttons */
 }
 
 .continue-btn:hover {

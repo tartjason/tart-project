@@ -25,7 +25,20 @@
                     <input type="file" id="avatar-upload" accept="image/*" style="display: none;">
                 </div>
                 <div class="profile-info">
-                    <h2 id="artist-name">Artist Name</h2>
+                    <div class="name-row">
+                        <h2 id="artist-name">Artist Name</h2>
+                        <button id="notif-bell" class="icon-btn" type="button" aria-label="Notifications" aria-haspopup="true" aria-expanded="false" title="Notifications">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M18 8a6 6 0 10-12 0c0 7-3 7-3 7h18s-3 0-3-7"/>
+                                <path d="M13.73 21a2 2 0 01-3.46 0"/>
+                            </svg>
+                        </button>
+                        <div id="notif-panel" class="notif-panel" hidden>
+                            <div class="notif-header">Notifications</div>
+                            <div id="notif-empty" class="notif-empty">No notifications yet</div>
+                            <ul id="notif-list" class="notif-list" role="list"></ul>
+                        </div>
+                    </div>
                     <p id="artist-region">City, Country</p>
                     <p id="artist-connections">0 Connections</p>
                 </div>

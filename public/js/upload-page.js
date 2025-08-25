@@ -27,6 +27,90 @@
     const dots = qs('#carousel-dots');
     let slideIndex = 0;
     const totalSlides = slides ? slides.children.length : 0;
+    // Inline validation banner (mounted at top of meta section)
+    let validationBanner = null;
+    if (metaSection) {
+      validationBanner = document.createElement('div');
+      validationBanner.id = 'inline-validation';
+      validationBanner.setAttribute('role', 'alert');
+      validationBanner.style.display = 'none';
+      validationBanner.style.margin = '0 0 12px 0';
+      validationBanner.style.padding = '10px 12px';
+      validationBanner.style.border = '1px solid #e5a5a5';
+      validationBanner.style.borderRadius = '8px';
+      validationBanner.style.background = '#fff5f5';
+      validationBanner.style.color = '#8a1e1e';
+      metaSection.insertBefore(validationBanner, metaSection.firstChild);
+    }
+    function showInlineMessage(msg) {
+      if (!validationBanner) return;
+      validationBanner.textContent = msg || '';
+      validationBanner.style.display = msg ? '' : 'none';
+      // Ensure meta section is visible and scrolled into view
+      if (metaSection && metaSection.hidden) { show(metaSection); }
+      validationBanner.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    function clearInlineMessage() {
+      if (!validationBanner) return;
+      validationBanner.style.display = 'none';
+      validationBanner.textContent = '';
+    }
+    function clearFieldErrors() {
+      document.querySelectorAll('.field-error').forEach(el => {
+        el.classList.remove('field-error');
+        el.style.borderColor = '';
+        el.removeAttribute('aria-invalid');
+      });
+      document.querySelectorAll('.field-error-text').forEach(n => n.remove());
+    }
+    function markError(el, msg) {
+      if (!el) return;
+      el.classList.add('field-error');
+      el.style.borderColor = '#dc3545';
+      el.setAttribute('aria-invalid', 'true');
+      let note = el.nextElementSibling;
+      if (!(note && note.classList && note.classList.contains('field-error-text'))) {
+        note = document.createElement('div');
+        note.className = 'field-error-text';
+        note.style.color = '#b42318';
+        note.style.fontSize = '0.9rem';
+        note.style.marginTop = '6px';
+        el.parentNode && el.parentNode.insertBefore(note, el.nextSibling);
+      }
+      note.textContent = msg || 'Required field';
+      const clearForEl = () => {
+        el.classList.remove('field-error');
+        el.style.borderColor = '';
+        el.removeAttribute('aria-invalid');
+        if (note && note.parentNode) note.parentNode.removeChild(note);
+        el.removeEventListener('input', clearForEl);
+        el.removeEventListener('change', clearForEl);
+      };
+      el.addEventListener('input', clearForEl);
+      el.addEventListener('change', clearForEl);
+    }
+
+    // Show a quick, inline message near a container (e.g., upload section)
+    function showSectionMessage(container, msg) {
+      if (!container) return;
+      let msgBox = container.querySelector('.section-inline-msg');
+      if (!msgBox) {
+        msgBox = document.createElement('div');
+        msgBox.className = 'section-inline-msg';
+        msgBox.style.marginTop = '8px';
+        msgBox.style.padding = '10px 12px';
+        msgBox.style.border = '1px solid #e5a5a5';
+        msgBox.style.borderRadius = '8px';
+        msgBox.style.background = '#fff5f5';
+        msgBox.style.color = '#8a1e1e';
+        container.appendChild(msgBox);
+      }
+      msgBox.textContent = msg || '';
+      msgBox.style.display = '';
+      container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { if (msgBox) msgBox.style.display = 'none'; }, 2500);
+    }
+
     // Wheel gesture state for horizontal scrolling (one slide per gesture)
     let wheelAccumX = 0;
     let wheelGestureActive = false;
@@ -79,29 +163,10 @@
       // Buttons removed; navigation via dots and keyboard only
     }
 
-    // Enable/disable Publish button based on required fields
+    // Always enable Publish button; validation is handled on click with inline guidance
     function updatePublishEnabled() {
       if (!publishBtn) return;
-      const medium = mediumSelect ? mediumSelect.value : 'photography';
-      const hasTitle = titleInput && titleInput.value.trim().length > 0;
-      const hasDesc = descriptionInput && descriptionInput.value.trim().length > 0;
-      const hasCountry = countryInput && countryInput.value.trim().length > 0;
-      const hasCity = cityInput && cityInput.value.trim().length > 0;
-      const hasSource = !!document.querySelector('input[name="ai-generated"]:checked');
-      let ready = false;
-      if (medium === 'poetry') {
-        const hasPoemContent = !!(poemEditor && typeof poemEditor.toJSON === 'function' &&
-          poemEditor.toJSON().lines.some(l => {
-            const html = String(l.html || '');
-            const text = html.replace(/<[^>]*>/g, '').trim();
-            return text.length > 0;
-          }));
-        ready = hasTitle && hasDesc && hasCountry && hasCity && hasSource && hasPoemContent;
-      } else {
-        const hasImage = !!(uploadSection && uploadSection.classList.contains('has-image'));
-        ready = hasTitle && hasDesc && hasCountry && hasCity && hasSource && hasImage;
-      }
-      publishBtn.disabled = !ready;
+      publishBtn.disabled = false;
     }
 
     function goTo(i) {
@@ -172,7 +237,8 @@
         hide(poetrySection);
         // hide metadata until an image is selected
         hide(metaSection);
-        hide(publishActions);
+        // Show Publish actions even before image selection to allow inline guidance
+        show(publishActions);
       }
       buildDots();
       updateCarousel();
@@ -256,7 +322,65 @@
       const locationCity = cityInput ? cityInput.value.trim() : '';
       const sourceEl = document.querySelector('input[name="ai-generated"]:checked');
       const source = sourceEl ? sourceEl.value : undefined; // 'human' | 'ai'
+      // Inline validation before attempting submission
+      clearInlineMessage();
+      clearFieldErrors();
+      const goToAndFocus = (idx, el) => {
+        if (typeof idx === 'number') goTo(idx);
+        if (el && typeof el.focus === 'function') el.focus({ preventScroll: false });
+      };
+      if (medium === 'poetry') {
+        const hasPoemContent = !!(poemEditor && typeof poemEditor.toJSON === 'function' &&
+          poemEditor.toJSON().lines.some(l => {
+            const html = String(l.html || '');
+            const text = html.replace(/<[^>]*>/g, '').trim();
+            return text.length > 0;
+          }));
+        if (!hasPoemContent) {
+          showInlineMessage('Please write your poem before publishing.');
+          if (poetrySection) poetrySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+      } else {
+        // For non-poetry, image is required; if meta is visible we likely have an image, but double-check
+        const hasImage = !!(uploadSection && uploadSection.classList.contains('has-image'));
+        if (!hasImage) {
+          // Guide the user inline at the upload area instead of showing meta banner
+          showSectionMessage(uploadSection, 'Please choose an image to upload.');
+          return;
+        }
+      }
+      if (!title) {
+        showInlineMessage('Title is required.');
+        goToAndFocus(0, titleInput);
+        markError(titleInput, 'Please enter a title');
+        return;
+      }
+      if (!description) {
+        showInlineMessage('Description is required.');
+        goToAndFocus(0, descriptionInput);
+        markError(descriptionInput, 'Please enter a description');
+        return;
+      }
+      if (!locationCountry) {
+        showInlineMessage('Country is required.');
+        goToAndFocus(1, countryInput);
+        markError(countryInput, 'Please enter a country');
+        return;
+      }
+      if (!locationCity) {
+        showInlineMessage('City is required.');
+        goToAndFocus(1, cityInput);
+        markError(cityInput, 'Please enter a city');
+        return;
+      }
+      if (!source) {
+        showInlineMessage('Please select whether this is Human made or AI generated.');
+        goTo(3);
+        return;
+      }
 
+      // Passed validation: proceed to submit
       publishBtn.disabled = true;
       const originalText = publishBtn.textContent;
       publishBtn.textContent = 'Publishing...';
@@ -319,7 +443,7 @@
         window.location.href = `/artwork.html?id=${encodeURIComponent(saved._id)}`;
       } catch (err) {
         console.error(err);
-        alert(err.message || 'Failed to publish');
+        showInlineMessage(err.message || 'Failed to publish');
         publishBtn.disabled = false;
         publishBtn.textContent = originalText;
       }
