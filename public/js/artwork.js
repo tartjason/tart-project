@@ -303,10 +303,23 @@ function renderPoem(container, poem) {
         const followBtn = document.getElementById('follow-btn');
 
         if (!token) {
-            collectBtn.disabled = true;
-            followBtn.disabled = true;
-            collectBtn.title = 'You must be logged in to collect';
-            followBtn.title = 'You must be logged in to follow';
+            // Not logged in: keep buttons clickable and show a login-required notice
+            if (collectBtn) {
+                collectBtn.disabled = false;
+                collectBtn.title = 'Log in to collect this artwork';
+                collectBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showNotice('Please log in to collect this artwork.', 'info');
+                });
+            }
+            if (followBtn) {
+                followBtn.disabled = false;
+                followBtn.title = 'Log in to follow this artist';
+                followBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    showNotice('Please log in to follow this artist.', 'info');
+                });
+            }
         } else {
             // Update button states based on user's status
             updateCollectButton(artwork.collectedBy.includes(currentUserId));
@@ -499,6 +512,63 @@ function updateFollowButton(isFollowing) {
     followBtn.textContent = isFollowing ? 'Following' : 'Follow';
 }
 
+// --- Inline Notification Helper (local copy) ---
+function showNotice(message, type = 'info', timeoutMs) {
+    try {
+        const container = document.getElementById('notice-container') || (function () {
+            const c = document.createElement('div');
+            c.id = 'notice-container';
+            c.style.cssText = 'position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:1100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;';
+            document.body.appendChild(c);
+            return c;
+        })();
+
+        const notice = document.createElement('div');
+        const colors = {
+            success: { bg: 'rgba(22,163,74,0.95)', border: '#16a34a' },
+            error: { bg: 'rgba(220,38,38,0.95)', border: '#dc2626' },
+            info: { bg: 'rgba(51,65,85,0.95)', border: '#334155' }
+        };
+        const palette = colors[type] || colors.info;
+        notice.setAttribute('role', type === 'error' ? 'alert' : 'status');
+        notice.style.cssText = `
+            color: #fff;
+            background: ${palette.bg};
+            border: 1px solid ${palette.border};
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            max-width: 90vw;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateY(-6px);
+            transition: opacity .2s ease, transform .2s ease;
+        `;
+        notice.textContent = String(message || '');
+        container.appendChild(notice);
+
+        requestAnimationFrame(() => {
+            notice.style.opacity = '1';
+            notice.style.transform = 'translateY(0)';
+        });
+
+        const autoTimeout = typeof timeoutMs === 'number' ? timeoutMs : (type === 'error' ? 5000 : 2500);
+        const close = () => {
+            notice.style.opacity = '0';
+            notice.style.transform = 'translateY(-6px)';
+            setTimeout(() => notice.remove(), 200);
+        };
+        const timer = setTimeout(close, autoTimeout);
+        notice.addEventListener('click', () => {
+            clearTimeout(timer);
+            close();
+        });
+    } catch (e) {
+        console.log(`[${type}]`, message);
+    }
+}
+
 async function handleCollect(artworkId, token, currentUserId) {
     try {
         const res = await fetch(`/api/artworks/${artworkId}/collect`, {
@@ -510,7 +580,7 @@ async function handleCollect(artworkId, token, currentUserId) {
         updateCollectButton(updatedArtwork.collectedBy.includes(currentUserId));
     } catch (error) {
         console.error(error);
-        alert(error.message);
+        showNotice(error.message || 'Action failed.', 'error');
     }
 }
 
@@ -528,6 +598,6 @@ async function handleFollow(artistId, token) {
         updateFollowButton(following.includes(artistId));
     } catch (error) {
         console.error(error);
-        alert(error.message);
+        showNotice(error.message || 'Action failed.', 'error');
     }
 }
