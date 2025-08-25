@@ -126,6 +126,13 @@ async function openNotificationsModal() {
                 li.style.gap = '10px';
                 li.style.padding = '8px 0';
 
+                const link = document.createElement('a');
+                link.href = `/account.html?artistId=${encodeURIComponent(String(id))}`;
+                link.style.display = 'flex';
+                link.style.alignItems = 'center';
+                link.style.gap = '10px';
+                link.style.textDecoration = 'none';
+                link.style.color = 'inherit';
                 const img = document.createElement('img');
                 img.src = avatar;
                 img.alt = '';
@@ -137,7 +144,17 @@ async function openNotificationsModal() {
                 const body = document.createElement('div');
                 body.style.flex = '1';
                 const text = document.createElement('div');
-                text.innerHTML = `<strong>${name}</strong> followed you.`;
+                const nameLink = document.createElement('a');
+                nameLink.href = link.href;
+                nameLink.textContent = name;
+                nameLink.style.textDecoration = 'none';
+                nameLink.style.color = 'inherit';
+                text.appendChild(document.createTextNode(' '));
+                text.innerHTML = '';
+                const strong = document.createElement('strong');
+                strong.appendChild(nameLink);
+                text.appendChild(strong);
+                text.appendChild(document.createTextNode(' followed you.'));
                 text.style.fontSize = '14px';
                 const time = document.createElement('div');
                 const when = deriveDateFromFollower(f);
@@ -151,12 +168,17 @@ async function openNotificationsModal() {
                 btn.className = 'btn btn-secondary follow-back-btn';
                 btn.textContent = isFollowingBack ? 'Following' : 'Follow back';
                 btn.style.marginLeft = 'auto';
+                if (isVisitorMode()) {
+                    btn.disabled = true;
+                    btn.title = 'Disabled in visitor view';
+                }
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     await followBackArtist(String(id), btn);
                 });
 
-                li.appendChild(img);
+                link.appendChild(img);
+                li.appendChild(link);
                 li.appendChild(body);
                 li.appendChild(btn);
                 list.appendChild(li);
@@ -191,6 +213,88 @@ async function openNotificationsModal() {
     } catch (e) {
         console.error('Failed to open notifications modal:', e);
         showNotice('Could not open notifications. Please try again.', 'error');
+    }
+}
+
+// Load another artist's public profile when viewing in visitor mode
+async function loadPublicProfileData(artistId) {
+    try {
+        const url = `/api/artists/${encodeURIComponent(String(artistId))}`;
+        const res = await fetch(url);
+        const ct = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
+        if (!res.ok) {
+            let msg = `Failed to fetch public artist (status ${res.status})`;
+            try {
+                if (ct.includes('application/json')) {
+                    const err = await res.json();
+                    if (err && (err.msg || err.message)) msg = err.msg || err.message;
+                } else {
+                    const txt = await res.text();
+                    if (txt) msg += `: ${String(txt).slice(0, 160)}`;
+                }
+            } catch (_) { /* ignore */ }
+            throw new Error(msg);
+        }
+        if (!ct.includes('application/json')) {
+            const txt = await res.text().catch(() => '');
+            throw new Error(`Expected JSON from ${url} but received content-type "${ct}". Preview: ${String(txt).slice(0, 160)}`);
+        }
+        const artist = await res.json();
+
+        // Cache and mark as viewed (visitor)
+        window.__viewedArtist = artist;
+
+        // Populate Profile Header
+        const nameEl = document.getElementById('artist-name');
+        if (nameEl) nameEl.textContent = artist.name || 'Artist';
+        const regionEl = document.getElementById('artist-region');
+        if (regionEl) regionEl.textContent = formatRegion(artist.city, artist.country);
+        const avatarEl = document.querySelector('.profile-avatar');
+        if (avatarEl) avatarEl.src = artist.profilePictureUrl || '/assets/default-avatar.svg';
+
+        // Update connections text with combined unique count
+        const conEl = document.getElementById('artist-connections');
+        if (conEl) {
+            const followerIds = Array.isArray(artist.followers) ? artist.followers.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
+            const followingIds = Array.isArray(artist.following) ? artist.following.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
+            const uniqueCount = new Set([...followerIds, ...followingIds].map(String)).size;
+            conEl.textContent = `${uniqueCount} Connection${uniqueCount === 1 ? '' : 's'}`;
+        }
+
+        // Populate Gallery Tab
+        const galleryContainer = document.getElementById('artist-artworks-container');
+        if (galleryContainer) {
+            galleryContainer.innerHTML = '';
+            if (artist.artworks && artist.artworks.length > 0) {
+                artist.artworks.forEach(aw => {
+                    const card = createArtworkCard(aw, false);
+                    galleryContainer.appendChild(card);
+                });
+            } else {
+                galleryContainer.innerHTML = '<p>No artworks yet.</p>';
+            }
+        }
+
+        // Populate Collection Tab
+        const collectionContainer = document.getElementById('artist-collection-container');
+        if (collectionContainer) {
+            collectionContainer.innerHTML = '';
+            if (artist.collections && artist.collections.length > 0) {
+                artist.collections.forEach(aw => {
+                    const card = createArtworkCard(aw, true);
+                    collectionContainer.appendChild(card);
+                });
+            } else {
+                collectionContainer.innerHTML = '<p>No collections yet.</p>';
+            }
+        }
+    } catch (e) {
+        console.error('Error loading public profile:', e);
+        const nameEl = document.getElementById('artist-name');
+        if (nameEl) nameEl.textContent = 'Artist';
+        const regionEl = document.getElementById('artist-region');
+        if (regionEl) regionEl.textContent = 'City, Country';
+        showNotice((e && e.message) ? e.message : 'Could not load public profile.', 'error');
     }
 }
 
@@ -390,14 +494,14 @@ async function followBackArtist(targetId, button) {
 // --- Connections Modal ---
 async function openConnectionsModal() {
     try {
-        const artist = Object.assign({}, window.__currentArtist || {});
+        const artist = Object.assign({}, (window.__profileIsOwner ? window.__currentArtist : window.__viewedArtist) || {});
         let followers = Array.isArray(artist.followers) ? artist.followers : [];
         let following = Array.isArray(artist.following) ? artist.following : [];
 
         // If arrays contain plain IDs or items without name, refresh from backend to get populated docs
         const needsRefresh = followers.some(x => typeof x === 'string' || (x && !x.name))
             || following.some(x => typeof x === 'string' || (x && !x.name));
-        if (needsRefresh) {
+        if (needsRefresh && window.__profileIsOwner) {
             try {
                 const token = localStorage.getItem('token');
                 if (token) {
@@ -505,6 +609,14 @@ async function openConnectionsModal() {
                 li.style.gap = '10px';
                 li.style.padding = '8px 0';
 
+                const link = document.createElement('a');
+                link.href = `/account.html?artistId=${encodeURIComponent(String(id))}`;
+                link.style.display = 'flex';
+                link.style.alignItems = 'center';
+                link.style.gap = '10px';
+                link.style.textDecoration = 'none';
+                link.style.color = 'inherit';
+
                 const img = document.createElement('img');
                 img.src = avatar;
                 img.alt = '';
@@ -513,12 +625,13 @@ async function openConnectionsModal() {
                 img.style.borderRadius = '50%';
                 img.style.objectFit = 'cover';
 
-                const span = document.createElement('span');
-                span.textContent = name;
-                span.style.flex = '1';
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = name;
+                nameSpan.style.flex = '1';
 
-                li.appendChild(img);
-                li.appendChild(span);
+                link.appendChild(img);
+                link.appendChild(nameSpan);
+                li.appendChild(link);
 
                 // Add toggle only for Following tab
                 if (which === 'following') {
@@ -526,6 +639,10 @@ async function openConnectionsModal() {
                     btn.className = 'btn btn-secondary';
                     btn.textContent = 'Following';
                     btn.style.marginLeft = 'auto';
+                    if (isVisitorMode()) {
+                        btn.disabled = true;
+                        btn.title = 'Disabled in visitor view';
+                    }
                     btn.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         const token = localStorage.getItem('token');
@@ -633,6 +750,40 @@ async function loadPublishedWebsiteInfo() {
     }
 }
 
+// Load published website info for the viewed artist (visitor mode)
+async function loadPublishedWebsiteInfoForViewedArtist(artistId) {
+    const container = document.getElementById('account-published-url');
+    const link = document.getElementById('account-published-url-link');
+    if (!container || !link) return;
+
+    try {
+        const res = await fetch(`/api/public/site-by-artist/${encodeURIComponent(String(artistId))}`);
+        if (!res || !res.ok) {
+            container.style.display = 'none';
+            return;
+        }
+        const data = await res.json();
+        const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
+        let fullUrl = '';
+        const slug = data && data.slug ? String(data.slug).replace(/^\//, '') : '';
+        if (slug) {
+            fullUrl = `${origin}/${slug}`;
+        } else if (data && data.artistId) {
+            // Fallback for environments without slugs: point to static site renderer
+            fullUrl = `${origin}/site.html?site=${encodeURIComponent(String(data.artistId))}`;
+        } else {
+            container.style.display = 'none';
+            return;
+        }
+        link.href = fullUrl;
+        link.textContent = fullUrl;
+        container.style.display = 'block';
+    } catch (e) {
+        console.warn('Failed to load viewed artist website info:', e);
+        container.style.display = 'none';
+    }
+}
+
     // --- Event Listeners (only attach if element exists) ---
     const saveSettingsBtn = document.getElementById('save-settings-btn');
     if (saveSettingsBtn) {
@@ -681,19 +832,51 @@ async function loadPublishedWebsiteInfo() {
 
     // --- Page Specific Loaders ---
     if (document.querySelector('.profile-container')) {
-        // Initialize notifications UI elements on account page
-        initializeNotificationsUi();
-        if (document.getElementById('artist-name')) {
-            loadProfileData();
-            initializeProfilePictureUpload();
-        }
+        const viewedId = getViewedArtistId();
+        // Hide/disable edit & creation controls in visitor mode
+        const profileActions = document.querySelector('.profile-actions');
+        const editBtnHdr = document.getElementById('edit-profile-btn');
+        const avatarOverlay = document.querySelector('.avatar-upload-overlay');
+        const avatarInput = document.getElementById('avatar-upload');
+        const publishedWrap = document.getElementById('account-published-url');
+        const notifBell = document.getElementById('notif-bell');
+        const notifPanel = document.getElementById('notif-panel');
 
-        if (document.getElementById('portfolio-settings-form')) {
-            loadPortfolioData();
-        }
+        if (viewedId) {
+            window.__profileIsOwner = false;
+            // Hide actions not applicable to visitor view
+            if (profileActions) profileActions.style.display = 'none';
+            if (editBtnHdr) editBtnHdr.style.display = 'none';
+            if (avatarOverlay) avatarOverlay.style.display = 'none';
+            if (avatarInput) avatarInput.disabled = true;
+            // Hide notifications bell entirely in visitor view
+            if (notifBell) notifBell.style.display = 'none';
+            if (notifPanel) notifPanel.hidden = true;
 
-        // Always try to show published site URL on account page
-        loadPublishedWebsiteInfo();
+            // Show the visitor's own published site link
+            loadPublishedWebsiteInfoForViewedArtist(viewedId);
+
+            // Load public profile for the viewed artist
+            loadPublicProfileData(viewedId);
+            // Insert and wire follow toggle button near artist name
+            setupVisitorFollowButton(viewedId);
+        } else {
+            window.__profileIsOwner = true;
+            // Initialize notifications UI elements on own profile only
+            initializeNotificationsUi();
+            if (document.getElementById('artist-name')) {
+                loadProfileData();
+                // Only enable avatar upload on own profile
+                initializeProfilePictureUpload();
+            }
+
+            if (document.getElementById('portfolio-settings-form')) {
+                loadPortfolioData();
+            }
+
+            // Only show published URL for own profile
+            loadPublishedWebsiteInfo();
+        }
     }
 });
 
@@ -720,6 +903,104 @@ function openTab(evt, tabName) {
         }
     }
     evt.currentTarget.className += " active";
+}
+
+// --- Visitor Mode Helpers ---
+function getViewedArtistId() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('artistId');
+        return id ? String(id) : null;
+    } catch (_) { return null; }
+}
+
+function isVisitorMode() {
+    return !!getViewedArtistId();
+}
+
+// Insert and manage a follow button in visitor mode
+async function setupVisitorFollowButton(viewedId) {
+    try {
+        const nameRow = document.querySelector('.name-row');
+        if (!nameRow) return;
+
+        // Avoid duplicates
+        let btn = document.getElementById('visitor-follow-btn');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.id = 'visitor-follow-btn';
+            btn.type = 'button';
+            btn.className = 'btn btn-secondary';
+            btn.style.marginLeft = '12px';
+            btn.textContent = 'Follow';
+            // Insert right after the artist name heading
+            const nameEl = document.getElementById('artist-name');
+            if (nameEl && nameEl.parentNode === nameRow) {
+                nameRow.insertBefore(btn, nameEl.nextSibling);
+            } else {
+                nameRow.appendChild(btn);
+            }
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            btn.disabled = true;
+            btn.title = 'Log in to follow';
+            return;
+        }
+
+        // Determine initial follow state
+        let current = window.__currentArtist;
+        if (!current) {
+            try {
+                const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
+                if (res.ok) {
+                    current = await res.json();
+                    window.__currentArtist = current;
+                }
+            } catch (_) {}
+        }
+
+        const currentId = current && (current._id || current.id);
+        if (currentId && String(currentId) === String(viewedId)) {
+            // Should not happen, but guard: cannot follow yourself
+            btn.style.display = 'none';
+            return;
+        }
+
+        const following = Array.isArray(current && current.following) ? current.following.map(a => String(a && (a._id || a.id) ? (a._id || a.id) : a)) : [];
+        let isFollowing = following.includes(String(viewedId));
+        btn.textContent = isFollowing ? 'Following' : 'Follow';
+
+        btn.addEventListener('click', async () => {
+            try {
+                btn.disabled = true;
+                const res = await fetch(`/api/artists/${encodeURIComponent(String(viewedId))}/follow`, {
+                    method: 'PUT',
+                    headers: { 'x-auth-token': token }
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ msg: 'Failed to update follow' }));
+                    throw new Error(err.msg || 'Failed to update follow');
+                }
+                const followingIds = await res.json();
+                isFollowing = Array.isArray(followingIds) && followingIds.map(String).includes(String(viewedId));
+                btn.textContent = isFollowing ? 'Following' : 'Follow';
+                // Update cache for consistency
+                if (window.__currentArtist) {
+                    window.__currentArtist.following = followingIds;
+                }
+                showNotice(isFollowing ? 'You are now following.' : 'You unfollowed.', 'success');
+            } catch (e) {
+                console.error('Follow toggle error:', e);
+                showNotice(e.message || 'Failed to update follow', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    } catch (e) {
+        console.warn('Failed to setup visitor follow button:', e);
+    }
 }
 
 async function loadProfileData() {
@@ -999,11 +1280,16 @@ function createArtworkCard(artwork, showArtistName) {
 
     let artistInfo = `<p><em>${artwork.medium}</em></p>`;
     if (showArtistName && artwork.artist) {
-        artistInfo = `<p><em>${artwork.medium}</em> by ${artwork.artist.name}</p>`;
+        const artistId = (artwork.artist && (artwork.artist._id || artwork.artist.id)) ? (artwork.artist._id || artwork.artist.id) : null;
+        const safeName = escapeHtml(artwork.artist.name || '');
+        const nameHtml = artistId
+            ? `<a href="/account.html?artistId=${encodeURIComponent(String(artistId))}" onclick="event.stopPropagation()">${safeName}</a>`
+            : safeName;
+        artistInfo = `<p><em>${artwork.medium}</em> by ${nameHtml}</p>`;
     }
 
     // Add delete button for user's own artworks (not for collected artworks)
-    const deleteButton = !showArtistName ? `
+    const deleteButton = (!showArtistName && window.__profileIsOwner && !isVisitorMode()) ? `
         <button class="delete-artwork-btn" onclick="deleteArtwork('${artwork._id}', event)" title="Delete artwork">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="3,6 5,6 21,6"></polyline>
@@ -1066,7 +1352,13 @@ function createArtworkCard(artwork, showArtistName) {
     // Add click handler for navigation (but not on delete button)
     card.addEventListener('click', (e) => {
         if (!e.target.closest('.delete-artwork-btn')) {
-            window.location.href = `/artwork.html?id=${artwork._id}`;
+            let href = `/artwork.html?id=${artwork._id}`;
+            const viewed = (typeof window !== 'undefined' && window.__viewedArtist) ? window.__viewedArtist : null;
+            const viewedId = viewed && (viewed._id || viewed.id);
+            if (isVisitorMode() && viewedId) {
+                href += `&artistId=${encodeURIComponent(String(viewedId))}`;
+            }
+            window.location.href = href;
         }
     });
     

@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const params = new URLSearchParams(window.location.search);
     const artworkId = params.get('id');
+    const visitorMode = !!params.get('artistId');
 
     if (!artworkId) {
         document.querySelector('main').innerHTML = '<h1>Artwork not found.</h1>';
@@ -280,14 +281,21 @@ function renderPoem(container, poem) {
 
         // Populate Artist Info
         const artist = artwork.artist;
-        document.getElementById('artist-avatar').src = artist.profilePictureUrl || '/assets/default-avatar.svg';
-        document.getElementById('artist-name').textContent = artist.name;
-        // Artist link removed since public artist profiles don't exist
+        const avatarEl = document.getElementById('artist-avatar');
+        if (avatarEl) avatarEl.src = artist.profilePictureUrl || '/assets/default-avatar.svg';
+        const nameEl = document.getElementById('artist-name');
+        if (nameEl) nameEl.textContent = artist.name;
         const artistLink = document.getElementById('artist-link');
+        const profileUrl = `/account.html?artistId=${encodeURIComponent(String(artist._id))}`;
         if (artistLink) {
-            artistLink.removeAttribute('href');
-            artistLink.style.cursor = 'default';
-            artistLink.style.textDecoration = 'none';
+            artistLink.href = profileUrl;
+            artistLink.style.cursor = 'pointer';
+            artistLink.style.textDecoration = '';
+        }
+        if (nameEl) {
+            nameEl.style.cursor = 'pointer';
+            nameEl.title = 'View artist profile';
+            nameEl.addEventListener('click', () => { window.location.href = profileUrl; });
         }
 
         // Setup Buttons
@@ -311,6 +319,10 @@ function renderPoem(container, poem) {
             // Hide follow button if viewing own profile
             if (artist._id === currentUserId) {
                 followBtn.style.display = 'none';
+            } else if (visitorMode) {
+                // In visitor mode, disable follow actions
+                followBtn.disabled = true;
+                followBtn.title = 'Follow is disabled in visitor mode';
             } else {
                 followBtn.addEventListener('click', () => handleFollow(artist._id, token));
             }

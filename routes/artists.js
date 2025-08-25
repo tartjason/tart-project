@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Artist = require('../models/artist');
 const Follow = require('../models/Follow');
+const Artwork = require('../models/artwork');
 
 // @route   PUT api/artists/:id/follow
 // @desc    Follow or un-follow an artist
@@ -58,6 +59,40 @@ router.put('/:id/follow', auth, async (req, res) => {
             return res.status(404).json({ msg: 'Artist not found' });
         }
         res.status(500).send('Server Error');
+    }
+});
+
+// @route   GET api/artists/:id
+// @desc    Public profile data for any artist by ID
+// @access  Public
+router.get('/:id', async (req, res) => {
+    try {
+        const artist = await Artist.findById(req.params.id)
+            .select('-password')
+            .populate({
+                path: 'collections',
+                populate: {
+                    path: 'artist',
+                    select: 'name'
+                }
+            })
+            .populate('followers', 'name profilePictureUrl')
+            .populate('following', 'name profilePictureUrl');
+
+        if (!artist) {
+            return res.status(404).json({ msg: 'Artist not found' });
+        }
+
+        const artworks = await Artwork.find({ artist: req.params.id }).sort({ date: -1 });
+        const artistObject = artist.toObject();
+        artistObject.artworks = artworks;
+        return res.json(artistObject);
+    } catch (err) {
+        console.error(err.message);
+        if (err && err.kind === 'ObjectId') {
+            return res.status(404).json({ msg: 'Artist not found' });
+        }
+        return res.status(500).send('Server Error');
     }
 });
 
