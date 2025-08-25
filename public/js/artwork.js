@@ -325,12 +325,14 @@ function renderPoem(container, poem) {
             }
         } else {
             // Update button states based on user's status
-            updateCollectButton(artwork.collectedBy.includes(currentUserId));
+            const isCollectedByMe = Array.isArray(artwork.collectedBy) && artwork.collectedBy.some(id => String(id) === String(currentUserId));
+            updateCollectButton(isCollectedByMe);
             
             // Fetch full current user data for following status
             const userRes = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
             const currentUser = await userRes.json();
-            updateFollowButton(currentUser.following.includes(artist._id));
+            const isFollowing = Array.isArray(currentUser.following) && currentUser.following.some(f => String((f && f._id) || f) === String(artist._id));
+            updateFollowButton(isFollowing);
 
             // Hide follow button if viewing own profile
             if (artist._id === currentUserId) {
@@ -673,7 +675,8 @@ async function handleFollow(artistId, token) {
             throw new Error(errData.msg || 'Failed to follow artist');
         }
         const following = await res.json();
-        updateFollowButton(following.includes(artistId));
+        const isFollowingNow = Array.isArray(following) && following.some(id => String(id) === String(artistId));
+        updateFollowButton(isFollowingNow);
     } catch (error) {
         console.error(error);
         showNotice(error.message || 'Action failed.', 'error');

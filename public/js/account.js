@@ -24,7 +24,7 @@ async function openNotificationsModal() {
             try {
                 const token = localStorage.getItem('token');
                 if (token) {
-                    const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
+                    const res = await authFetch('/api/auth/me');
                     if (res.ok) {
                         const fresh = await res.json();
                         window.__currentArtist = fresh;
@@ -41,9 +41,7 @@ async function openNotificationsModal() {
         try {
             const token2 = localStorage.getItem('token');
             if (token2) {
-                const resNotif = await fetch('/api/notifications/followers?limit=50', {
-                    headers: { 'x-auth-token': token2 }
-                });
+                const resNotif = await authFetch('/api/notifications/followers?limit=50');
                 if (resNotif.ok) {
                     const events = await resNotif.json(); // [{ follower: {...}, createdAt }]
                     const notifFollowers = (Array.isArray(events) ? events : []).map(ev => {
@@ -64,9 +62,7 @@ async function openNotificationsModal() {
         try {
             const token3 = localStorage.getItem('token');
             if (token3) {
-                const resColl = await fetch('/api/notifications/collections?limit=50', {
-                    headers: { 'x-auth-token': token3 }
-                });
+                const resColl = await authFetch('/api/notifications/collections?limit=50');
                 if (resColl.ok) {
                     const events = await resColl.json(); // [{ collector, artwork, createdAt }]
                     collections = Array.isArray(events) ? events.filter(ev => ev && ev.collector && ev.artwork) : [];
@@ -512,8 +508,8 @@ async function updateNotifBellIndicator(artist) {
         const token = localStorage.getItem('token');
         if (!token) { bell.removeAttribute('data-has-new'); return; }
         const [resF, resC] = await Promise.all([
-            fetch('/api/notifications/followers?limit=1', { headers: { 'x-auth-token': token } }),
-            fetch('/api/notifications/collections?limit=1', { headers: { 'x-auth-token': token } })
+            authFetch('/api/notifications/followers?limit=1'),
+            authFetch('/api/notifications/collections?limit=1')
         ]);
         let latestMs = 0;
         if (resF && resF.ok) {
@@ -542,9 +538,8 @@ async function followBackArtist(targetId, button) {
     if (!token) { showNotice('You must be logged in to follow artists.', 'error'); return; }
     try {
         if (button) button.disabled = true;
-        const res = await fetch(`/api/artists/${encodeURIComponent(targetId)}/follow`, {
-            method: 'PUT',
-            headers: { 'x-auth-token': token }
+        const res = await authFetch(`/api/artists/${encodeURIComponent(targetId)}/follow`, {
+            method: 'PUT'
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({ msg: 'Failed to update follow' }));
@@ -587,7 +582,7 @@ async function openConnectionsModal() {
             try {
                 const token = localStorage.getItem('token');
                 if (token) {
-                    const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
+                    const res = await authFetch('/api/auth/me');
                     if (res.ok) {
                         const fresh = await res.json();
                         window.__currentArtist = fresh;
@@ -746,9 +741,8 @@ async function openConnectionsModal() {
                         if (!token) { showNotice('You must be logged in to follow artists.', 'error'); return; }
                         btn.disabled = true;
                         try {
-                            const res = await fetch(`/api/artists/${id}/follow`, {
-                                method: 'PUT',
-                                headers: { 'x-auth-token': token }
+                            const res = await authFetch(`/api/artists/${id}/follow`, {
+                                method: 'PUT'
                             });
                             if (!res.ok) {
                                 const err = await res.json().catch(() => ({ msg: 'Failed to update follow' }));
@@ -821,7 +815,7 @@ async function loadPublishedWebsiteInfo() {
     }
 
     try {
-        const res = await fetch('/api/website-state', { headers: { 'x-auth-token': token } });
+        const res = await authFetch('/api/website-state');
         if (!res.ok) {
             container.style.display = 'none';
             return;
@@ -1072,7 +1066,7 @@ async function setupVisitorFollowButton(viewedId) {
         let current = window.__currentArtist;
         if (!current) {
             try {
-                const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
+                const res = await authFetch('/api/auth/me');
                 if (res.ok) {
                     current = await res.json();
                     window.__currentArtist = current;
@@ -1094,9 +1088,8 @@ async function setupVisitorFollowButton(viewedId) {
         btn.addEventListener('click', async () => {
             try {
                 btn.disabled = true;
-                const res = await fetch(`/api/artists/${encodeURIComponent(String(viewedId))}/follow`, {
-                    method: 'PUT',
-                    headers: { 'x-auth-token': token }
+                const res = await authFetch(`/api/artists/${encodeURIComponent(String(viewedId))}/follow`, {
+                    method: 'PUT'
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({ msg: 'Failed to update follow' }));
@@ -1128,7 +1121,7 @@ async function loadProfileData() {
 
     try {
         // Single API call to get all necessary data
-        const res = await fetch('/api/auth/me', { headers: { 'x-auth-token': token } });
+        const res = await authFetch('/api/auth/me');
         if (!res.ok) throw new Error('Failed to fetch artist data');
         const artist = await res.json();
 
@@ -1267,6 +1260,35 @@ function showNotice(message, type = 'info', timeoutMs) {
     }
 }
 
+// --- Centralized authenticated fetch helper ---
+async function authFetch(url, options = {}) {
+    const token = (typeof localStorage !== 'undefined') ? localStorage.getItem('token') : null;
+    const headers = new Headers(options.headers || {});
+    if (token && !headers.has('x-auth-token')) {
+        headers.set('x-auth-token', token);
+    }
+    try {
+        const res = await fetch(url, { ...options, headers });
+        if (res && res.status === 401) {
+            // Handle expired/invalid session globally
+            try {
+                if (!window.__authExpiredHandling) {
+                    window.__authExpiredHandling = true;
+                    if (typeof localStorage !== 'undefined') localStorage.removeItem('token');
+                    showNotice('Session expired. Please log in again.', 'error', 6000);
+                    setTimeout(() => { window.location.href = '/'; }, 1200);
+                }
+            } catch (_) { /* no-op */ }
+            throw new Error('Unauthorized');
+        }
+        return res;
+    } catch (e) {
+        // Network or other error
+        showNotice('Network error. Please try again.', 'error');
+        throw e;
+    }
+}
+
 // --- Settings Modal (Edit Profile inside) ---
 function openEditProfileModal() {
     const modal = document.getElementById('settings-modal');
@@ -1347,11 +1369,10 @@ async function saveProfileChanges() {
     if (!name) { showNotice('Name is required.', 'error'); return; }
 
     try {
-        const res = await fetch('/api/auth/profile', {
+        const res = await authFetch('/api/auth/profile', {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/json',
-                'x-auth-token': token
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({ name, city, country, followersVisible, followingVisible, galleryVisible, collectionVisible })
         });
@@ -1402,9 +1423,9 @@ async function savePrivacySettings() {
         const galleryVisible = !!document.getElementById('privacy-gallery-visible')?.checked;
         const collectionVisible = !!document.getElementById('privacy-collection-visible')?.checked;
 
-        const res = await fetch('/api/auth/profile', {
+        const res = await authFetch('/api/auth/profile', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ followersVisible, followingVisible, galleryVisible, collectionVisible })
         });
         if (!res.ok) {
@@ -1601,10 +1622,9 @@ async function deleteArtwork(artworkId, event) {
         console.log('Token exists:', !!token);
         console.log('DELETE URL:', `/api/artworks/${artworkId}`);
         
-        const response = await fetch(`/api/artworks/${artworkId}`, {
+        const response = await authFetch(`/api/artworks/${artworkId}`, {
             method: 'DELETE',
             headers: {
-                'x-auth-token': token,
                 'Content-Type': 'application/json'
             }
         });
@@ -1774,11 +1794,8 @@ async function uploadProfilePicture(file, modal) {
         formData.append('profilePicture', file);
         
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/auth/profile-picture', {
+        const response = await authFetch('/api/auth/profile-picture', {
             method: 'POST',
-            headers: {
-                'x-auth-token': token
-            },
             body: formData
         });
         
@@ -1810,7 +1827,7 @@ async function loadPortfolioData() {
     if (!token) return;
 
     try {
-        const res = await fetch('/api/portfolios/mine', { headers: { 'x-auth-token': token } });
+        const res = await authFetch('/api/portfolios/mine');
         if (res.status === 404) {
              console.log('No portfolio found for this artist. Form will be blank.');
              return;
@@ -1841,11 +1858,10 @@ async function savePortfolioSettings() {
     };
 
     try {
-        const res = await fetch('/api/portfolios', {
+        const res = await authFetch('/api/portfolios', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'x-auth-token': token,
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(settings),
         });
@@ -1874,11 +1890,8 @@ async function uploadArtwork() {
     formData.append('artworkImage', document.getElementById('artwork-image').files[0]);
 
     try {
-        const res = await fetch('/api/artworks', {
+        const res = await authFetch('/api/artworks', {
             method: 'POST',
-            headers: {
-                'x-auth-token': token,
-            },
             body: formData,
         });
 
