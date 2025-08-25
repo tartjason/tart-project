@@ -212,10 +212,7 @@
     window.renderSideGallery = function(artworks) {
       const sideContainer = document.getElementById('works-side-gallery');
       if (!sideContainer) return;
-      if (!Array.isArray(artworks) || artworks.length === 0) {
-        sideContainer.innerHTML = '<div style="color:#666; padding:8px 0;">No artworks found in your gallery yet.</div>';
-        return;
-      }
+      const noArtworks = !Array.isArray(artworks) || artworks.length === 0;
       const folderKey = self.currentWorksFilter;
       const isHome = self.currentPreviewPage === 'home';
       const selectedArr = isHome
@@ -229,11 +226,11 @@
           <div style="color:#555; font-weight:600;">Your TART gallery</div>
           <div style="color:#999; font-size:0.9rem;">Layout: <span id="works-side-layout-label">${(self.surveyData.layouts && self.surveyData.layouts.works) === 'single' ? 'single focus' : 'grid'}</span></div>
         </div>
-        <div style="color:#666; font-size:12px; margin-bottom:10px;">Select works for this subpage from your TART gallery. Click tiles to add/remove.</div>
+        <div style="color:#666; font-size:12px; margin-bottom:10px;">${noArtworks ? 'No artworks yet. Click the + tile to upload your first artwork.' : 'Select works for this subpage from your TART gallery. Click tiles to add/remove.'}</div>
         <div class="side-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:12px;"></div>
       `;
       const grid = sideContainer.querySelector('.side-grid');
-      artworks.forEach(a => {
+      (Array.isArray(artworks) ? artworks : []).forEach(a => {
         const id = a && a._id;
         const isSel = !!(id && selectedIds.has(id));
         const tile = document.createElement('div');
@@ -250,6 +247,26 @@
         `;
         grid.appendChild(tile);
       });
+
+      // Append upload tile at the end (does not participate in selection logic)
+      const uploadTile = document.createElement('a');
+      uploadTile.className = 'side-upload-tile';
+      uploadTile.href = '/upload.html?fromPreview=1';
+      uploadTile.style.cssText = 'display:block; text-decoration:none; border:2px dashed #ccc; border-radius:10px; background:#fff; color:#666;';
+      uploadTile.innerHTML = `
+        <div style="width:100%; padding-top:100%; position:relative;">
+          <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:6px; color:#999;">
+            <div style="font-size:42px; line-height:1;">+</div>
+            <div style="font-size:13px;">Upload</div>
+          </div>
+        </div>
+      `;
+      uploadTile.addEventListener('mouseenter', () => { uploadTile.style.borderColor = '#999'; });
+      uploadTile.addEventListener('mouseleave', () => { uploadTile.style.borderColor = '#ccc'; });
+      uploadTile.addEventListener('click', () => {
+        try { sessionStorage.setItem('fromPreviewUpload', '1'); } catch (_) {}
+      });
+      grid.appendChild(uploadTile);
 
       // Delegate click handling with quick UI update
       grid.addEventListener('click', (e) => {

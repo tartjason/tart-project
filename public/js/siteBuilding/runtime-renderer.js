@@ -219,6 +219,7 @@
     const tpl = templates.works.grid;
     const selection = (state && Array.isArray(state.worksSelection)) ? state.worksSelection : [];
     const hasSelection = selection.length > 0;
+    const inPreview = (typeof window !== 'undefined' && !!window.PreviewRenderer);
     const gridItems = selection.map(a => {
       const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
       return `
@@ -232,8 +233,21 @@
       </a>
     `;
     }).join('');
-    const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">${config.emptyArtworksMessage}</div>`;
-    return renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
+    // Special upload tile appended at the end to allow adding new artwork
+    const uploadTile = `
+      <a href="/upload.html?fromPreview=1" onclick="try{sessionStorage.setItem('fromPreviewUpload','1')}catch(e){}" style="display:block; text-decoration:none; color:inherit;">
+        <div style="background:#fff;">
+          <div style="height: 180px; border: 2px dashed #ccc; display:flex; align-items:center; justify-content:center; color:#999; font-size:48px; line-height:1;">+</div>
+          <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Upload new</div>
+        </div>
+      </a>
+    `;
+    if (inPreview) {
+      return renderTemplate(tpl, { works_grid_items: hasSelection ? (gridItems + uploadTile) : uploadTile });
+    } else {
+      const emptyMsg = `<div style="grid-column: 1 / -1; text-align:center; color:#999; padding-top:40px;">${config.emptyArtworksMessage}</div>`;
+      return renderTemplate(tpl, { works_grid_items: hasSelection ? gridItems : emptyMsg });
+    }
   }
 
   function renderWorksSingle(state) {

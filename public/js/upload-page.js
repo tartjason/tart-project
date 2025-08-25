@@ -440,7 +440,15 @@
           throw new Error(msg);
         }
         const saved = await res.json();
-        window.location.href = `/artwork.html?id=${encodeURIComponent(saved._id)}`;
+        const srcParams = new URLSearchParams(window.location.search);
+        const fromPreview = srcParams.get('fromPreview') === '1' || srcParams.has('fromPreview') || (() => { try { return sessionStorage.getItem('fromPreviewUpload') === '1'; } catch (_) { return false; } })();
+        // Keep the flag consistent for downstream page load
+        try {
+          if (fromPreview) sessionStorage.setItem('fromPreviewUpload', '1'); else sessionStorage.removeItem('fromPreviewUpload');
+        } catch (_) {}
+        const redirectParams = new URLSearchParams({ id: String(saved._id) });
+        if (fromPreview) redirectParams.set('fromPreview', '1');
+        window.location.href = `/artwork.html?${redirectParams.toString()}`;
       } catch (err) {
         console.error(err);
         showInlineMessage(err.message || 'Failed to publish');

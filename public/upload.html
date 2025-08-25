@@ -6,14 +6,14 @@
     <title>Upload Artwork - Tart</title>
     <link rel="stylesheet" href="css/style.css?v=1.4">
 </head>
-<body class="upload-page">
+  <body class="upload-page">
     <!-- Ambient background (blurred after image upload for non-poetry) -->
     <div id="ambient-bg" aria-hidden="true"></div>
     <header>
-        <div class="header-left">
-            <a href="/account.html" class="header-text-link header-back-link" aria-label="Back to account">&lt;</a>
+      <div class="header-left">
+            <a href="/survey.html" class="header-text-link header-back-link" aria-label="Back to preview">&lt;</a>
             <h1>Upload New Artwork</h1>
-        </div>
+      </div>
     </header>
 
     <main>
@@ -125,5 +125,26 @@
     </main>
     <script src="/js/poem-editor.js?v=1.0"></script>
     <script src="/js/upload-page.js?v=1.3"></script>
-</body>
+    <script>
+      (function(){
+        const back = document.querySelector('.header-back-link');
+        if (back) {
+          back.addEventListener('click', function(e){
+            e.preventDefault();
+            try {
+              const ref = document.referrer || '';
+              const sameOrigin = ref && ref.startsWith(window.location.origin);
+              if (sameOrigin && window.history.length > 1) {
+                window.history.back();
+              } else {
+                window.location.href = '/survey.html';
+              }
+            } catch (err) {
+              window.location.href = '/survey.html';
+            }
+          });
+        }
+      })();
+    </script>
+  </body>
 </html>

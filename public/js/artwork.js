@@ -349,6 +349,28 @@ function renderPoem(container, poem) {
         const isPoetry = (artwork.medium === 'poetry' || hasPoemLines);
         if (isPoetry) {
             setReadyAndReveal();
+            // If user came from preview upload flow, show a success notice with a quick return link
+            let fromPreview = (params.get('fromPreview') === '1');
+            try { if (!fromPreview && sessionStorage.getItem('fromPreviewUpload') === '1') fromPreview = true; } catch (_) {}
+            if (fromPreview) {
+                const n = showNotice('Upload succeeds. Back to Preview.', 'success', 6000);
+                if (n) {
+                    n.style.cursor = 'pointer';
+                    n.setAttribute('role', 'link');
+                    n.title = 'Back to Preview';
+                    n.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        window.location.href = '/survey.html';
+                    });
+                }
+                // Clean the URL so notice doesn't reappear on refresh
+                params.delete('fromPreview');
+                const newQs = params.toString();
+                const cleanUrl = window.location.pathname + (newQs ? ('?' + newQs) : '') + window.location.hash;
+                try { history.replaceState(null, '', cleanUrl); } catch (_) {}
+                // Clear the session flag so it doesn't persist
+                try { sessionStorage.removeItem('fromPreviewUpload'); } catch (_) {}
+            }
         } else {
             const mainImgLoadedEl = document.querySelector('#artwork-image-container img');
             if (mainImgLoadedEl) {
@@ -359,6 +381,28 @@ function renderPoem(container, poem) {
                 ]);
             }
             setReadyAndReveal();
+            // Non-poetry flow: show the preview success notice if applicable
+            let fromPreview = (params.get('fromPreview') === '1');
+            try { if (!fromPreview && sessionStorage.getItem('fromPreviewUpload') === '1') fromPreview = true; } catch (_) {}
+            if (fromPreview) {
+                const n = showNotice('Upload succeeds. Back to Preview.', 'success', 6000);
+                if (n) {
+                    n.style.cursor = 'pointer';
+                    n.setAttribute('role', 'link');
+                    n.title = 'Back to Preview';
+                    n.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        window.location.href = '/survey.html';
+                    });
+                }
+                // Clean the URL so notice doesn't reappear on refresh
+                params.delete('fromPreview');
+                const newQs = params.toString();
+                const cleanUrl = window.location.pathname + (newQs ? ('?' + newQs) : '') + window.location.hash;
+                try { history.replaceState(null, '', cleanUrl); } catch (_) {}
+                // Clear the session flag so it doesn't persist
+                try { sessionStorage.removeItem('fromPreviewUpload'); } catch (_) {}
+            }
         }
 
     } catch (error) {
@@ -596,6 +640,7 @@ function showNotice(message, type = 'info', timeoutMs) {
             clearTimeout(timer);
             close();
         });
+        return notice;
     } catch (e) {
         console.log(`[${type}]`, message);
     }

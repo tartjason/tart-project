@@ -442,8 +442,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorMessage);
             }
 
+            // Try to extract the created artwork id to redirect to its page; fallback to survey preview
+            let saved = null;
+            try {
+                saved = await res.json();
+            } catch (e) {
+                saved = null;
+            }
             alert('Artwork uploaded successfully!');
-            window.location.href = '/account.html';
+            const createdId = saved && (saved._id || saved.id || (saved.data && (saved.data._id || saved.data.id)) || (saved.artwork && (saved.artwork._id || saved.artwork.id)));
+            if (createdId) {
+                window.location.href = `/artwork.html?id=${encodeURIComponent(String(createdId))}`;
+            } else {
+                window.location.href = '/survey.html';
+            }
 
         } catch (error) {
             console.error('Upload error:', error);
