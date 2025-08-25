@@ -84,6 +84,15 @@
     max-width: 100%;
 }
 
+/* Desktop (web): reorder to Settings, Upload, Portfolio Website */
+.profile-actions #edit-profile-btn { order: 1; }
+.profile-actions a[href="/upload.html"] { order: 2; }
+.profile-actions a[href="/survey.html"] { order: 3; }
+
+/* Desktop (web): hide the gear icon; show text label */
+.profile-actions .account-settings-btn svg { display: none; }
+.profile-actions .account-settings-btn .settings-text { display: inline-block; }
+
 /* Desktop: ensure Settings button icon + text are perfectly aligned */
 .profile-actions .account-settings-btn {
     display: inline-flex;            /* align icon + label horizontally */
@@ -93,7 +102,7 @@
     line-height: 1;                  /* avoid baseline misalignment */
 }
 .profile-actions .account-settings-btn svg {
-    display: block;                  /* remove inline SVG baseline gap */
+    display: none;                   /* hide gear icon on desktop/web */
     width: 18px;
     height: 18px;
     flex-shrink: 0;
@@ -354,6 +363,10 @@
       align-items: center;
       justify-content: center; /* center the trio within the frame */
   }
+  /* Mobile: keep source order (Upload, Portfolio Website, Settings) */
+  .profile-actions a[href="/upload.html"] { order: 0 !important; }
+  .profile-actions a[href="/survey.html"] { order: 0 !important; }
+  .profile-actions #edit-profile-btn { order: 0 !important; }
   /* Compact primary buttons so two fit alongside a small icon */
   .profile-actions .account-action-btn {
       flex: 1 1 0; /* grow evenly and use full row width */
@@ -375,6 +388,6 @@
       height: 36px;
       border-radius: 16px;
   }
-  .profile-actions .account-settings-btn svg { width: 18px; height: 18px; }
+  .profile-actions .account-settings-btn svg { display: inline-block; width: 18px; height: 18px; }
   .profile-actions .account-settings-btn .settings-text { display: none; }
 }

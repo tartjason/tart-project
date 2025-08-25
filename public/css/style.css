@@ -79,21 +79,63 @@ header nav[aria-label="Account"] {
     outline-offset: 2px;
 }
 
-/* Back link: slightly taller "<" and no underline on hover */
+/* Back link: geometric arrow with pseudo-element (no text glyph) */
 .header-back-link {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem; /* slightly larger for visibility */
-    line-height: 1;     /* tight line height for clean look */
-    padding: 0.25rem 0.5rem; /* enlarge click target */
-    transform: scaleY(1.2);  /* vertical stretch */
-    transform-origin: center;
+    background: transparent;
+    color: #000000;
+    border: none;
+    padding: 8px;
+    width: 32px;
+    height: 32px;
+    /* hide the literal "<" text while keeping aria-label for a11y */
+    font-size: 0;
+    line-height: 1;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Geometric arrow construction */
+.header-back-link::before {
+    content: '';
+    width: 16px;
+    height: 16px;
+    background: transparent;
+    border-left: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
 }
 
 .header-back-link:hover,
 .header-back-link:focus {
     text-decoration: none; /* override header-text-link hover underline */
+}
+
+/* Interaction states for back link */
+.header-back-link:hover {
+    color: #333333;
+    transform: translateX(-2px); /* Directional hint */
+}
+
+.header-back-link:hover::before {
+    border-color: #333333;
+    transform: rotate(45deg) translateX(-1px);
+}
+
+.header-back-link:active {
+    transform: translateX(0);
+    transition-duration: 0.1s;
+}
+
+.header-back-link:active::before {
+    transform: rotate(45deg) translateX(0);
 }
 
 /* 2) Layout: Main Content */

@@ -305,6 +305,9 @@ async function loadPublicProfileData(artistId) {
         // Populate Profile Header
         const nameEl = document.getElementById('artist-name');
         if (nameEl) nameEl.textContent = artist.name || 'Artist';
+        // Update artworks heading to "<Name>'s Artworks" in visitor mode
+        const artworksHeading = document.getElementById('artworks-heading');
+        if (artworksHeading) artworksHeading.textContent = `${formatPossessive(artist.name)} Artworks`;
         const regionEl = document.getElementById('artist-region');
         if (regionEl) regionEl.textContent = formatRegion(artist.city, artist.country);
         const avatarEl = document.querySelector('.profile-avatar');
@@ -1139,6 +1142,9 @@ async function loadProfileData() {
             window.renderNotificationsFromArtist && window.renderNotificationsFromArtist(artist);
         }
         document.getElementById('artist-name').textContent = artist.name;
+        // Ensure artworks heading is "My Artworks" on own profile
+        const artworksHeading = document.getElementById('artworks-heading');
+        if (artworksHeading) artworksHeading.textContent = 'My Artworks';
         const regionEl = document.getElementById('artist-region');
         if (regionEl) {
             const region = formatRegion(artist.city, artist.country);
@@ -1192,6 +1198,14 @@ function formatRegion(city, country) {
     const co = String(country || '').trim();
     const region = [c, co].filter(Boolean).join(', ');
     return region || 'City, Country';
+}
+
+// Helper: format possessive form of a name (Alex's, Chris')
+function formatPossessive(name) {
+    const n = String(name || '').trim();
+    if (!n) return "Artist's";
+    const endsWithS = /s$/i.test(n);
+    return endsWithS ? `${n}'` : `${n}'s`;
 }
 
 // --- Inline Notification Helper ---
