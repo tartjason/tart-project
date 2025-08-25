@@ -83,9 +83,28 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ msg: 'Artist not found' });
         }
 
+        // Always fetch artworks; we may hide them based on privacy below.
         const artworks = await Artwork.find({ artist: req.params.id }).sort({ date: -1 });
         const artistObject = artist.toObject();
+
+        // Attach artworks by default, then enforce visibility toggles.
         artistObject.artworks = artworks;
+
+        // Enforce privacy: hide sections when respective flags are false.
+        // Note: This endpoint is public; owners should use /api/auth/me which returns full data.
+        if (artistObject && artistObject.followersVisible === false) {
+            artistObject.followers = [];
+        }
+        if (artistObject && artistObject.followingVisible === false) {
+            artistObject.following = [];
+        }
+        if (artistObject && artistObject.galleryVisible === false) {
+            artistObject.artworks = [];
+        }
+        if (artistObject && artistObject.collectionVisible === false) {
+            artistObject.collections = [];
+        }
+
         return res.json(artistObject);
     } catch (err) {
         console.error(err.message);

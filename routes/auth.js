@@ -420,6 +420,15 @@ router.put('/profile', auth, async (req, res) => {
 
         const sanitize = (v) => String(v || '').trim();
         const isNonEmpty = (v) => typeof v === 'string' && v.trim().length > 0;
+        const toBool = (v) => {
+            if (typeof v === 'boolean') return v;
+            if (typeof v === 'string') {
+                const s = v.toLowerCase();
+                return s === 'true' || s === '1' || s === 'yes' || s === 'on';
+            }
+            if (typeof v === 'number') return v === 1;
+            return false;
+        };
 
         if (isNonEmpty(body.name)) {
             const name = sanitize(body.name);
@@ -445,6 +454,20 @@ router.put('/profile', auth, async (req, res) => {
             }
         }
 
+        // Privacy toggles (booleans)
+        if (typeof body.followersVisible !== 'undefined') {
+            set.followersVisible = toBool(body.followersVisible);
+        }
+        if (typeof body.followingVisible !== 'undefined') {
+            set.followingVisible = toBool(body.followingVisible);
+        }
+        if (typeof body.galleryVisible !== 'undefined') {
+            set.galleryVisible = toBool(body.galleryVisible);
+        }
+        if (typeof body.collectionVisible !== 'undefined') {
+            set.collectionVisible = toBool(body.collectionVisible);
+        }
+
         if (Object.keys(set).length === 0 && Object.keys(unset).length === 0) {
             return res.status(400).json({ message: 'No valid fields to update' });
         }
@@ -468,7 +491,11 @@ router.put('/profile', auth, async (req, res) => {
                 name: updated.name,
                 city: updated.city || '',
                 country: updated.country || '',
-                profilePictureUrl: updated.profilePictureUrl
+                profilePictureUrl: updated.profilePictureUrl,
+                followersVisible: updated.followersVisible,
+                followingVisible: updated.followingVisible,
+                galleryVisible: updated.galleryVisible,
+                collectionVisible: updated.collectionVisible
             }
         });
     } catch (err) {

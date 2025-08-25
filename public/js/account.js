@@ -252,20 +252,26 @@ async function loadPublicProfileData(artistId) {
         const avatarEl = document.querySelector('.profile-avatar');
         if (avatarEl) avatarEl.src = artist.profilePictureUrl || '/assets/default-avatar.svg';
 
-        // Update connections text with combined unique count
+        // Update connections text with combined unique count (or hidden)
         const conEl = document.getElementById('artist-connections');
         if (conEl) {
-            const followerIds = Array.isArray(artist.followers) ? artist.followers.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
-            const followingIds = Array.isArray(artist.following) ? artist.following.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
-            const uniqueCount = new Set([...followerIds, ...followingIds].map(String)).size;
-            conEl.textContent = `${uniqueCount} Connection${uniqueCount === 1 ? '' : 's'}`;
+            if (artist.followersVisible === false && artist.followingVisible === false) {
+                conEl.textContent = 'Connections hidden';
+            } else {
+                const followerIds = Array.isArray(artist.followers) ? artist.followers.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
+                const followingIds = Array.isArray(artist.following) ? artist.following.map(a => (a && (a._id || a.id)) ? (a._id || a.id) : String(a)) : [];
+                const uniqueCount = new Set([...followerIds, ...followingIds].map(String)).size;
+                conEl.textContent = `${uniqueCount} Connection${uniqueCount === 1 ? '' : 's'}`;
+            }
         }
 
-        // Populate Gallery Tab
+        // Populate Gallery Tab (respect privacy)
         const galleryContainer = document.getElementById('artist-artworks-container');
         if (galleryContainer) {
             galleryContainer.innerHTML = '';
-            if (artist.artworks && artist.artworks.length > 0) {
+            if (artist.galleryVisible === false) {
+                galleryContainer.innerHTML = '<p>Gallery is hidden by the artist.</p>';
+            } else if (artist.artworks && artist.artworks.length > 0) {
                 artist.artworks.forEach(aw => {
                     const card = createArtworkCard(aw, false);
                     galleryContainer.appendChild(card);
@@ -275,11 +281,13 @@ async function loadPublicProfileData(artistId) {
             }
         }
 
-        // Populate Collection Tab
+        // Populate Collection Tab (respect privacy)
         const collectionContainer = document.getElementById('artist-collection-container');
         if (collectionContainer) {
             collectionContainer.innerHTML = '';
-            if (artist.collections && artist.collections.length > 0) {
+            if (artist.collectionVisible === false) {
+                collectionContainer.innerHTML = '<p>Collection is hidden by the artist.</p>';
+            } else if (artist.collections && artist.collections.length > 0) {
                 artist.collections.forEach(aw => {
                     const card = createArtworkCard(aw, true);
                     collectionContainer.appendChild(card);
@@ -498,6 +506,10 @@ async function openConnectionsModal() {
         let followers = Array.isArray(artist.followers) ? artist.followers : [];
         let following = Array.isArray(artist.following) ? artist.following : [];
 
+        const isOwner = !!window.__profileIsOwner;
+        const followersVisible = isOwner ? true : (artist.followersVisible !== false);
+        const followingVisible = isOwner ? true : (artist.followingVisible !== false);
+
         // If arrays contain plain IDs or items without name, refresh from backend to get populated docs
         const needsRefresh = followers.some(x => typeof x === 'string' || (x && !x.name))
             || following.some(x => typeof x === 'string' || (x && !x.name));
@@ -585,6 +597,21 @@ async function openConnectionsModal() {
         function renderList(which) {
             const data = which === 'following' ? following : followers;
             content.innerHTML = '';
+            // Respect privacy in visitor mode
+            if (!isOwner && which === 'followers' && !followersVisible) {
+                const hidden = document.createElement('p');
+                hidden.textContent = 'Followers are hidden by the artist.';
+                hidden.style.color = '#555';
+                content.appendChild(hidden);
+                return;
+            }
+            if (!isOwner && which === 'following' && !followingVisible) {
+                const hidden = document.createElement('p');
+                hidden.textContent = 'Following is hidden by the artist.';
+                hidden.style.color = '#555';
+                content.appendChild(hidden);
+                return;
+            }
             if (!data || data.length === 0) {
                 const empty = document.createElement('p');
                 empty.textContent = which === 'following' ? 'Not following anyone yet.' : 'No followers yet.';
@@ -683,9 +710,12 @@ async function openConnectionsModal() {
         tabFollowing.addEventListener('click', () => { setActive(tabFollowing); renderList('following'); });
         tabFollowers.addEventListener('click', () => { setActive(tabFollowers); renderList('followers'); });
 
-        // Default to Following tab
-        setActive(tabFollowing);
-        renderList('following');
+        // Default to a visible tab (owner sees both). Prefer Following.
+        let defaultTab = 'following';
+        if (!isOwner && !followingVisible && followersVisible) defaultTab = 'followers';
+        if (!isOwner && !followingVisible && !followersVisible) defaultTab = 'following';
+        setActive(defaultTab === 'following' ? tabFollowing : tabFollowers);
+        renderList(defaultTab);
 
         const actions = document.createElement('div');
         actions.style.cssText = 'margin-top:12px; display:flex; justify-content:flex-end;';
@@ -810,6 +840,25 @@ async function loadPublishedWebsiteInfoForViewedArtist(artistId) {
     if (cancelProfileBtn) cancelProfileBtn.addEventListener('click', closeEditProfileModal);
     const saveProfileBtn = document.getElementById('save-profile-btn');
     if (saveProfileBtn) saveProfileBtn.addEventListener('click', saveProfileChanges);
+    const savePrivacyBtn = document.getElementById('save-privacy-btn');
+    if (savePrivacyBtn) savePrivacyBtn.addEventListener('click', savePrivacySettings);
+
+    // Settings modal: side nav switching and backdrop close
+    const settingsNavItems = document.querySelectorAll('.settings-nav-item');
+    if (settingsNavItems && settingsNavItems.length) {
+        settingsNavItems.forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const target = btn.getAttribute('data-panel') || 'edit';
+                selectSettingsPanel(target);
+            });
+        });
+    }
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal) {
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) closeEditProfileModal();
+        });
+    }
 
     // Connections: open followers/following modal on the paragraph (keep original look)
     const connectionsEl = document.getElementById('artist-connections');
@@ -1137,9 +1186,9 @@ function showNotice(message, type = 'info', timeoutMs) {
     }
 }
 
-// --- Edit Profile Modal Logic ---
+// --- Settings Modal (Edit Profile inside) ---
 function openEditProfileModal() {
-    const modal = document.getElementById('edit-profile-modal');
+    const modal = document.getElementById('settings-modal');
     if (!modal) return;
     const artist = window.__currentArtist || {};
     const nameInput = document.getElementById('edit-name');
@@ -1148,13 +1197,57 @@ function openEditProfileModal() {
     if (nameInput) nameInput.value = artist.name || '';
     if (cityInput) cityInput.value = artist.city || '';
     if (countryInput) countryInput.value = artist.country || '';
+    // Populate Privacy toggles (default true when undefined)
+    const followersCb = document.getElementById('privacy-followers-visible');
+    const followingCb = document.getElementById('privacy-following-visible');
+    const galleryCb = document.getElementById('privacy-gallery-visible');
+    const collectionCb = document.getElementById('privacy-collection-visible');
+    if (followersCb) followersCb.checked = artist.followersVisible !== false;
+    if (followingCb) followingCb.checked = artist.followingVisible !== false;
+    if (galleryCb) galleryCb.checked = artist.galleryVisible !== false;
+    if (collectionCb) collectionCb.checked = artist.collectionVisible !== false;
+    // Ensure Edit panel is active by default when opening
+    selectSettingsPanel('edit');
     modal.style.display = 'flex';
+    // Close on Escape
+    const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); closeEditProfileModal(); } };
+    document.addEventListener('keydown', onKey, { once: true });
 }
 
 function closeEditProfileModal() {
-    const modal = document.getElementById('edit-profile-modal');
+    const modal = document.getElementById('settings-modal');
     if (!modal) return;
     modal.style.display = 'none';
+}
+
+function selectSettingsPanel(panel) {
+    try {
+        const panels = {
+            edit: document.getElementById('settings-panel-edit'),
+            privacy: document.getElementById('settings-panel-privacy')
+        };
+        if (panels.edit && panels.privacy) {
+            // Use flex so the panel fills height and absolute Save button pins to bottom-right
+            panels.edit.style.display = panel === 'edit' ? 'flex' : 'none';
+            panels.privacy.style.display = panel === 'privacy' ? 'flex' : 'none';
+            const privacySave = document.getElementById('privacy-save-anchor');
+            if (privacySave) privacySave.style.display = (panel === 'privacy') ? 'flex' : 'none';
+        }
+        const items = document.querySelectorAll('.settings-nav-item');
+        items.forEach((el) => {
+            const p = el.getAttribute('data-panel');
+            const isActive = (p === panel);
+            if (isActive) {
+                el.classList.add('active');
+                el.style.backgroundColor = '#f3f4f6';
+                el.style.fontWeight = '600';
+            } else {
+                el.classList.remove('active');
+                el.style.backgroundColor = 'transparent';
+                el.style.fontWeight = '400';
+            }
+        });
+    } catch (_) { /* no-op */ }
 }
 
 async function saveProfileChanges() {
@@ -1164,6 +1257,11 @@ async function saveProfileChanges() {
     const name = (document.getElementById('edit-name')?.value || '').trim();
     const city = (document.getElementById('edit-city')?.value || '').trim();
     const country = (document.getElementById('edit-country')?.value || '').trim();
+    // Also include privacy toggles when saving profile (keeps data in sync)
+    const followersVisible = !!(document.getElementById('privacy-followers-visible')?.checked ?? (window.__currentArtist ? (window.__currentArtist.followersVisible !== false) : true));
+    const followingVisible = !!(document.getElementById('privacy-following-visible')?.checked ?? (window.__currentArtist ? (window.__currentArtist.followingVisible !== false) : true));
+    const galleryVisible = !!(document.getElementById('privacy-gallery-visible')?.checked ?? (window.__currentArtist ? (window.__currentArtist.galleryVisible !== false) : true));
+    const collectionVisible = !!(document.getElementById('privacy-collection-visible')?.checked ?? (window.__currentArtist ? (window.__currentArtist.collectionVisible !== false) : true));
 
     if (!name) { showNotice('Name is required.', 'error'); return; }
 
@@ -1174,7 +1272,7 @@ async function saveProfileChanges() {
                 'Content-Type': 'application/json',
                 'x-auth-token': token
             },
-            body: JSON.stringify({ name, city, country })
+            body: JSON.stringify({ name, city, country, followersVisible, followingVisible, galleryVisible, collectionVisible })
         });
 
         if (!res.ok) {
@@ -1191,12 +1289,54 @@ async function saveProfileChanges() {
         if (regionEl) regionEl.textContent = formatRegion(updated.city, updated.country);
         // Cache
         window.__currentArtist = Object.assign({}, window.__currentArtist, updated);
+        // Re-populate toggles to reflect saved values
+        if (document.getElementById('privacy-followers-visible')) {
+            document.getElementById('privacy-followers-visible').checked = (updated.followersVisible !== false);
+        }
+        if (document.getElementById('privacy-following-visible')) {
+            document.getElementById('privacy-following-visible').checked = (updated.followingVisible !== false);
+        }
+        if (document.getElementById('privacy-gallery-visible')) {
+            document.getElementById('privacy-gallery-visible').checked = (updated.galleryVisible !== false);
+        }
+        if (document.getElementById('privacy-collection-visible')) {
+            document.getElementById('privacy-collection-visible').checked = (updated.collectionVisible !== false);
+        }
 
         closeEditProfileModal();
         showNotice('Profile updated', 'success');
     } catch (e) {
         console.error('Save profile error:', e);
         showNotice(e.message || 'Failed to update profile', 'error');
+    }
+}
+
+// Save only privacy toggles from the Privacy & Security panel
+async function savePrivacySettings() {
+    const token = localStorage.getItem('token');
+    if (!token) { showNotice('You must be logged in to update privacy settings.', 'error'); return; }
+    try {
+        const followersVisible = !!document.getElementById('privacy-followers-visible')?.checked;
+        const followingVisible = !!document.getElementById('privacy-following-visible')?.checked;
+        const galleryVisible = !!document.getElementById('privacy-gallery-visible')?.checked;
+        const collectionVisible = !!document.getElementById('privacy-collection-visible')?.checked;
+
+        const res = await fetch('/api/auth/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+            body: JSON.stringify({ followersVisible, followingVisible, galleryVisible, collectionVisible })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ message: 'Failed to update privacy settings' }));
+            throw new Error(err.msg || err.message || 'Failed to update privacy settings');
+        }
+        const data = await res.json();
+        const updated = data.artist || {};
+        window.__currentArtist = Object.assign({}, window.__currentArtist, updated);
+        showNotice('Privacy settings updated', 'success');
+    } catch (e) {
+        console.error('Save privacy error:', e);
+        showNotice(e.message || 'Failed to update privacy settings', 'error');
     }
 }
 

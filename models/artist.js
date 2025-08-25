@@ -51,7 +51,24 @@ const artistSchema = new Schema({
     collections: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Artwork'
-    }]
+    }],
+    // Privacy toggles
+    followersVisible: {
+        type: Boolean,
+        default: true
+    },
+    followingVisible: {
+        type: Boolean,
+        default: true
+    },
+    galleryVisible: {
+        type: Boolean,
+        default: true
+    },
+    collectionVisible: {
+        type: Boolean,
+        default: true
+    }
 });
 
 module.exports = mongoose.models.Artist || mongoose.model('Artist', artistSchema);
