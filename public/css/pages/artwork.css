@@ -8,6 +8,7 @@
     justify-content: space-between;
     align-items: center;
 }
+body.artwork-page .form-textarea::placeholder { color: #999; }
 
 .artwork-page header .tart-wordmark {
     color: #111;
@@ -43,9 +44,14 @@ body.artwork-page.ready .artwork-detail-container {
 }
 
 #artwork-image-container img {
-    width: 100%;
+    max-width: 100%;
+    height: auto;
     border-radius: 8px;
     margin-bottom: 0;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    max-height: 85vh; /* prevent overly tall artworks from dominating the page */
 }
 
 .artwork-meta {
@@ -99,7 +105,7 @@ body.artwork-page.ready .artwork-detail-container {
 }
 
 .artwork-inspiration h3 {
-    margin-bottom: 0.5rem;
+    margin: 0 0 0.5rem 0; /* zero top margin to match divider spacing */
 }
 
 .artwork-inspiration p {
@@ -297,9 +303,14 @@ body.artwork-page {
     margin-bottom: var(--artwork-gap-bottom);
 }
 #artwork-image-container img {
-    width: 100%;
+    max-width: 100%;
+    height: auto;
     border-radius: 8px;
     margin-bottom: 0; /* spacing handled by container now */
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    max-height: 85vh; /* prevent overly tall artworks from dominating the page */
 }
 /* Poetry mode should keep normal document flow; center horizontally via width + auto margins */
 body.poetry-mode .artwork-detail-container {
@@ -320,4 +331,234 @@ body.poetry-mode #poem-container {
 /* In poetry mode, only hide the image; keep meta/description/footer visible */
 body.poetry-mode #artwork-image-container {
     display: none !important;
+}
+
+/* ---------------- Comments Section (AREA17-inspired) ---------------- */
+body.artwork-page .comments-section {
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 16px 32px 32px;
+    margin-top: 0;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+
+body.artwork-page .comments-header {
+    /* Match the Description <h3> heading style */
+    margin: 1.5rem 0 0 0;
+    font-weight: 700; /* default bold for headings */
+    color: #000000;
+}
+
+body.artwork-page .comment-form {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #e1e1e1;
+}
+
+body.artwork-page .form-group { margin-bottom: 16px; }
+
+body.artwork-page .form-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 16px;
+    line-height: 1.6; /* match global body line-height */
+    letter-spacing: -0.01em;
+    color: inherit; /* match global body color */
+    background: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s ease;
+    min-height: 80px;
+    resize: vertical;
+}
+body.artwork-page .form-textarea:focus {
+    outline: none;
+    border-color: #000000;
+    background: rgba(255, 255, 255, 0.65);
+}
+
+body.artwork-page .submit-btn {
+    display: inline-block;
+    background: #000000;
+    color: #ffffff;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+body.artwork-page .submit-btn:hover { background: #333333; transform: translateY(-1px); }
+body.artwork-page .submit-btn:active { transform: translateY(0); transition-duration: 0.1s; }
+body.artwork-page .submit-btn:focus-visible { outline: 1px solid #000; outline-offset: 4px; }
+
+body.artwork-page .comments-list { list-style: none; padding-left: 0; }
+body.artwork-page .comment-item {
+    padding: 20px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.6);
+    position: relative;
+}
+body.artwork-page .comment-item:last-child { margin-bottom: 0; }
+
+body.artwork-page .comment-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+body.artwork-page .comment-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #333333;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+body.artwork-page .comment-info { flex: 1; min-width: 0; }
+body.artwork-page .comment-author { font-size: 14px; font-weight: 500; color: #000; display: block; margin-bottom: 2px; }
+body.artwork-page .comment-date { font-size: 12px; color: #666; display: block; }
+
+body.artwork-page .comment-heart {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    color: #666666;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 16px;
+    line-height: 1;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+}
+body.artwork-page .comment-heart:hover { color: #ff4757; transform: scale(1.1); }
+body.artwork-page .comment-heart.liked { color: #ff4757; }
+body.artwork-page .comment-heart .heart-icon { line-height: 1; display: block; font-family: 'Helvetica Neue', Arial, sans-serif; }
+/* Unliked: outline only; inherits color for hover */
+body.artwork-page .comment-heart .heart-shape { fill: none; stroke: currentColor; stroke-width: 2; }
+/* Liked: filled */
+body.artwork-page .comment-heart.liked .heart-shape { fill: currentColor; }
+body.artwork-page .heart-count { font-size: 10px; color: #999; min-height: 12px; line-height: 1; font-weight: 400; letter-spacing: 0; font-family: 'Helvetica Neue', Arial, sans-serif; }
+body.artwork-page .comment-heart.liked .heart-count { color: #ff4757; }
+
+body.artwork-page .comment-content { font-size: 16px; color: #333; line-height: 1.5; letter-spacing: -0.01em; margin-bottom: 12px; }
+
+body.artwork-page .comment-actions { display: flex; gap: 16px; }
+body.artwork-page .comment-action {
+    background: transparent;
+    color: #666;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+body.artwork-page .comment-action:hover { color: #000; transform: translateY(-1px); }
+body.artwork-page .comment-action:active { transform: translateY(0); }
+
+body.artwork-page .reply-form {
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 6px;
+    display: none;
+}
+body.artwork-page .reply-form.active { display: block; }
+body.artwork-page .reply-form .form-textarea {
+    min-height: 60px;
+    background: rgba(255, 255, 255, 0.6);
+    font-family: inherit;
+    font-size: 14px; /* smaller than top-level comment editor */
+    line-height: 1.6;
+    color: inherit;
+}
+body.artwork-page .reply-form .submit-btn { padding: 8px 16px; font-size: 14px; }
+
+body.artwork-page .replies-container {
+    margin-top: 16px;
+    margin-left: 24px;
+    padding-left: 16px;
+    border-left: 2px solid #f0f0f0;
+}
+body.artwork-page .reply-comment { padding: 16px 0; border-bottom: 1px solid #f8f8f8; }
+body.artwork-page .reply-comment:last-child { border-bottom: none; padding-bottom: 0; }
+body.artwork-page .reply-comment .comment-header { margin-bottom: 8px; }
+body.artwork-page .reply-comment .comment-avatar { width: 24px; height: 24px; font-size: 10px; }
+body.artwork-page .reply-comment .comment-author { font-size: 13px; color: #666; }
+body.artwork-page .reply-comment .comment-date { font-size: 11px; color: #999; }
+body.artwork-page .reply-comment .comment-content { font-size: 14px; color: #444; margin-bottom: 8px; margin-left: 36px; }
+body.artwork-page .reply-comment .comment-actions { gap: 12px; margin-left: 36px; }
+body.artwork-page .reply-comment .comment-action { font-size: 11px; }
+body.artwork-page .reply-comment .comment-heart { font-size: 14px; }
+body.artwork-page .reply-comment .heart-count { font-size: 9px; }
+body.artwork-page .reply-comment .reply-form { margin-left: 36px; padding: 12px; background: rgba(255, 255, 255, 0.6); }
+body.artwork-page .reply-comment .reply-form .submit-btn { padding: 6px 12px; font-size: 12px; }
+
+body.artwork-page .comments-empty { text-align: center; padding: 40px 20px; color: #666; font-size: 16px; }
+body.artwork-page .comments-loading { display: flex; align-items: center; justify-content: center; padding: 40px; color: #666; }
+body.artwork-page .loading-spinner { width: 16px; height: 16px; border: 2px solid transparent; border-top-color: #000; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Skeleton loading (for comments) */
+body.artwork-page .comment-item.skeleton { pointer-events: none; border-color: #f3f3f3; }
+body.artwork-page .skeleton-box {
+    position: relative;
+    overflow: hidden;
+    background: #f3f3f3;
+    border-radius: 6px;
+}
+body.artwork-page .skeleton-box::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.6), rgba(255,255,255,0));
+    animation: skeleton-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer { 100% { transform: translateX(100%); } }
+
+/* Comments pagination */
+body.artwork-page .comments-load-more { display: flex; justify-content: center; margin-top: 8px; }
+body.artwork-page .load-more-btn {
+    background: #f6f6f6;
+    color: #333;
+    border: 1px solid #e1e1e1;
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+body.artwork-page .load-more-btn:hover { background: #eeeeee; transform: translateY(-1px); }
+body.artwork-page .load-more-btn:active { transform: translateY(0); }
+body.artwork-page .load-more-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
+
+@media (max-width: 768px) {
+  body.artwork-page .comments-section { padding: 16px 16px 24px; margin-left: -16px; margin-right: -16px; }
+  body.artwork-page .comment-item { padding: 16px; }
+  body.artwork-page .replies-container { margin-left: 16px; padding-left: 12px; }
+  body.artwork-page .reply-comment { padding: 12px 0; }
+  body.artwork-page .reply-comment .comment-content { font-size: 13px; margin-left: 32px; }
+  body.artwork-page .reply-comment .comment-actions { margin-left: 32px; }
+  body.artwork-page .reply-comment .reply-form { margin-left: 32px; }
+  body.artwork-page .comment-avatar { width: 28px; height: 28px; font-size: 11px; }
+  body.artwork-page .reply-comment .comment-avatar { width: 20px; height: 20px; font-size: 9px; }
+  /* Avoid iOS zoom on focus by keeping textarea >=16px on mobile */
+  body.artwork-page .reply-form .form-textarea { font-size: 16px; }
 }

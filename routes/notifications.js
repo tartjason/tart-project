@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Follow = require('../models/Follow');
 const Collect = require('../models/Collect');
+const CommentNotification = require('../models/CommentNotification');
 
 // GET /api/notifications/followers
 // Returns recent followers (who followed the current user), newest first
@@ -66,6 +67,49 @@ router.get('/collections', auth, async (req, res) => {
   } catch (e) {
     console.error('Collections notifications fetch error:', e);
     res.status(500).json({ msg: 'Failed to fetch collection notifications' });
+  }
+});
+
+// GET /api/notifications/comments
+// Returns recent comment/reply notifications (likes and replies), newest first
+router.get('/comments', auth, async (req, res) => {
+  try {
+    const userId = req.artist.id;
+    let limit = parseInt(req.query.limit, 10);
+    if (isNaN(limit)) limit = 20;
+    limit = Math.max(1, Math.min(100, limit));
+
+    const docs = await CommentNotification.find({ toArtist: userId })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate('fromArtist', 'name profilePictureUrl')
+      .populate({
+        path: 'commentId',
+        select: 'artworkId',
+        populate: { path: 'artworkId', select: 'title' }
+      });
+
+    const out = docs.map(d => ({
+      type: d.type, // 'reply' | 'like'
+      targetType: d.targetType, // 'comment' | 'reply'
+      fromArtist: d.fromArtist ? {
+        _id: d.fromArtist._id,
+        name: d.fromArtist.name,
+        profilePictureUrl: d.fromArtist.profilePictureUrl,
+      } : null,
+      commentId: d.commentId,
+      replyId: d.replyId,
+      artwork: (d.commentId && d.commentId.artworkId) ? {
+        _id: d.commentId.artworkId._id,
+        title: d.commentId.artworkId.title,
+      } : null,
+      createdAt: d.createdAt,
+    }));
+
+    res.json(out);
+  } catch (e) {
+    console.error('Comment notifications fetch error:', e);
+    res.status(500).json({ msg: 'Failed to fetch comment notifications' });
   }
 });
 

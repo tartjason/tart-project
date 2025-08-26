@@ -54,7 +54,7 @@
                 </div>
                 <div class="artist-info-footer">
                     <a href="#" id="artist-link">
-                        <img src="/assets/default-avatar.png" alt="Artist Avatar" id="artist-avatar">
+                        <img src="/assets/default-avatar.svg" alt="Artist Avatar" id="artist-avatar">
                     </a>
                     <div class="artist-details">
                         <span id="artist-name"></span>
@@ -62,6 +62,25 @@
                     </div>
                 </div>
             </div>
+            
+            <div class="section-divider"></div>
+
+            <!-- Comments Section (AREA17-inspired) -->
+            <h3 class="comments-header">Comments</h3>
+            <section class="comments-section" id="comments-section">
+
+                <!-- Comment Form -->
+                <form class="comment-form" id="comment-form">
+                    <div class="form-group">
+                        <textarea id="comment-text" class="form-textarea" required placeholder="Share your thoughts..."></textarea>
+                    </div>
+                    <button type="submit" class="submit-btn">Post Comment</button>
+                </form>
+
+                <!-- Comments List -->
+                <ul class="comments-list" id="comments-list"></ul>
+                <div class="comments-empty" id="comments-empty" hidden>No comments yet.</div>
+            </section>
         </div>
     </main>
 

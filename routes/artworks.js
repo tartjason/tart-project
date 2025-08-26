@@ -4,6 +4,8 @@ const auth = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const { putBuffer, getUploadsKey, getPublicUrl, deleteObject } = require('../utils/s3');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
 
 // Debug middleware to log all requests
 router.use((req, res, next) => {
@@ -15,6 +17,59 @@ router.use((req, res, next) => {
 const Artwork = require('../models/artwork');
 const Artist = require('../models/artist');
 const Collect = require('../models/Collect');
+const Comment = require('../models/comment');
+const CommentNotification = require('../models/CommentNotification');
+
+// --- Comments helpers ---
+function toAuthorShape(artistDoc) {
+    if (!artistDoc) return undefined;
+    const a = (typeof artistDoc.toObject === 'function') ? artistDoc.toObject() : artistDoc;
+    return { _id: String(a._id), username: a.username, name: a.name, profilePictureUrl: a.profilePictureUrl };
+}
+function toReplyShape(reply, currentUserId) {
+    const r = (typeof reply.toObject === 'function') ? reply.toObject() : reply;
+    const likes = Array.isArray(r.likes) ? r.likes : [];
+    const likedByMe = currentUserId ? likes.some(id => String(id) === String(currentUserId)) : false;
+    return {
+        _id: String(r._id),
+        author: toAuthorShape(r.author),
+        text: r.text,
+        likesCount: likes.length,
+        likedByMe,
+        createdAt: r.createdAt
+    };
+}
+function toCommentShape(doc, currentUserId) {
+    const c = (typeof doc.toObject === 'function') ? doc.toObject() : doc;
+    const likes = Array.isArray(c.likes) ? c.likes : [];
+    const likedByMe = currentUserId ? likes.some(id => String(id) === String(currentUserId)) : false;
+    // ensure replies oldest-first
+    const repliesArr = Array.isArray(c.replies) ? [...c.replies] : [];
+    repliesArr.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const replies = repliesArr.map(r => toReplyShape(r, currentUserId));
+    return {
+        _id: String(c._id),
+        artworkId: String(c.artworkId),
+        author: toAuthorShape(c.author),
+        text: c.text,
+        likesCount: likes.length,
+        likedByMe,
+        repliesCount: replies.length,
+        replies,
+        createdAt: c.createdAt
+    };
+}
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret';
+function getCurrentUserIdFromReq(req) {
+    try {
+        const token = req.header('x-auth-token');
+        if (!token) return null;
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (decoded && typeof decoded === 'object' && decoded.artist && decoded.artist.id) return decoded.artist.id;
+        return null;
+    } catch (_) { return null; }
+}
 
 // --- Multer Setup for File Uploads (memory storage; upload to S3) ---
 const storage = multer.memoryStorage();
@@ -157,6 +212,83 @@ router.get('/user', auth, async (req, res) => {
 // @route   GET api/artworks/:id
 // @desc    Get a single artwork by ID
 // @access  Public
+// --- Comments: list top-level comments for an artwork (newest-first, cursor by createdAt) ---
+router.get('/:artworkId/comments', async (req, res) => {
+    try {
+        const { artworkId } = req.params;
+        if (!mongoose.isValidObjectId(artworkId)) return res.status(404).json({ msg: 'Artwork not found' });
+        const limitRaw = Number(req.query.limit);
+        const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(50, limitRaw)) : 10;
+        const cursorStr = req.query.cursor ? String(req.query.cursor) : null;
+        let cursorDate = null;
+        if (cursorStr) {
+            const t = new Date(cursorStr);
+            if (!isNaN(t.getTime())) cursorDate = t;
+        }
+
+        // verify artwork existence (optional but helpful)
+        const art = await Artwork.findById(artworkId).select('_id');
+        if (!art) return res.status(404).json({ msg: 'Artwork not found' });
+
+        const filter = { artworkId };
+        if (cursorDate) filter.createdAt = { $lt: cursorDate };
+
+        const docs = await Comment.find(filter)
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .populate('author', 'name username profilePictureUrl')
+            .populate('replies.author', 'name username profilePictureUrl');
+
+        const currentUserId = getCurrentUserIdFromReq(req);
+        const comments = docs.map(d => toCommentShape(d, currentUserId));
+        const last = comments[comments.length - 1];
+        const nextCursor = last ? last.createdAt : null;
+        return res.json({ comments, nextCursor });
+    } catch (err) {
+        console.error('Error listing artwork comments:', err);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+// --- Comments: create a new top-level comment on artwork ---
+router.post('/:artworkId/comments', auth, async (req, res) => {
+    try {
+        const { artworkId } = req.params;
+        if (!mongoose.isValidObjectId(artworkId)) return res.status(404).json({ msg: 'Artwork not found' });
+        const text = String((req.body && req.body.text) || '').trim();
+        if (!text) return res.status(400).json({ msg: 'Text is required' });
+
+        const art = await Artwork.findById(artworkId);
+        if (!art) return res.status(404).json({ msg: 'Artwork not found' });
+
+        const doc = new Comment({ artworkId, author: req.artist.id, text });
+        await doc.save();
+        // Notify artwork owner when someone comments on their artwork (but not on replies)
+        try {
+            const me = req.artist.id;
+            const toArtist = art.artist;
+            if (toArtist && String(toArtist) !== String(me)) {
+                await CommentNotification.create({
+                    toArtist: toArtist,
+                    fromArtist: me,
+                    type: 'comment',
+                    targetType: 'comment',
+                    commentId: doc._id,
+                });
+            }
+        } catch (notifyErr) {
+            console.warn('Artwork comment notification error (non-fatal):', notifyErr && notifyErr.message ? notifyErr.message : notifyErr);
+        }
+        const saved = await Comment.findById(doc._id)
+            .populate('author', 'name username profilePictureUrl')
+            .populate('replies.author', 'name username profilePictureUrl');
+        return res.status(201).json({ comment: toCommentShape(saved, req.artist.id) });
+    } catch (err) {
+        console.error('Error creating comment:', err);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 router.get('/:id', async (req, res) => {
     try {
         const artwork = await Artwork.findById(req.params.id)

@@ -39,6 +39,7 @@ app.use('/api/artists', require('./routes/artists'));
 app.use('/api/website-state', require('./routes/websiteState'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/comments', require('./routes/comments'));
 // Uploads (images to S3/CDN)
 app.use('/api/uploads', require('./routes/uploads'));
 

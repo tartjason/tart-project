@@ -26,8 +26,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     e.preventDefault();
                     localStorage.removeItem('token');
                     window.location.reload();
-                });
+                }); 
             }
+ 
+// ---------------- Comments UI (frontend only, to be wired to API later) ----------------
+ 
             const wrapper = document.getElementById('header-avatar-wrapper');
             const avatarImg = document.getElementById('header-avatar');
             if (wrapper && avatarImg) {
@@ -348,6 +351,9 @@ function renderPoem(container, poem) {
             collectBtn.addEventListener('click', () => handleCollect(artwork._id, token, currentUserId));
         }
 
+        // Initialize Comments UI (frontend-only for now)
+        initCommentsUI({ artworkId: artwork._id, token, currentUserId, artistId: artist._id });
+
         // Ready gate: reveal once content and first image (if any) are loaded
         const isPoetry = (artwork.medium === 'poetry' || hasPoemLines);
         if (isPoetry) {
@@ -544,12 +550,14 @@ function markArtworkPageForReveal() {
     const desc = document.querySelector('.artwork-inspiration');
     const metrics = document.getElementById('artwork-metrics');
     const footer = document.querySelector('.artwork-footer');
+    const comments = document.getElementById('comments-section');
     if (img && img.offsetParent !== null) els.push(img);
     if (poem && poem.hidden === false) els.push(poem);
     if (title) els.push(title);
     if (desc && desc.style.display !== 'none') els.push(desc);
     if (metrics && metrics.hidden === false) els.push(metrics);
     if (footer) els.push(footer);
+    if (comments) els.push(comments);
     els.forEach((el, i) => {
         el.classList.remove('fade-in');
         el.classList.add('will-reveal');
@@ -647,6 +655,544 @@ function showNotice(message, type = 'info', timeoutMs) {
     } catch (e) {
         console.log(`[${type}]`, message);
     }
+}
+
+// ---------------- Comments UI (frontend only, to be wired to API later) ----------------
+function initCommentsUI(ctx) {
+    try {
+        const form = document.getElementById('comment-form');
+        const textarea = document.getElementById('comment-text');
+        const list = document.getElementById('comments-list');
+        const empty = document.getElementById('comments-empty');
+
+        // Empty state visibility
+        if (list && empty) empty.hidden = list.children.length > 0;
+
+        if (form) {
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const body = (textarea && textarea.value ? textarea.value.trim() : '');
+                if (!ctx.token) {
+                    showNotice('Please log in to post a comment.', 'info');
+                    return;
+                }
+                if (!body) {
+                    showNotice('Please enter a comment.', 'info');
+                    return;
+                }
+                try {
+                    const created = await postComment(ctx.artworkId, ctx.token, body);
+                    if (!created) throw new Error('Failed to post comment');
+                    const listEl = document.getElementById('comments-list');
+                    if (listEl) {
+                        const el = renderCommentItem(created, ctx);
+                        listEl.insertBefore(el, listEl.firstChild);
+                    }
+                    if (textarea) textarea.value = '';
+                    const empty = document.getElementById('comments-empty');
+                    if (empty) empty.hidden = true;
+                } catch (err) {
+                    console.error(err);
+                    showNotice(err.message || 'Failed to post comment', 'error');
+                }
+            });
+        }
+
+        if (list) {
+            list.addEventListener('click', async (e) => {
+                const heartBtn = e.target.closest('.comment-heart');
+                if (heartBtn) {
+                    e.preventDefault();
+                    if (!ctx.token) {
+                        showNotice('Please log in to like comments.', 'info');
+                        return;
+                    }
+                    const item = e.target.closest('.comment-item, .reply-comment');
+                    if (!item) return;
+                    const id = item.dataset.id;
+                    const willLike = !heartBtn.classList.contains('liked');
+                    // optimistic update
+                    const countEl = heartBtn.querySelector('.heart-count');
+                    let prev = 0;
+                    if (countEl) {
+                        const parsed = parseInt(countEl.textContent || '0', 10);
+                        prev = isNaN(parsed) ? 0 : parsed;
+                    }
+                    heartBtn.classList.toggle('liked', willLike);
+                    if (countEl) countEl.textContent = String(Math.max(0, willLike ? prev + 1 : prev - 1));
+                    try {
+                        const res = await toggleLike(id, ctx.token, willLike);
+                        if (res) {
+                            heartBtn.classList.toggle('liked', !!res.likedByMe);
+                            if (countEl) countEl.textContent = String(res.likesCount ?? prev);
+                        }
+                    } catch (err) {
+                        // revert on error
+                        heartBtn.classList.toggle('liked', !willLike);
+                        if (countEl) countEl.textContent = String(prev);
+                        showNotice('Failed to update like.', 'error');
+                    }
+                    return;
+                }
+
+                const replyBtn = e.target.closest('[data-action="reply"]');
+                if (replyBtn) {
+                    e.preventDefault();
+                    const item = e.target.closest('.comment-item, .reply-comment');
+                    if (!item) return;
+                    let replyForm = item.querySelector(':scope > .reply-form');
+                    if (!replyForm) {
+                        replyForm = createReplyForm();
+                        item.appendChild(replyForm);
+                    }
+                    replyForm.classList.toggle('active');
+                    const t = replyForm.querySelector('textarea');
+                    if (t && replyForm.classList.contains('active')) t.focus();
+                    return;
+                }
+
+                const deleteBtn = e.target.closest('[data-action="delete"]');
+                if (deleteBtn) {
+                    e.preventDefault();
+                    if (!ctx.token) {
+                        showNotice('Please log in to delete comments.', 'info');
+                        return;
+                    }
+                    const item = e.target.closest('.comment-item, .reply-comment');
+                    if (!item) return;
+                    const id = item.dataset.id;
+                    const ok = confirm('Delete this comment?');
+                    if (!ok) return;
+                    try {
+                        await deleteCommentOrReply(id, ctx.token);
+                        // remove from DOM
+                        if (item.classList.contains('comment-item')) {
+                            const listEl = document.getElementById('comments-list');
+                            item.remove();
+                            // update empty state if needed
+                            if (listEl && listEl.children.length === 0) {
+                                const empty = document.getElementById('comments-empty');
+                                if (empty) empty.hidden = false;
+                            }
+                        } else {
+                            // reply
+                            const container = item.parentElement;
+                            item.remove();
+                            if (container && container.classList.contains('replies-container') && container.children.length === 0) {
+                                container.remove();
+                            }
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        showNotice('Failed to delete.', 'error');
+                    }
+                    return;
+                }
+            });
+        }
+
+        function createReplyForm() {
+            const f = document.createElement('form');
+            f.className = 'reply-form';
+            f.innerHTML = `
+                <div class="form-group">
+                    <textarea class="form-textarea" placeholder="Write a reply..."></textarea>
+                </div>
+                <button type="submit" class="submit-btn">Reply</button>
+            `;
+            f.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const body = (f.querySelector('textarea')?.value || '').trim();
+                if (!ctx.token) {
+                    showNotice('Please log in to reply.', 'info');
+                    return;
+                }
+                if (!body) {
+                    showNotice('Please enter a reply.', 'info');
+                    return;
+                }
+                try {
+                    const triggerItem = f.closest('.comment-item, .reply-comment');
+                    const commentItem = triggerItem?.closest('.comment-item');
+                    const parentId = commentItem?.dataset?.id;
+                    if (!parentId) throw new Error('Missing parent');
+                    // If replying to a reply, enforce prefix "Reply {Name}: " before sending
+                    let sendText = body;
+                    if (triggerItem && triggerItem.classList.contains('reply-comment')) {
+                        const nameEl = triggerItem.querySelector('.comment-author');
+                        const targetName = (nameEl && nameEl.textContent ? nameEl.textContent.trim() : '');
+                        if (targetName) {
+                            const prefix = `Reply ${targetName}: `;
+                            const normalized = sendText.toLowerCase();
+                            if (!normalized.startsWith(prefix.toLowerCase())) {
+                                sendText = prefix + sendText;
+                            }
+                        }
+                    }
+                    const created = await postReply(parentId, ctx.token, sendText);
+                    if (!created) throw new Error('Failed to post reply');
+                    let replies = commentItem?.querySelector(':scope > .replies-container');
+                    if (!replies) {
+                        replies = document.createElement('div');
+                        replies.className = 'replies-container';
+                        commentItem?.appendChild(replies);
+                    }
+                    if (replies) replies.appendChild(renderReplyItem(created, ctx));
+                    const t = f.querySelector('textarea');
+                    if (t) t.value = '';
+                    f.classList.remove('active');
+                } catch (err) {
+                    console.error(err);
+                    showNotice(err.message || 'Failed to post reply', 'error');
+                }
+            });
+            return f;
+        }
+    } catch (e) {
+        /* no-op */
+    }
+    // Load and render comments (read-only for now)
+    try { loadAndRenderComments(ctx); } catch (_) { /* ignore */ }
+}
+
+// Fetch and render helpers (Phase 1 – read-only)
+async function loadAndRenderComments(ctx) {
+    const list = document.getElementById('comments-list');
+    const empty = document.getElementById('comments-empty');
+    if (!list) return;
+    // init pagination state
+    ctx._comments = { items: [], cursor: null, hasMore: false };
+    // show lightweight skeletons during first fetch
+    showCommentsLoading(list, 2);
+    await loadCommentsPage(ctx, { initial: true });
+    if (empty) empty.hidden = (ctx._comments.items.length > 0);
+}
+
+async function loadCommentsPage(ctx, { initial = false } = {}) {
+    const list = document.getElementById('comments-list');
+    if (!list) return;
+    const pageSize = 10;
+    const res = await fetchComments(ctx.artworkId, ctx.token, ctx._comments.cursor, pageSize);
+    const comments = Array.isArray(res) ? res : (Array.isArray(res?.comments) ? res.comments : []);
+    const nextCursor = (res && typeof res === 'object' && ('nextCursor' in res)) ? res.nextCursor : null;
+    if (initial) list.innerHTML = '';
+    comments.forEach(c => {
+        const el = renderCommentItem(c, ctx);
+        list.appendChild(el);
+    });
+    // update state
+    ctx._comments.items.push(...comments);
+    ctx._comments.cursor = nextCursor || null;
+    ctx._comments.hasMore = !!nextCursor && comments.length >= 1;
+    ensureLoadMoreButton(ctx);
+}
+
+function showCommentsLoading(list, count = 2) {
+    try {
+        list.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const li = document.createElement('li');
+            li.className = 'comment-item skeleton';
+            li.innerHTML = `
+                <div class="comment-header">
+                    <div class="comment-avatar skeleton-box"></div>
+                    <div class="comment-info" style="flex:1; min-width:0;">
+                        <div class="skeleton-box" style="width: 40%; height: 12px; margin-bottom: 8px;"></div>
+                        <div class="skeleton-box" style="width: 24%; height: 10px;"></div>
+                    </div>
+                    <div class="comment-heart skeleton-box" style="width: 36px; height: 16px; border-radius: 16px;"></div>
+                </div>
+                <div class="comment-content">
+                    <div class="skeleton-box" style="width: 100%; height: 12px; margin-bottom: 8px;"></div>
+                    <div class="skeleton-box" style="width: 80%; height: 12px;"></div>
+                </div>
+            `;
+            list.appendChild(li);
+        }
+    } catch (_) { /* noop */ }
+}
+
+async function fetchComments(artworkId, token, cursor, limit) {
+    try {
+        const qs = new URLSearchParams();
+        if (limit) qs.set('limit', String(limit));
+        if (cursor) qs.set('cursor', String(cursor));
+        const url = `/api/artworks/${encodeURIComponent(String(artworkId))}/comments` + (qs.toString() ? `?${qs.toString()}` : '');
+        const res = await fetch(url, {
+            headers: token ? { 'x-auth-token': token } : {}
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.comments)) return data.comments;
+        return data || [];
+    } catch (_) {
+        return [];
+    }
+}
+
+// --- Comments API helpers ---
+async function postComment(artworkId, token, text) {
+    const res = await fetch(`/api/artworks/${encodeURIComponent(String(artworkId))}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ text })
+    });
+    if (!res.ok) {
+        let msg = 'Failed to post comment';
+        try { const e = await res.json(); if (e && e.msg) msg = e.msg; } catch (_) {}
+        throw new Error(msg);
+    }
+    const payload = await res.json();
+    const c = payload?.comment || payload;
+    return c && typeof c === 'object' ? c : null;
+}
+
+async function postReply(commentId, token, text) {
+    const res = await fetch(`/api/comments/${encodeURIComponent(String(commentId))}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ text })
+    });
+    if (!res.ok) {
+        let msg = 'Failed to post reply';
+        try { const e = await res.json(); if (e && e.msg) msg = e.msg; } catch (_) {}
+        throw new Error(msg);
+    }
+    const payload = await res.json();
+    const r = payload?.reply || payload;
+    return r && typeof r === 'object' ? r : null;
+}
+
+async function toggleLike(id, token, like) {
+    const res = await fetch(`/api/comments/${encodeURIComponent(String(id))}/like`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ like: !!like })
+    });
+    if (!res.ok) throw new Error('Failed to update like');
+    return res.json();
+}
+
+async function deleteCommentOrReply(id, token) {
+    const res = await fetch(`/api/comments/${encodeURIComponent(String(id))}`, {
+        method: 'DELETE',
+        headers: { 'x-auth-token': token }
+    });
+    if (!res.ok && res.status !== 204) throw new Error('Failed to delete');
+}
+
+function ensureLoadMoreButton(ctx) {
+    const list = document.getElementById('comments-list');
+    if (!list) return;
+    let container = document.getElementById('comments-load-more');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'comments-load-more';
+        container.className = 'comments-load-more';
+        list.parentElement?.appendChild(container);
+    }
+    container.innerHTML = '';
+    if (ctx._comments.hasMore) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'load-more-btn';
+        btn.textContent = 'Load more comments';
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = 'Loading…';
+            try { await loadCommentsPage(ctx, { initial: false }); }
+            finally {
+                btn.disabled = false;
+                // if still more, restore label; else container will be cleared on next ensureLoadMoreButton
+                btn.textContent = 'Load more comments';
+            }
+        });
+        container.appendChild(btn);
+    }
+}
+
+function renderCommentItem(c, ctx) {
+    const li = document.createElement('li');
+    li.className = 'comment-item';
+    li.dataset.id = String(c._id || '');
+
+    const authorName = (c.author && (c.author.name || c.author.username)) || 'Unknown';
+    const avatar = (c.author && c.author.profilePictureUrl) || '';
+    const initials = authorName.trim().slice(0, 2).toUpperCase();
+    const canDelete = String(ctx.currentUserId) === String(c.author?._id) || String(ctx.currentUserId) === String(ctx.artistId);
+    const liked = !!c.likedByMe;
+    const likeCount = Number.isFinite(c.likesCount) ? c.likesCount : 0;
+
+    // Header
+    const header = document.createElement('div');
+    header.className = 'comment-header';
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'comment-avatar';
+    if (avatar) {
+        const img = document.createElement('img');
+        img.src = avatar;
+        img.alt = authorName;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.borderRadius = '50%';
+        img.decoding = 'async';
+        avatarEl.appendChild(img);
+    } else {
+        avatarEl.textContent = initials;
+    }
+    const info = document.createElement('div');
+    info.className = 'comment-info';
+    info.innerHTML = `
+        <span class="comment-author">${escapeHtml(authorName)}</span>
+        <span class="comment-date">${relativeTime(c.createdAt)}</span>
+    `;
+    const heart = document.createElement('button');
+    heart.className = 'comment-heart' + (liked ? ' liked' : '');
+    heart.setAttribute('aria-label', 'Like');
+    heart.innerHTML = `
+        <svg class="heart-icon" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">
+            <path class="heart-shape" d="M12 21c-.3 0-.6-.1-.8-.3C6.1 16.2 3 13.4 3 9.9 3 7.3 5.1 5.2 7.7 5.2c1.7 0 3.2.9 4.3 2.3 1.1-1.5 2.6-2.3 4.3-2.3 2.6 0 4.7 2.1 4.7 4.7 0 3.5-3.1 6.3-8.2 10.8-.2.2-.5.3-.8.3z"/>
+        </svg>
+        <span class="heart-count">${likeCount}</span>`;
+    header.appendChild(avatarEl);
+    header.appendChild(info);
+    header.appendChild(heart);
+
+    // Content
+    const content = document.createElement('div');
+    content.className = 'comment-content';
+    content.textContent = String(c.text || '');
+
+    // Actions
+    const actions = document.createElement('div');
+    actions.className = 'comment-actions';
+    const replyBtn = document.createElement('button');
+    replyBtn.className = 'comment-action';
+    replyBtn.setAttribute('data-action', 'reply');
+    replyBtn.textContent = 'Reply';
+    actions.appendChild(replyBtn);
+    if (canDelete) {
+        const del = document.createElement('button');
+        del.className = 'comment-action';
+        del.setAttribute('data-action', 'delete');
+        del.textContent = 'Delete';
+        actions.appendChild(del);
+    }
+
+    li.appendChild(header);
+    li.appendChild(content);
+    li.appendChild(actions);
+
+    // Replies
+    if (Array.isArray(c.replies) && c.replies.length) {
+        const replies = document.createElement('div');
+        replies.className = 'replies-container';
+        c.replies.forEach(r => replies.appendChild(renderReplyItem(r, ctx)));
+        li.appendChild(replies);
+    }
+    return li;
+}
+
+function renderReplyItem(r, ctx) {
+    const div = document.createElement('div');
+    div.className = 'reply-comment';
+    div.dataset.id = String(r._id || '');
+    const authorName = (r.author && (r.author.name || r.author.username)) || 'Unknown';
+    const avatar = (r.author && r.author.profilePictureUrl) || '';
+    const initials = authorName.trim().slice(0, 2).toUpperCase();
+    const liked = !!r.likedByMe;
+    const likeCount = Number.isFinite(r.likesCount) ? r.likesCount : 0;
+    const canDelete = String(ctx.currentUserId) === String(r.author?._id) || String(ctx.currentUserId) === String(ctx.artistId);
+
+    const header = document.createElement('div');
+    header.className = 'comment-header';
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'comment-avatar';
+    if (avatar) {
+        const img = document.createElement('img');
+        img.src = avatar;
+        img.alt = authorName;
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.borderRadius = '50%';
+        img.decoding = 'async';
+        avatarEl.appendChild(img);
+    } else {
+        avatarEl.textContent = initials;
+    }
+    const info = document.createElement('div');
+    info.className = 'comment-info';
+    info.innerHTML = `
+        <span class="comment-author">${escapeHtml(authorName)}</span>
+        <span class="comment-date">${relativeTime(r.createdAt)}</span>
+    `;
+    const heart = document.createElement('button');
+    heart.className = 'comment-heart' + (liked ? ' liked' : '');
+    heart.setAttribute('aria-label', 'Like');
+    heart.innerHTML = `
+        <svg class="heart-icon" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">
+            <path class="heart-shape" d="M12 21c-.3 0-.6-.1-.8-.3C6.1 16.2 3 13.4 3 9.9 3 7.3 5.1 5.2 7.7 5.2c1.7 0 3.2.9 4.3 2.3 1.1-1.5 2.6-2.3 4.3-2.3 2.6 0 4.7 2.1 4.7 4.7 0 3.5-3.1 6.3-8.2 10.8-.2.2-.5.3-.8.3z"/>
+        </svg>
+        <span class="heart-count">${likeCount}</span>`;
+    header.appendChild(avatarEl);
+    header.appendChild(info);
+    header.appendChild(heart);
+
+    const content = document.createElement('div');
+    content.className = 'comment-content';
+    content.textContent = String(r.text || '');
+
+    const actions = document.createElement('div');
+    actions.className = 'comment-actions';
+    const replyBtn = document.createElement('button');
+    replyBtn.className = 'comment-action';
+    replyBtn.setAttribute('data-action', 'reply');
+    replyBtn.textContent = 'Reply';
+    actions.appendChild(replyBtn);
+    if (canDelete) {
+        const del = document.createElement('button');
+        del.className = 'comment-action';
+        del.setAttribute('data-action', 'delete');
+        del.textContent = 'Delete';
+        actions.appendChild(del);
+    }
+
+    div.appendChild(header);
+    div.appendChild(content);
+    div.appendChild(actions);
+    return div;
+}
+
+function relativeTime(dateInput) {
+    try {
+        const ts = typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput).getTime() : (dateInput?.getTime?.() || Date.now());
+        const now = Date.now();
+        const diff = Math.max(0, now - ts);
+        const s = Math.floor(diff / 1000);
+        if (s < 60) return `${s}s ago`;
+        const m = Math.floor(s / 60);
+        if (m < 60) return `${m}m ago`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `${h}h ago`;
+        const d = Math.floor(h / 24);
+        if (d < 7) return `${d}d ago`;
+        const w = Math.floor(d / 7);
+        if (w < 4) return `${w}w ago`;
+        const months = Math.floor(d / 30);
+        if (months < 12) return `${months}mo ago`;
+        const years = Math.floor(d / 365);
+        return `${years}y ago`;
+    } catch (_) { return ''; }
+}
+
+function escapeHtml(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 async function handleCollect(artworkId, token, currentUserId) {

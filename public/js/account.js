@@ -17,6 +17,7 @@ async function openNotificationsModal() {
         let followers = Array.isArray(artist.followers) ? artist.followers : [];
         let following = Array.isArray(artist.following) ? artist.following : [];
         let collections = [];
+        let commentEvents = [];
 
         const needsRefresh = followers.some(x => typeof x === 'string' || (x && !x.name))
             || following.some(x => typeof x === 'string' || (x && !x.name));
@@ -72,6 +73,20 @@ async function openNotificationsModal() {
             console.warn('Could not load collection notifications:', e);
         }
 
+        // Fetch comment notifications (replies and likes on your comments/replies)
+        try {
+            const token4 = localStorage.getItem('token');
+            if (token4) {
+                const resCom = await authFetch('/api/notifications/comments?limit=50');
+                if (resCom.ok) {
+                    const events = await resCom.json();
+                    commentEvents = Array.isArray(events) ? events.filter(ev => ev && ev.fromArtist) : [];
+                }
+            }
+        } catch (e) {
+            console.warn('Could not load comment notifications:', e);
+        }
+
         // Mark notifications as seen and clear indicator
         try {
             localStorage.setItem('notif.lastSeen', String(Date.now()));
@@ -116,7 +131,8 @@ async function openNotificationsModal() {
             const followingIds = new Set((Array.isArray(following) ? following : []).map((a) => String(a && (a._id || a.id) ? (a._id || a.id) : a)));
             const noFollowers = !followers || followers.length === 0;
             const noCollections = !collections || collections.length === 0;
-            if (noFollowers && noCollections) {
+            const noComments = !commentEvents || commentEvents.length === 0;
+            if (noFollowers && noCollections && noComments) {
                 const empty = document.createElement('p');
                 empty.textContent = 'No notifications yet.';
                 empty.style.color = '#555';
@@ -158,6 +174,28 @@ async function openNotificationsModal() {
                     artwork: { id: String(artwork._id || artwork.id || ''), title: artwork.title || 'artwork' }
                 });
             });
+            (Array.isArray(commentEvents) ? commentEvents : []).forEach(ev => {
+                const actor = ev && ev.fromArtist ? ev.fromArtist : null;
+                const artwork = ev && ev.artwork ? ev.artwork : null;
+                if (!actor) return;
+                let subtype = ev && ev.type ? String(ev.type) : 'reply'; // 'reply' | 'like' | 'comment'
+                let textKind = 'comment';
+                if (String(ev && ev.targetType) === 'reply') textKind = 'reply';
+                let mappedType = 'comment-reply';
+                if (subtype === 'like') mappedType = 'comment-like';
+                else if (subtype === 'comment') mappedType = 'artwork-comment';
+                items.push({
+                    type: mappedType,
+                    date: (ev && ev.createdAt) ? new Date(ev.createdAt) : new Date(),
+                    user: {
+                        id: String(actor._id || actor.id || ''),
+                        name: actor.name || 'Someone',
+                        avatar: actor.profilePictureUrl || '/assets/default-avatar.svg'
+                    },
+                    artwork: artwork ? { id: String(artwork._id || artwork.id || ''), title: artwork.title || 'artwork' } : null,
+                    meta: { textKind }
+                });
+            });
             items.sort((a, b) => (b.date?.getTime?.() || 0) - (a.date?.getTime?.() || 0));
 
             items.forEach(item => {
@@ -196,7 +234,7 @@ async function openNotificationsModal() {
                 text.appendChild(strong);
                 if (item.type === 'follow') {
                     text.appendChild(document.createTextNode(' followed you.'));
-                } else {
+                } else if (item.type === 'collection') {
                     const awLink = document.createElement('a');
                     awLink.href = `/artwork.html?id=${encodeURIComponent(item.artwork.id)}`;
                     awLink.textContent = item.artwork.title || 'artwork';
@@ -204,6 +242,32 @@ async function openNotificationsModal() {
                     awLink.style.color = 'inherit';
                     text.appendChild(document.createTextNode(' collected '));
                     text.appendChild(awLink);
+                    text.appendChild(document.createTextNode('.'));
+                } else if (item.type === 'comment-reply' || item.type === 'comment-like') {
+                    const kind = item.type === 'comment-like' ? 'liked your' : 'replied to your';
+                    const target = item.meta && item.meta.textKind === 'reply' ? 'reply' : 'comment';
+                    text.appendChild(document.createTextNode(` ${kind} ${target}`));
+                    if (item.artwork && item.artwork.id) {
+                        const awLink = document.createElement('a');
+                        awLink.href = `/artwork.html?id=${encodeURIComponent(item.artwork.id)}`;
+                        awLink.textContent = item.artwork.title || 'artwork';
+                        awLink.style.textDecoration = 'none';
+                        awLink.style.color = 'inherit';
+                        text.appendChild(document.createTextNode(' on '));
+                        text.appendChild(awLink);
+                    }
+                    text.appendChild(document.createTextNode('.'));
+                } else if (item.type === 'artwork-comment') {
+                    text.appendChild(document.createTextNode(' commented on your artwork'));
+                    if (item.artwork && item.artwork.id) {
+                        const awLink = document.createElement('a');
+                        awLink.href = `/artwork.html?id=${encodeURIComponent(item.artwork.id)}`;
+                        awLink.textContent = item.artwork.title || 'artwork';
+                        awLink.style.textDecoration = 'none';
+                        awLink.style.color = 'inherit';
+                        text.appendChild(document.createTextNode(' '));
+                        text.appendChild(awLink);
+                    }
                     text.appendChild(document.createTextNode('.'));
                 }
                 text.style.fontSize = '14px';
@@ -496,8 +560,6 @@ function renderNotificationsFromArtist(artist) {
         li.appendChild(action);
         list.appendChild(li);
     });
-
-    updateNotifBellIndicator(artist);
 }
 
 async function updateNotifBellIndicator(artist) {
@@ -507,9 +569,10 @@ async function updateNotifBellIndicator(artist) {
         const lastSeen = parseInt(localStorage.getItem('notif.lastSeen') || '0', 10) || 0;
         const token = localStorage.getItem('token');
         if (!token) { bell.removeAttribute('data-has-new'); return; }
-        const [resF, resC] = await Promise.all([
+        const [resF, resC, resCom] = await Promise.all([
             authFetch('/api/notifications/followers?limit=1'),
-            authFetch('/api/notifications/collections?limit=1')
+            authFetch('/api/notifications/collections?limit=1'),
+            authFetch('/api/notifications/comments?limit=1')
         ]);
         let latestMs = 0;
         if (resF && resF.ok) {
@@ -523,6 +586,12 @@ async function updateNotifBellIndicator(artist) {
             const latestC = Array.isArray(evC) && evC.length ? evC[0] : null;
             const tsC = latestC && latestC.createdAt ? new Date(latestC.createdAt) : null;
             if (tsC && !isNaN(tsC.getTime())) latestMs = Math.max(latestMs, tsC.getTime());
+        }
+        if (resCom && resCom.ok) {
+            const evCom = await resCom.json();
+            const latestCom = Array.isArray(evCom) && evCom.length ? evCom[0] : null;
+            const tsCom = latestCom && latestCom.createdAt ? new Date(latestCom.createdAt) : null;
+            if (tsCom && !isNaN(tsCom.getTime())) latestMs = Math.max(latestMs, tsCom.getTime());
         }
         if (latestMs > lastSeen) bell.setAttribute('data-has-new', 'true');
         else bell.removeAttribute('data-has-new');
