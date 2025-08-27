@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Artwork - Tart</title>
+  <link rel="stylesheet" href="/css/style.css?v=1.4" />
+</head>
+<body class="upload-page edit-artwork-page">
+  <div id="ambient-bg" aria-hidden="true"></div>
+  <header>
+    <div class="header-left">
+      <a href="/account.html" class="header-text-link header-back-link" aria-label="Back to account">&lt;</a>
+      <h1>Edit My Artwork</h1>
+    </div>
+  </header>
+  <main>
+    <div id="upload-topbar" class="upload-topbar v4">
+      <label for="medium-select">Select Medium</label>
+      <div class="select-wrapper">
+        <select id="medium-select">
+          <option value="photography">Photography</option>
+          <option value="painting">Painting</option>
+          <option value="oil-painting">Oil painting</option>
+          <option value="ink-painting">Ink painting</option>
+          <option value="colored-pencil">Colored Pencil</option>
+          <option value="industrial-design">Industrial Design</option>
+          <option value="poetry">Poetry</option>
+        </select>
+      </div>
+    </div>
+
+    <section id="upload-section" class="image-upload-area" aria-label="Artwork image">
+      <input id="artwork-file" type="file" accept="image/*" aria-label="Choose new image (optional)" />
+      <div class="camera-overlay v3-upload" id="upload-overlay">
+        <div class="v3-container" role="button" aria-label="Drop file here or click to upload">
+          <div class="v3-line" aria-hidden="true"></div>
+          <div class="v3-copy">
+            <p class="v3-title">Drop file here</p>
+            <p class="v3-hint">PNG, JPG up to 10MB</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="poetry-section" class="poetry-editor-area" hidden>
+      <div id="poem-editor" aria-label="Poem editor"></div>
+    </section>
+
+    <section id="meta-section" class="meta-fields">
+      <div id="meta-carousel" class="meta-carousel" aria-roledescription="carousel" aria-label="Artwork details" tabindex="0">
+        <div class="slides">
+          <div class="slide" data-slide="0" aria-label="Artwork info">
+            <div class="title-section">
+              <input id="artwork-title" type="text" placeholder="Artwork title" />
+            </div>
+            <div class="description-section">
+              <textarea id="artwork-description" placeholder="Describe your artwork..."></textarea>
+            </div>
+          </div>
+          <div class="slide" data-slide="1" aria-label="Location">
+            <div class="location-selectors">
+              <input id="artwork-country" type="text" placeholder="Country" />
+              <input id="artwork-city" type="text" placeholder="City" />
+            </div>
+          </div>
+          <div class="slide" data-slide="2" aria-label="Artwork metrics (optional)">
+            <div class="metrics-label">Optional:</div>
+            <div id="metrics-2d" class="metrics-fields">
+              <input id="artwork-width" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Width" />
+              <input id="artwork-height" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Height" />
+              <select id="artwork-units" aria-label="Units">
+                <option value="cm">cm</option>
+                <option value="in">inches</option>
+                <option value="mm">mm</option>
+              </select>
+            </div>
+            <div id="metrics-3d" class="metrics-fields four-cols" hidden>
+              <input id="artwork-length" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Length" />
+              <input id="artwork-width-3d" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Width" />
+              <input id="artwork-height-3d" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Height" />
+              <select id="artwork-units-3d" aria-label="Units">
+                <option value="cm">cm</option>
+                <option value="in">inches</option>
+                <option value="mm">mm</option>
+              </select>
+            </div>
+          </div>
+          <div class="slide" data-slide="3" aria-label="Artwork source">
+            <div class="ai-generated-field">
+              <div class="choice-group" role="radiogroup" aria-label="Artwork source">
+                <label class="choice">
+                  <input type="radio" name="ai-generated" id="ai-human" value="human">
+                  <span>Human made</span>
+                </label>
+                <label class="choice">
+                  <input type="radio" name="ai-generated" id="ai-ai" value="ai">
+                  <span>AI generated</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="carousel-nav">
+          <div id="carousel-dots" class="carousel-dots" aria-hidden="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <div id="publish-actions" class="publish-actions">
+      <button id="save-btn" class="btn" type="button">Save and Update</button>
+    </div>
+  </main>
+  <script src="/js/poem-editor.js?v=1.0"></script>
+  <script src="/js/edit-artwork.js?v=1.0"></script>
+</body>
+</html>

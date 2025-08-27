@@ -1599,18 +1599,6 @@ function createArtworkCard(artwork, showArtistName) {
         artistInfo = `<p><em>${artwork.medium}</em> by ${nameHtml}</p>`;
     }
 
-    // Add delete button for user's own artworks (not for collected artworks)
-    const deleteButton = (!showArtistName && window.__profileIsOwner && !isVisitorMode()) ? `
-        <button class="delete-artwork-btn" onclick="deleteArtwork('${artwork._id}', event)" title="Delete artwork">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="3,6 5,6 21,6"></polyline>
-                <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-            </svg>
-        </button>
-    ` : '';
-
     if (artwork.medium === 'poetry') {
         card.classList.add('poetry');
         // Build up to 2 faithful lines using poem metadata when available
@@ -1647,7 +1635,6 @@ function createArtworkCard(artwork, showArtistName) {
                 <h3>${artwork.title}</h3>
                 ${artistInfo}
             </div>
-            ${deleteButton}
         `;
     } else {
         card.innerHTML = `
@@ -1656,13 +1643,132 @@ function createArtworkCard(artwork, showArtistName) {
                 <h3>${artwork.title}</h3>
                 ${artistInfo}
             </div>
-            ${deleteButton}
         `;
     }
     
+    // Owner view: show a subtle "Private" badge on the card when isPrivate
+    try {
+        const isOwner = !!window.__profileIsOwner;
+        if (isOwner) {
+            const badge = document.createElement('div');
+            badge.className = 'artwork-private-badge';
+            badge.innerHTML = `
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" style="vertical-align:-2px; margin-right:4px;">
+                    <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" stroke-width="2"></rect>
+                    <path d="M8 11V8a4 4 0 118 0v3" stroke="currentColor" stroke-width="2" fill="none"></path>
+                </svg>
+                <span>Private</span>`;
+            badge.style.cssText = 'position:absolute; top:8px; left:8px; background:rgba(17,24,39,0.85); color:#fff; font-size:12px; padding:2px 6px; border-radius:6px; display:none; z-index:4;';
+            if (artwork.isPrivate) badge.style.display = 'inline-block';
+            card.appendChild(badge);
+            // Keep a reference for later UI updates
+            card.__privateBadge = badge;
+        }
+    } catch (_) { /* no-op */ }
+    
     // Add click handler for navigation (but not on delete button)
+    // --- Three-dots dropdown menu (owner only) ---
+    try {
+        const isOwner = !!window.__profileIsOwner; // set during page init
+        if (isOwner) {
+            const menuWrap = document.createElement('div');
+            menuWrap.className = 'artwork-card-menu';
+            menuWrap.style.position = 'absolute';
+            menuWrap.style.top = '8px';
+            menuWrap.style.right = '8px';
+            menuWrap.style.zIndex = '5';
+
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'artwork-menu-btn';
+            btn.setAttribute('aria-label', 'Artwork actions');
+            btn.style.cssText = 'background: rgba(255,255,255,0.9); border: 1px solid #ddd; border-radius: 16px; width: 28px; height: 28px; display:flex; align-items:center; justify-content:center; cursor:pointer;';
+            btn.innerHTML = '<span style="font-size:18px; line-height:0;">⋯</span>';
+
+            const dd = document.createElement('div');
+            dd.className = 'artwork-menu-dd';
+            dd.style.cssText = 'position:absolute; top:34px; right:0; background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.15); display:none; min-width:140px; overflow:hidden;';
+
+            function addItem(text, onClick) {
+                const it = document.createElement('button');
+                it.type = 'button';
+                it.textContent = text;
+                it.style.cssText = 'display:block; width:100%; text-align:left; padding:8px 12px; background:#fff; border:0; cursor:pointer; font-size:14px;';
+                it.addEventListener('click', (ev) => { ev.stopPropagation(); dd.style.display = 'none'; onClick(ev); });
+                it.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); it.click(); } });
+                it.addEventListener('mouseenter', () => { it.style.background = '#f5f5f5'; });
+                it.addEventListener('mouseleave', () => { it.style.background = '#fff'; });
+                dd.appendChild(it);
+            }
+
+            addItem('Edit', () => {
+                const id = String(artwork._id);
+                window.location.href = `/edit-artwork.html?id=${encodeURIComponent(id)}`;
+            });
+            // Hide/Unhide toggle
+            const getToggleText = () => (artwork.isPrivate ? 'Unhide (Make Public)' : 'Hide (Make Private)');
+            const hideItem = document.createElement('button');
+            hideItem.type = 'button';
+            hideItem.textContent = getToggleText();
+            hideItem.style.cssText = 'display:block; width:100%; text-align:left; padding:8px 12px; background:#fff; border:0; cursor:pointer; font-size:14px;';
+            hideItem.addEventListener('click', async (ev) => {
+                ev.stopPropagation();
+                dd.style.display = 'none';
+                const id = String(artwork._id);
+                const next = !artwork.isPrivate;
+                const msg = next
+                    ? 'This will hide the artwork from public pages. Only you will see it in your account. Continue?'
+                    : 'This will make the artwork visible to everyone. Continue?';
+                if (!confirm(msg)) return;
+                try {
+                    const res = await authFetch(`/api/artworks/${encodeURIComponent(id)}/hide`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ isPrivate: next })
+                    });
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({ msg: 'Failed to update privacy' }));
+                        throw new Error(err.msg || err.message || 'Failed to update privacy');
+                    }
+                    const updated = await res.json();
+                    artwork.isPrivate = !!(updated && updated.isPrivate);
+                    // Update badge
+                    if (card.__privateBadge) {
+                        card.__privateBadge.style.display = artwork.isPrivate ? 'inline-block' : 'none';
+                    }
+                    // Update menu text
+                    hideItem.textContent = getToggleText();
+                    showNotice(artwork.isPrivate ? 'Artwork set to Private' : 'Artwork made Public', 'success');
+                } catch (e) {
+                    console.error('Hide toggle error:', e);
+                    showNotice(e.message || 'Failed to update privacy', 'error');
+                }
+            });
+            hideItem.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); hideItem.click(); } });
+            hideItem.addEventListener('mouseenter', () => { hideItem.style.background = '#f5f5f5'; });
+            hideItem.addEventListener('mouseleave', () => { hideItem.style.background = '#fff'; });
+            dd.appendChild(hideItem);
+            addItem('Delete', (ev) => {
+                deleteArtwork(String(artwork._id), ev);
+            });
+
+            btn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!menuWrap.contains(e.target)) dd.style.display = 'none';
+            });
+
+            menuWrap.appendChild(btn);
+            menuWrap.appendChild(dd);
+            card.appendChild(menuWrap);
+        }
+    } catch (_) { /* no-op */ }
+
     card.addEventListener('click', (e) => {
-        if (!e.target.closest('.delete-artwork-btn')) {
+        if (!e.target.closest('.artwork-card-menu') && !e.target.closest('.artwork-menu-dd')) {
             let href = `/artwork.html?id=${artwork._id}`;
             const viewed = (typeof window !== 'undefined' && window.__viewedArtist) ? window.__viewedArtist : null;
             const viewedId = viewed && (viewed._id || viewed.id);

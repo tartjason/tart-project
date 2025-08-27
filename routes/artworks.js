@@ -13,6 +13,8 @@ router.use((req, res, next) => {
     next();
 });
 
+// (moved PUT /:id route to below uploadMiddleware)
+
 // Models
 const Artwork = require('../models/artwork');
 const Artist = require('../models/artist');
@@ -108,12 +110,181 @@ const uploadMiddleware = (req, res, next) => {
     });
 };
 
+// @route   PUT api/artworks/:id
+// @desc    Update an artwork (title/description/location/source/metrics). Optionally replace image or switch medium.
+// @access  Private
+router.put('/:id', [auth, uploadMiddleware], async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await Artwork.findById(id);
+        if (!existing) return res.status(404).json({ msg: 'Artwork not found' });
+        if (String(existing.artist) !== String(req.artist.id)) {
+            return res.status(403).json({ msg: 'Not authorized to update this artwork' });
+        }
+
+        const body = req.body || {};
+        const title = typeof body.title === 'string' ? body.title.trim() : existing.title;
+        const description = typeof body.description === 'string' ? body.description.trim() : (existing.description || '');
+        const nextMedium = body.medium ? String(body.medium).toLowerCase() : existing.medium;
+        const source = body.source ? String(body.source).toLowerCase() : existing.source;
+        const locationCountry = typeof body.locationCountry === 'string' ? body.locationCountry.trim() : (existing.locationCountry || '');
+        const locationCity = typeof body.locationCity === 'string' ? body.locationCity.trim() : (existing.locationCity || '');
+        const legacyLocation = typeof body.location === 'string' ? body.location.trim() : (existing.location || '');
+
+        if (!title) return res.status(400).json({ msg: 'Title is required' });
+        if (!nextMedium) return res.status(400).json({ msg: 'Medium is required' });
+
+        const clampNum = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) && n >= 0 ? n : undefined;
+        };
+        const validUnit = (u) => (['cm', 'in', 'mm'].includes(String(u)) ? String(u) : undefined);
+        const composeLocation = () => {
+            const parts = [];
+            if (locationCity) parts.push(locationCity);
+            if (locationCountry) parts.push(locationCountry);
+            if (parts.length) return parts.join(', ');
+            return legacyLocation || existing.location || 'Not specified';
+        };
+
+        function sanitizeLineHtml(html) {
+            if (typeof html !== 'string') return '';
+            let clean = html
+                .replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/gi, '')
+                .replace(/ on\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+            clean = clean.replace(/<\/?([a-zA-Z0-9-]+)([^>]*)>/g, (m, tag, attrs) => {
+                const isClosing = m.startsWith('</');
+                const t = tag.toLowerCase();
+                if (['b', 'i', 'u', 's', 'strike', 'strong', 'em', 'br'].includes(t)) {
+                    return isClosing ? `</${t}>` : `<${t}>`;
+                }
+                if (t === 'font') {
+                    if (isClosing) return '</span>';
+                    const colorMatch = attrs && attrs.match(/color\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i);
+                    const color = colorMatch ? (colorMatch[2] || colorMatch[3] || colorMatch[4] || '').trim() : '';
+                    if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color)) {
+                        return `<span style=\"color: ${color}\">`;
+                    }
+                    return '<span>';
+                }
+                if (t === 'span') {
+                    if (isClosing) return '</span>';
+                    let color = '';
+                    const styleMatch = attrs && attrs.match(/style\s*=\s*("([^"]*)"|'([^']*)')/i);
+                    const style = styleMatch ? (styleMatch[2] || styleMatch[3] || '') : '';
+                    const colorMatch = style.match(/color\s*:\s*([^;]+)/i);
+                    if (colorMatch) color = colorMatch[1].trim();
+                    return color ? `<span style=\"color: ${color}\">` : '<span>';
+                }
+                return m.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            });
+            return clean;
+        }
+
+        // Prepare update payload
+        const update = {
+            title,
+            description,
+            medium: nextMedium,
+            location: composeLocation(),
+            locationCountry: locationCountry || undefined,
+            locationCity: locationCity || undefined,
+            source: source && ['human', 'ai'].includes(source) ? source : undefined
+        };
+
+        // Handle modes
+        if (nextMedium === 'poetry') {
+            // Poetry update: expect poem JSON; clear image and metrics if switching
+            const poem = body.poem && typeof body.poem === 'object' ? body.poem : null;
+            if (!poem || !Array.isArray(poem.lines)) {
+                return res.status(400).json({ msg: 'Poem content is required' });
+            }
+            const MAX_LINES = 300;
+            const MAX_HTML = 4000;
+            const safeLines = poem.lines.slice(0, MAX_LINES).map((line) => ({
+                html: sanitizeLineHtml(String(line.html || '').slice(0, MAX_HTML)),
+                color: typeof line.color === 'string' ? line.color : undefined,
+                indent: clampNum(line.indent) ?? 0,
+                spacing: clampNum(line.spacing) ?? 0
+            }));
+            update.poem = { lines: safeLines };
+            update.metrics2d = undefined;
+            update.metrics3d = undefined;
+
+            // If previously had an image, delete it from S3/local and clear fields
+            if (existing.imageKey) {
+                try {
+                    const Bucket = process.env.S3_BUCKET;
+                    if (Bucket) await deleteObject({ Bucket, Key: existing.imageKey });
+                } catch (e) { console.warn('Failed to delete previous S3 image on poetry switch:', e); }
+            }
+            update.imageUrl = undefined;
+            update.imageKey = undefined;
+        } else {
+            // Non-poetry: optionally replace image
+            if (req.file) {
+                const Bucket = process.env.S3_BUCKET;
+                if (!Bucket) return res.status(500).json({ msg: 'S3 is not configured' });
+                const Key = getUploadsKey(req.artist.id, req.file.originalname, 'artworks');
+                await putBuffer({ Bucket, Key, Body: req.file.buffer, ContentType: req.file.mimetype });
+                const publicUrl = getPublicUrl(Bucket, Key);
+                // delete old image if existed
+                if (existing.imageKey) {
+                    try { await deleteObject({ Bucket, Key: existing.imageKey }); } catch (e) { console.warn('Failed to delete old S3 image:', e); }
+                }
+                update.imageUrl = publicUrl;
+                update.imageKey = Key;
+            }
+
+            // Metrics parsing depending on medium
+            let metrics2d, metrics3d;
+            if (nextMedium === 'photography' || nextMedium === 'painting' || nextMedium === 'oil-painting' || nextMedium === 'ink-painting' || nextMedium === 'colored-pencil') {
+                const w = clampNum(body.width);
+                const h = clampNum(body.height);
+                const u = validUnit(body.units);
+                if ((w !== undefined || h !== undefined) && u) metrics2d = { width: w, height: h, units: u };
+            } else if (nextMedium === 'industrial-design' || nextMedium === 'furniture') {
+                const L = clampNum(body.length);
+                const W = clampNum(body.width3d);
+                const H = clampNum(body.height3d);
+                const U = validUnit(body.units3d);
+                if ((L !== undefined || W !== undefined || H !== undefined) && U) metrics3d = { length: L, width: W, height: H, units: U };
+            }
+            if (metrics2d) {
+                update.metrics2d = metrics2d;
+                update.metrics3d = undefined;
+            } else if (metrics3d) {
+                update.metrics3d = metrics3d;
+                update.metrics2d = undefined;
+            } else {
+                // If medium changed from 2D to 3D or vice versa without new metrics, clear the old metrics to avoid mismatch
+                if (existing.metrics2d && (nextMedium === 'industrial-design' || nextMedium === 'furniture')) update.metrics2d = undefined;
+                if (existing.metrics3d && (nextMedium === 'photography' || nextMedium === 'painting' || nextMedium === 'oil-painting' || nextMedium === 'ink-painting' || nextMedium === 'colored-pencil')) update.metrics3d = undefined;
+            }
+
+            // If switching from poetry to non-poetry, clear poem
+            if (existing.medium === 'poetry') update.poem = undefined;
+        }
+
+        // Apply updates
+        await Artwork.updateOne({ _id: id }, { $set: update });
+        const updated = await Artwork.findById(id).populate('artist', ['name', 'username', 'profilePictureUrl']);
+        return res.json(updated);
+    } catch (err) {
+        console.error('Artwork update error:', err);
+        return res.status(500).json({ msg: 'Server Error', error: err.message });
+    }
+});
+
 // @route   GET api/artworks
 // @desc    Get all artworks
 // @access  Public
 router.get('/', async (req, res) => {
     try {
-        const artworks = await Artwork.find().populate('artist', ['name', '_id']).sort({ date: -1 });
+        // Public feed excludes private artworks
+        const artworks = await Artwork.find({ isPrivate: { $ne: true } })
+            .populate('artist', ['name', '_id'])
+            .sort({ date: -1 });
         console.log('[/api/artworks] Sending artworks:', JSON.stringify(artworks, null, 2)); // DEBUG LOG
         res.json(artworks);
     } catch (err) {
@@ -227,8 +398,13 @@ router.get('/:artworkId/comments', async (req, res) => {
         }
 
         // verify artwork existence (optional but helpful)
-        const art = await Artwork.findById(artworkId).select('_id');
+        const art = await Artwork.findById(artworkId).select('_id artist isPrivate');
         if (!art) return res.status(404).json({ msg: 'Artwork not found' });
+        // Disallow comments listing on private artworks for non-owners
+        if (art.isPrivate) {
+            const me = getCurrentUserIdFromReq(req);
+            if (!me || String(me) !== String(art.artist)) return res.status(404).json({ msg: 'Artwork not found' });
+        }
 
         const filter = { artworkId };
         if (cursorDate) filter.createdAt = { $lt: cursorDate };
@@ -298,6 +474,14 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ msg: 'Artwork not found' });
         }
 
+        // Hide private artworks from non-owners
+        if (artwork.isPrivate) {
+            const me = getCurrentUserIdFromReq(req);
+            if (!me || String(me) !== String(artwork.artist && artwork.artist._id ? artwork.artist._id : artwork.artist)) {
+                return res.status(404).json({ msg: 'Artwork not found' });
+            }
+        }
+
         // Prepare output object with legacy fallbacks and computed fields
         const obj = artwork.toObject({ virtuals: true });
         if (!obj.poem && Array.isArray(obj.poetryData) && obj.poetryData.length) {
@@ -349,6 +533,28 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ msg: 'Artwork not found' });
         }
         res.status(500).send('Server Error');
+    }
+});
+
+// @route   PUT api/artworks/:id/hide
+// @desc    Toggle artwork privacy (hide/unhide). Only owner can change.
+// @access  Private
+router.put('/:id/hide', auth, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const art = await Artwork.findById(id);
+        if (!art) return res.status(404).json({ msg: 'Artwork not found' });
+        if (String(art.artist) !== String(req.artist.id)) return res.status(403).json({ msg: 'Not authorized' });
+        const next = (typeof req.body?.isPrivate === 'boolean') ? req.body.isPrivate
+                    : (typeof req.body?.hide === 'boolean') ? req.body.hide
+                    : true; // default to hide if not specified
+        art.isPrivate = !!next;
+        await art.save();
+        const populated = await Artwork.findById(id).populate('artist', ['name', 'username', 'profilePictureUrl']);
+        return res.json(populated);
+    } catch (err) {
+        console.error('Error toggling artwork privacy:', err);
+        return res.status(500).json({ msg: 'Server error' });
     }
 });
 

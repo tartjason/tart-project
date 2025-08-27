@@ -78,6 +78,9 @@ const artworkSchema = new Schema({
         }]
     },
 
+    // Visibility: when true, artwork is private (only visible to the owner in account page)
+    isPrivate: { type: Boolean, default: false },
+
     collectedBy: [{
         type: Schema.Types.ObjectId,
         ref: 'Artist'

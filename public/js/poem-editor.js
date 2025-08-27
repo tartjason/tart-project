@@ -708,6 +708,46 @@
       }
     }
 
+    // Public API for loading/saving
+    setLines(lines) {
+      const arr = Array.isArray(lines) ? lines : [];
+      if (!arr.length) {
+        this.lines = [this._makeLine("")];
+      } else {
+        this.lines = arr.map((l) => {
+          const html = typeof l.html === 'string' ? l.html : '';
+          const text = typeof l.text === 'string' && l.text.length ? l.text : (html ? html.replace(/<[^>]+>/g, '') : '');
+          const indent = Number.isFinite(l.indent) ? l.indent : 0;
+          const gap = Number.isFinite(l.spacing) ? l.spacing : (Number.isFinite(l.gap) ? l.gap : 0);
+          const color = l.color || '';
+          const line = this._makeLine(text, { html, indent, gap, color });
+          return line;
+        });
+      }
+      this.activeLineId = this.lines[0].id;
+      this._render();
+      this._normalizeDOM();
+      this._syncLinesFromDOM();
+    }
+
+    loadFromJson(poem) {
+      if (poem && Array.isArray(poem.lines)) {
+        this.setLines(poem.lines);
+      }
+    }
+
+    getLines() {
+      return this.lines.map((l) => ({ html: l.html || '', color: l.color || '', indent: l.indent || 0, spacing: l.gap || 0 }));
+    }
+
+    exportLines() {
+      return this.getLines();
+    }
+
+    getText() {
+      return this.lines.map((l) => l.text || '').join('\n');
+    }
+
     // Export helpers
     toJSON() {
       return {
