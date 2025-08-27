@@ -86,6 +86,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data && data.type === 'oauthSuccess' && data.token) {
                         localStorage.setItem('token', data.token);
                         window.removeEventListener('message', onMessage);
+                        // If a post-login redirect was requested, go there; otherwise reload
+                        try {
+                            const redirect = sessionStorage.getItem('postLoginRedirect');
+                            if (redirect) {
+                                sessionStorage.removeItem('postLoginRedirect');
+                                window.location.href = redirect;
+                                return;
+                            }
+                        } catch (e) { /* ignore */ }
                         window.location.reload();
                     }
                 } catch (e) {
@@ -96,7 +105,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    function openLoginPopup() {
+    function openLoginPopup(redirectUrl) {
+        // Optional: set a post-login redirect (e.g., '/account.html')
+        try {
+            if (redirectUrl) sessionStorage.setItem('postLoginRedirect', redirectUrl);
+        } catch (e) { /* ignore storage errors */ }
         const w = 480;
         const h = 640;
         const dualScreenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX;
@@ -480,7 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <strong>Artist empowerment.</strong>
                   </div>
                   <div class="tagline-item fade-in" style="--stagger: 300ms">
-                    <strong>Natural discovery.</strong>
+                    <strong>Combat climate change.</strong>
                   </div>
                 </div>
               </header>
@@ -512,11 +525,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 <!-- Feature 3 -->
                 <article class="feature fade-in" style="--stagger: 600ms">
                   <div class="feature-number">03</div>
-                  <h2 class="feature-title">Natural discovery</h2>
+                  <h2 class="feature-title">Combat Climate Change</h2>
                   <div class="feature-description">
-                    <p><em>Upcoming:</em> Discovery Through Language & Emotion (NLX)</p>
-                    <p>Search and discovery through natural language.</p>
-                    <p>Art surfaced by moods, themes, and intent — not just popularity.</p>
+                    <p>Grow a Forest with Your Art. <strong>Every 12 artworks you share plants a real tree.</strong> 🌱</p>
+                    <p>Your creativity leaves roots in the world.</p>
+                    <a href="/upload.html" id="cta-upload" class="cta-link">Upload your artwork</a>
                   </div>
                 </article>
               </section>
@@ -563,6 +576,19 @@ function showPage(page) {
         artworksContainer.style.display = 'none';
         // Tart uses direct fade-in; still observe in case future will-reveal exists
         observeNewReveals(pageContent);
+        // Wire CTA: if not logged in, open login then redirect to account; if logged in, go to upload
+        const uploadCta = pageContent.querySelector('#cta-upload');
+        if (uploadCta) {
+            uploadCta.addEventListener('click', (e) => {
+                const t = localStorage.getItem('token');
+                if (!t) {
+                    e.preventDefault();
+                    try { sessionStorage.setItem('postLoginRedirect', '/account.html'); } catch (err) { /* ignore */ }
+                    openLoginPopup('/account.html');
+                }
+                // if logged in, allow default navigation to /upload.html
+            });
+        }
     } else if (page === 'about') {
         setActiveNav('nav-about');
         pageContent.hidden = false;
