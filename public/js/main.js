@@ -529,6 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   <div class="feature-number">03</div>
                   <h2 class="feature-title">Combat Climate Change</h2>
                   <div class="feature-description">
+                  <p>Official partnership with <a href="https://trees.org" target="_blank" rel="noopener noreferrer" style="color: inherit; text-decoration: underline;">TREES</a>, <strong>a UN World Restoration Flagship</strong>.</p>
                     <p>Grow a Forest with Your Art. <strong>Every 12 artworks you share plants a real tree.</strong> 🌱</p>
                     <p>Your creativity leaves roots in the world.</p>
                     <a href="/upload.html" id="cta-upload" class="cta-link">Upload your artwork</a>
