@@ -1302,7 +1302,7 @@ function renderUploadTracker(totalUploads) {
           <span>${pct}%</span>
         </div>
         <div class="a17-actions">
-          <span class="a17-msg">Every 12 uploads plants a tree.</span>
+          <span class="a17-msg">Your contributions help reforest our planet, one upload at a time.</span>
           <a class="a17-btn" href="/upload.html" aria-label="Upload new artwork">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <path d="M12 5v14M5 12h14"/>
