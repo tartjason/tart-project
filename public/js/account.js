@@ -1223,17 +1223,33 @@ async function loadProfileData() {
             conEl.textContent = `${uniqueCount} Connection${uniqueCount === 1 ? '' : 's'}`;
         }
 
-        // --- Populate Gallery Tab ---
+        // Render artworks in gallery container
         const galleryContainer = document.getElementById('artist-artworks-container');
-        galleryContainer.innerHTML = ''; // Clear existing
-        if (artist.artworks && artist.artworks.length > 0) {
+        galleryContainer.innerHTML = '';
+        if (artist.artworks && artist.artworks.length) {
             artist.artworks.forEach(artwork => {
-                const card = createArtworkCard(artwork, false);
+                const card = createArtworkCard(artwork, true);
                 galleryContainer.appendChild(card);
             });
         } else {
             galleryContainer.innerHTML = '<p>You have not uploaded any artworks yet.</p>';
         }
+
+        // Upload Tracker: owner-only and appears under artworks grid
+        try {
+            // Determine ownership (existing flag is used throughout the file)
+            const isOwner = !isVisitorMode();
+            window.__profileIsOwner = isOwner;
+            const root = document.getElementById('upload-tracker-root');
+            if (root) {
+                if (isOwner) {
+                    const total = Array.isArray(artist.artworks) ? artist.artworks.length : 0;
+                    renderUploadTracker(total);
+                } else {
+                    root.innerHTML = '';
+                }
+            }
+        } catch (e) { /* non-fatal */ }
 
         // --- Populate Collection Tab ---
         const collectionContainer = document.getElementById('artist-collection-container');
@@ -1252,6 +1268,49 @@ async function loadProfileData() {
         const regionEl = document.getElementById('artist-region');
         if (regionEl) regionEl.textContent = 'City, Country';
     }
+}
+
+// Artwork Upload Tracker (AREA 17-inspired)
+function renderUploadTracker(totalUploads) {
+    const root = document.getElementById('upload-tracker-root');
+    if (!root) return;
+    const trees = Math.floor((totalUploads || 0) / 12);
+    const cycle = (totalUploads || 0) % 12; // 0..11
+    const pct = Math.min(100, Math.round((cycle / 12) * 100));
+
+    const singular = cycle === 1 ? 'upload' : 'uploads';
+    const treeLabel = trees === 1 ? 'tree' : 'trees';
+
+    root.innerHTML = `
+      <div class="a17-tracker" role="region" aria-label="Artwork upload progress">
+        <div class="a17-tracker-header">
+          <p class="a17-title">Upload Tracker</p>
+          <span class="a17-tree" title="Total trees planted">
+            <span aria-hidden="true">🌳</span>
+            <strong>${trees}</strong> ${treeLabel}
+          </span>
+        </div>
+        <div class="a17-counts">
+          <span class="a17-cycle-count" aria-live="polite">${cycle}</span>
+          <span class="a17-total">of 12 · ${totalUploads} total</span>
+        </div>
+        <div class="a17-progress-wrap">
+          <div class="a17-bar" aria-hidden="true"><span style="width:${pct}%;"></span></div>
+        </div>
+        <div class="a17-legend">
+          <span>${12 - cycle} to plant next tree</span>
+          <span>${pct}%</span>
+        </div>
+        <div class="a17-actions">
+          <span class="a17-msg">Every 12 uploads plants a tree.</span>
+          <a class="a17-btn" href="/upload.html" aria-label="Upload new artwork">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+            Upload
+          </a>
+        </div>
+      </div>`;
 }
 
 // Helpers for region display

@@ -69,6 +69,8 @@
 
                 <div id="gallery" class="tab-content active">
                     <h3 id="artworks-heading">My Artworks</h3>
+                    <!-- Upload Tracker Root (owner view only) -->
+                    <div id="upload-tracker-root" aria-live="polite"></div>
                     <div id="artist-artworks-container" class="gallery"></div>
                 </div>
 
@@ -189,5 +191,39 @@
     </div>
 
     <script src="js/account.js"></script>
+    <!-- Scoped styles for the Artwork Upload Tracker (AREA 17-inspired) -->
+    <style>
+      /* Scope styles under #upload-tracker-root to avoid leaking */
+      #upload-tracker-root { margin-bottom: 20px; }
+      #upload-tracker-root .a17-tracker {
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        padding: 16px;
+        background: #fff;
+      }
+      #upload-tracker-root .a17-tracker-header {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        margin-bottom: 10px;
+      }
+      #upload-tracker-root .a17-title { font-size: 16px; font-weight: 600; color: #111827; margin: 0; }
+      #upload-tracker-root .a17-meta { color: #6b7280; font-size: 13px; }
+      #upload-tracker-root .a17-counts { display: flex; align-items: baseline; gap: 10px; }
+      #upload-tracker-root .a17-cycle-count { font-size: 28px; line-height: 1; font-weight: 700; color: #111827; }
+      #upload-tracker-root .a17-total { color: #6b7280; font-size: 13px; }
+      #upload-tracker-root .a17-progress-wrap { margin: 10px 0 6px; }
+      #upload-tracker-root .a17-bar { width: 100%; height: 10px; background: #f3f4f6; border-radius: 999px; overflow: hidden; }
+      #upload-tracker-root .a17-bar > span { display: block; height: 100%; width: 0%; background: #111827; transition: width .35s ease; }
+      #upload-tracker-root .a17-legend { display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: #6b7280; }
+      #upload-tracker-root .a17-actions { margin-top: 10px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+      #upload-tracker-root .a17-msg { font-size: 13px; color: #374151; }
+      #upload-tracker-root .a17-btn { appearance: none; background: #111827; color: #fff; border: 1px solid #111827; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+      #upload-tracker-root .a17-btn:hover { background: #0b1220; }
+      #upload-tracker-root .a17-tree { display: inline-flex; align-items: center; gap: 6px; color: #065f46; background: #ecfdf5; border: 1px solid #10b98133; padding: 4px 8px; border-radius: 999px; font-size: 12px; }
+      /* Responsive tweaks */
+      @media (max-width: 480px) {
+        #upload-tracker-root .a17-counts { gap: 8px; }
+        #upload-tracker-root .a17-cycle-count { font-size: 24px; }
+      }
+    </style>
 </body>
 </html>
