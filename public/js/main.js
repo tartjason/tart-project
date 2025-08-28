@@ -261,18 +261,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function createArtworkCard(artwork, extraClasses = []) {
         const el = document.createElement('div');
         el.classList.add('artwork-card', ...extraClasses);
+        const isHero = Array.isArray(extraClasses) && extraClasses.includes('hero');
         if (artwork.medium === 'poetry') {
             el.classList.add('poetry');
-            // Build up to 2 faithful lines using poem metadata when available
+            // Build faithful lines using poem metadata when available
+            const desiredLineCount = isHero ? 4 : 2;
             let lines = [];
             if (artwork && artwork.poem && Array.isArray(artwork.poem.lines) && artwork.poem.lines.length) {
-                lines = artwork.poem.lines.slice(0, 2).map((line) => ({
+                lines = artwork.poem.lines.slice(0, desiredLineCount).map((line) => ({
                     html: convertEscapedFontToSpan(String(line.html || '')),
                     indent: Number.isFinite(line.indent) ? line.indent : 0,
                     spacing: Number.isFinite(line.spacing) ? line.spacing : 0
                 }));
             } else if (artwork && Array.isArray(artwork.poetryData) && artwork.poetryData.length) {
-                lines = artwork.poetryData.slice(0, 2).map((l) => ({
+                lines = artwork.poetryData.slice(0, desiredLineCount).map((l) => ({
                     html: sanitizeLineHtml(l.text || ''),
                     indent: 0,
                     spacing: 0

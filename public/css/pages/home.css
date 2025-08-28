@@ -530,6 +530,10 @@ main.page-has-sidebar {
     aspect-ratio: auto; /* cancel fixed ratios for poetry */
     height: auto; /* ensure no fixed height */
 }
+.artwork-card.poetry.hero .poetry-preview {
+    /* Add extra breathing room below for hero poems */
+    padding-bottom: 96px;
+}
 .artwork-card.poetry .poetry-preview::before,
 .artwork-card.poetry .poetry-preview::after {
     content: none !important;
