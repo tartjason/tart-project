@@ -12,6 +12,8 @@ const { putBuffer, getUploadsKey, getPublicUrl, deleteObject } = require('../uti
 
 // Use JWT secret from environment; fall back to a development-only default
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret';
+// Configurable JWT expiry for login/session tokens. Examples: '30d', '7d', 86400
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
 const OTP_TTL_MINUTES = 10;
 const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_ATTEMPTS = 5;
@@ -66,7 +68,7 @@ router.post('/register', async (req, res) => {
         jwt.sign(
             payload,
             JWT_SECRET, // from environment
-            { expiresIn: 3600 },
+            { expiresIn: JWT_EXPIRES_IN },
             (err, token) => {
                 if (err) throw err;
                 res.json({ token });
@@ -246,7 +248,7 @@ router.get('/oauth/google/callback', (req, res, next) => {
         if (!artist) return res.redirect('/login.html?error=google_no_user');
 
         const payload = { artist: { id: artist.id } };
-        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: 3600 });
+        const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
         const targetOrigin = process.env.OAUTH_POSTMESSAGE_ORIGIN || '*';
         const html = `<!doctype html><html><body><script>
@@ -292,7 +294,7 @@ router.post('/login', async (req, res) => {
         jwt.sign(
             payload,
             JWT_SECRET, // from environment
-            { expiresIn: 3600 },
+            { expiresIn: JWT_EXPIRES_IN },
             (err, token) => {
                 if (err) throw err;
                 res.json({ token });
