@@ -293,6 +293,13 @@
     });
     on(fileInput, 'change', (e) => {
       const f = e.target.files && e.target.files[0];
+      // Client-side size check: 1MB max
+      if (f && f.size > 1 * 1024 * 1024) {
+        // Clear value so they can re-pick the same file after seeing the message
+        try { e.target.value = ''; } catch (_) {}
+        showSectionMessage(uploadSection, 'Image is too large. Maximum size is 1MB.');
+        return;
+      }
       handleImageFile(f);
       updatePublishEnabled();
     });

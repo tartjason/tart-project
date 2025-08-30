@@ -78,7 +78,7 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 10000000 }, // 10MB limit
+    limits: { fileSize: 1000000 }, // 1MB limit for artwork images
     fileFilter: function (req, file, cb) {
         checkFileType(file, cb);
     }
@@ -98,6 +98,9 @@ const uploadMiddleware = (req, res, next) => {
             console.error('--- END MULTER ERROR ---');
             if (err instanceof multer.MulterError) {
                 // A Multer error occurred when uploading.
+                if (err.code === 'LIMIT_FILE_SIZE') {
+                    return res.status(400).json({ msg: 'File too large. Maximum size is 1MB.' });
+                }
                 return res.status(400).json({ msg: err.message });
             } else {
                 // An unknown error occurred when uploading.
