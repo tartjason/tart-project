@@ -16,7 +16,7 @@ const storage = multer.memoryStorage();
 
 function checkFileType(file, cb) {
   // Allowed ext
-  const filetypes = /jpeg|jpg|png|gif|webp/;
+  const filetypes = /jpeg|jpg|png|gif|webp|svg/;
   // Check ext
   const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
   // Check mime
@@ -72,6 +72,32 @@ router.post('/site-image', [auth, uploadMiddleware], async (req, res) => {
     return res.json({ url, key: Key });
   } catch (err) {
     console.error('Site image upload error:', err);
+    return res.status(500).json({ msg: 'Server error during upload' });
+  }
+});
+
+// @route   POST /api/uploads/logo
+// @desc    Upload a site logo (supports SVG) and return public URL
+// @access  Private
+router.post('/logo', [auth, uploadMiddleware], async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ msg: 'Please upload an image file' });
+    }
+
+    const Bucket = process.env.S3_BUCKET;
+    if (!Bucket) {
+      return res.status(500).json({ msg: 'S3 is not configured' });
+    }
+
+    const folder = 'logos';
+    const Key = getUploadsKey(req.artist.id, req.file.originalname, folder);
+    await putBuffer({ Bucket, Key, Body: req.file.buffer, ContentType: req.file.mimetype });
+    const url = getPublicUrl(Bucket, Key);
+
+    return res.json({ url, key: Key });
+  } catch (err) {
+    console.error('Logo upload error:', err);
     return res.status(500).json({ msg: 'Server error during upload' });
   }
 });

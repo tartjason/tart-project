@@ -11,7 +11,7 @@
       const worksOrg = opts.worksOrganization; // 'year' | 'theme' | undefined
       const worksDetails = opts.worksDetails || {};
       const activePage = (opts.activePage || 'home').toLowerCase();
-      const logo = opts.logo || null; // { dataUrl }
+      const logo = opts.logo || null; // string URL or { dataUrl }
 
       const navOrder = [];
       if (features.home) navOrder.push('home');
@@ -19,8 +19,10 @@
       if (features.about) navOrder.push('about');
       if (navOrder.length === 0) navOrder.push('home');
 
-      const logoHTML = logo && logo.dataUrl
-        ? `<img src="${logo.dataUrl}" alt="Logo" style="max-height: 40px;">`
+      // Support either a plain string (URL) or an object with dataUrl
+      const logoSrc = (logo && typeof logo === 'object') ? (logo.dataUrl || '') : (typeof logo === 'string' ? logo : '');
+      const logoHTML = logoSrc
+        ? `<img src="${logoSrc}" alt="Logo" style="max-height: 40px;">`
         : '<div id="site-logo-text" style="font-weight: bold;">Your Portfolio</div>';
 
       function buildNavItem(name, index) {

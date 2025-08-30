@@ -344,35 +344,59 @@ class PortfolioSurvey {
             this.removeLogo();
         });
     }
-    
-    handleLogoUpload(file) {
-        // Validate file size (2MB max)
-        if (file.size > 2 * 1024 * 1024) {
-            this.showToast('File size must be less than 2MB', 'error');
-            return;
-        }
-        
-        // Create file reader
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const logoPreview = document.getElementById('logo-preview');
-            const logoPreviewImg = document.getElementById('logo-preview-img');
-            const uploadArea = document.getElementById('logo-upload-area');
-            
-            // Store logo data
-            this.surveyData.logo = {
-                file: file,
-                dataUrl: e.target.result
-            };
-            
-            // Show preview
-            logoPreviewImg.src = e.target.result;
-            uploadArea.style.display = 'none';
-            logoPreview.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+  
+  async handleLogoUpload(file) {
+    // Validate file size (2MB max)
+    if (file.size > 2 * 1024 * 1024) {
+      this.showToast('File size must be less than 2MB', 'error');
+      return;
     }
     
+    // Create file reader
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const logoPreview = document.getElementById('logo-preview');
+      const logoPreviewImg = document.getElementById('logo-preview-img');
+      const uploadArea = document.getElementById('logo-upload-area');
+      
+      // Show preview immediately
+      logoPreviewImg.src = e.target.result;
+      uploadArea.style.display = 'none';
+      logoPreview.style.display = 'block';
+
+      // Upload to server and persist URL
+      try {
+        const token = localStorage.getItem('token');
+        const fd = new FormData();
+        fd.append('image', file);
+        const res = await fetch('/api/uploads/logo', {
+          method: 'POST',
+          headers: {
+            'x-auth-token': token || ''
+          },
+          body: fd
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j.msg || 'Upload failed');
+        }
+        const data = await res.json();
+        if (data && data.url) {
+          // Save as string URL for backend compatibility
+          this.surveyData.logo = data.url;
+          this.showToast('Logo uploaded successfully.', 'success');
+        } else {
+          throw new Error('Upload did not return a URL');
+        }
+      } catch (err) {
+        // Keep the preview visible but clear the saved value
+        this.surveyData.logo = null;
+        this.showToast(err && err.message ? err.message : 'Upload failed', 'error');
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+  
     removeLogo() {
         const logoPreview = document.getElementById('logo-preview');
         const uploadArea = document.getElementById('logo-upload-area');
