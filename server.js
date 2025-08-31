@@ -42,6 +42,8 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/comments', require('./routes/comments'));
 // Uploads (images to S3/CDN)
 app.use('/api/uploads', require('./routes/uploads'));
+// Analytics events
+app.use('/api/analytics', require('./routes/analytics'));
 
 // --- Backend proxy for compiled site JSON in S3 ---
 app.get('/sites/:artistId/site.json', async (req, res) => {

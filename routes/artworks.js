@@ -13,7 +13,161 @@ router.use((req, res, next) => {
     next();
 });
 
+// @route   POST api/artworks/home-ranked/refresh
+// @desc    Admin: recompute ranked cache immediately (auth required)
+// @access  Private
+router.post('/home-ranked/refresh', auth, async (req, res) => {
+    try {
+        const days = Math.min(Math.max(parseInt((req.body && req.body.days) || req.query.days || '14', 10), 1), 60);
+        const payload = await computeHomeRanked(days);
+        const key = getHomeRankedKey(days);
+        homeRankedCache = { key, payload, expiresAt: Date.now() + HOME_RANKED_TTL_MS };
+        return res.json({ ok: true, days, size: payload.length, expiresAt: homeRankedCache.expiresAt });
+    } catch (err) {
+        console.error('Error refreshing home-ranked cache:', err);
+        return res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 // (moved PUT /:id route to below uploadMiddleware)
+
+// --- In-memory cache for ranked home feed ---
+// Keep it simple: single-key cache keyed by the 'days' param. TTL = 10 minutes.
+let homeRankedCache = { key: null, payload: null, expiresAt: 0 };
+const HOME_RANKED_TTL_MS = 10 * 60 * 1000;
+function getHomeRankedKey(days) {
+    return `days:${days}`;
+}
+function invalidateHomeRankedCache() {
+    homeRankedCache.expiresAt = 0;
+    homeRankedCache.key = null;
+    homeRankedCache.payload = null;
+}
+
+// Shared compute for home-ranked
+async function computeHomeRanked(days) {
+    const ArtworkEvent = require('../models/ArtworkEvent');
+    const now = Date.now();
+    const halfLifeHrs = 24; // freshness half-life
+    const dwellCapMs = 20000; // 20s cap
+    const since = new Date(now - days * 24 * 60 * 60 * 1000);
+
+    const agg = await ArtworkEvent.aggregate([
+        { $match: { ts: { $gte: since } } },
+        { $group: {
+            _id: '$artworkId',
+            artistId: { $last: '$artistId' },
+            viewStart: { $sum: { $cond: [{ $eq: ['$type', 'view_start'] }, 1, 0] } },
+            viewEnd: { $sum: { $cond: [{ $eq: ['$type', 'view_end'] }, 1, 0] } },
+            unblur: { $sum: { $cond: [{ $eq: ['$type', 'unblur'] }, 1, 0] } },
+            avgDwellMs: { $avg: { $cond: [{ $eq: ['$type', 'view_end'] }, { $ifNull: ['$dwellMs', 0] }, null] } },
+            lastTs: { $max: '$ts' },
+        }},
+    ]);
+
+    const allArts = await Artwork.find({ isPrivate: { $ne: true } })
+        .populate('artist', ['name', '_id'])
+        .lean();
+    const artById = new Map();
+    for (const a of allArts) artById.set(String(a._id), a);
+
+    const items = [];
+    const pushWith = (art, metrics) => {
+        if (!art) return;
+        const vs = metrics.viewStart || 0;
+        const ub = metrics.unblur || 0;
+        const avgDwell = Math.min(Math.max(metrics.avgDwellMs || 0, 0), dwellCapMs) / dwellCapMs; // 0..1
+        const ctr = vs > 0 ? Math.min(1, ub / vs) : 0; // proxy intent rate
+        const vol = Math.min(1, Math.log10(1 + vs) / 2); // gentle volume term (<= ~0.5 for 100 views)
+        const quality = 0.6 * avgDwell + 0.3 * ctr + 0.1 * vol; // 0..1
+        const ageMs = Math.max(0, now - new Date(metrics.lastTs || art.date || now).getTime());
+        const freshness = Math.pow(0.5, ageMs / (halfLifeHrs * 3600 * 1000)); // 0..1
+        const score = 0.6 * quality + 0.4 * freshness; // base weighting
+        items.push({ art, artistId: String(art.artist && art.artist._id ? art.artist._id : art.artist), metrics, score });
+    };
+
+    const used = new Set();
+    for (const m of agg) {
+        const art = artById.get(String(m._id));
+        if (!art) continue;
+        used.add(String(m._id));
+        pushWith(art, m);
+    }
+    for (const art of allArts) {
+        const id = String(art._id);
+        if (used.has(id)) continue;
+        pushWith(art, { viewStart: 0, viewEnd: 0, unblur: 0, avgDwellMs: 0, lastTs: art.date });
+    }
+
+    const dayKey = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const bucket = (s) => Math.round(s * 100) / 100; // 0.01 resolution
+    const hash = (str) => {
+        let h = 2166136261 >>> 0;
+        for (let i = 0; i < str.length; i++) {
+            h ^= str.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        return h >>> 0;
+    };
+    items.sort((a, b) => {
+        if (bucket(b.score) !== bucket(a.score)) return b.score - a.score;
+        const ha = hash(dayKey + String(a.art._id));
+        const hb = hash(dayKey + String(b.art._id));
+        return ha - hb;
+    });
+
+    // Diversity in top-5 without dropping items: defer same-artist items and append later
+    const seen = new Set();
+    const top = [];
+    const later = [];
+    for (const it of items) {
+        if (top.length < 5) {
+            const aid = String(it.artistId || (it.art.artist && it.art.artist._id));
+            if (seen.has(aid)) {
+                later.push(it);
+            } else {
+                seen.add(aid);
+                top.push(it);
+            }
+        } else {
+            later.push(it);
+        }
+    }
+    const includedIds = new Set(top.map(x => String(x.art && x.art._id)));
+    const result = top.concat(later.filter(x => !includedIds.has(String(x.art && x.art._id))));
+
+    return result.map(it => ({
+        ...it.art,
+        score: it.score,
+        metrics: {
+            unblur: it.metrics.unblur || 0,
+            viewStart: it.metrics.viewStart || 0,
+            viewEnd: it.metrics.viewEnd || 0,
+            avgDwellMs: Math.round(it.metrics.avgDwellMs || 0)
+        }
+    }));
+}
+
+// Hourly background refresh of cache for default window
+const HOME_RANKED_DEFAULT_DAYS = 14;
+setTimeout(async () => {
+    try {
+        const payload = await computeHomeRanked(HOME_RANKED_DEFAULT_DAYS);
+        homeRankedCache = { key: getHomeRankedKey(HOME_RANKED_DEFAULT_DAYS), payload, expiresAt: Date.now() + HOME_RANKED_TTL_MS };
+        console.log('[home-ranked] cache warmed');
+    } catch (e) {
+        console.warn('[home-ranked] initial warm failed:', e && e.message ? e.message : e);
+    }
+}, 5000);
+setInterval(async () => {
+    try {
+        const payload = await computeHomeRanked(HOME_RANKED_DEFAULT_DAYS);
+        homeRankedCache = { key: getHomeRankedKey(HOME_RANKED_DEFAULT_DAYS), payload, expiresAt: Date.now() + HOME_RANKED_TTL_MS };
+        console.log('[home-ranked] cache refreshed by scheduler');
+    } catch (e) {
+        console.warn('[home-ranked] scheduled refresh failed:', e && e.message ? e.message : e);
+    }
+}, 60 * 60 * 1000);
 
 // Models
 const Artwork = require('../models/artwork');
@@ -276,6 +430,34 @@ router.put('/:id', [auth, uploadMiddleware], async (req, res) => {
     } catch (err) {
         console.error('Artwork update error:', err);
         return res.status(500).json({ msg: 'Server Error', error: err.message });
+    }
+});
+
+// @route   GET api/artworks/home-ranked
+// @desc    Ranked home feed using minimal quality signals from ArtworkEvent
+// @access  Public
+router.get('/home-ranked', async (req, res) => {
+    try {
+        const ArtworkEvent = require('../models/ArtworkEvent');
+        // time window for events (days)
+        const days = Math.min(Math.max(parseInt(req.query.days || '14', 10), 1), 60);
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+        // cache check
+        const force = String(req.query.force || '').toLowerCase() === 'true';
+        const key = getHomeRankedKey(days);
+        if (!force && homeRankedCache.payload && homeRankedCache.key === key && homeRankedCache.expiresAt > Date.now()) {
+            return res.json(homeRankedCache.payload);
+        }
+
+        // Compute payload using shared function
+        const payload = await computeHomeRanked(days);
+        // set cache
+        homeRankedCache = { key, payload, expiresAt: Date.now() + HOME_RANKED_TTL_MS };
+        return res.json(payload);
+    } catch (err) {
+        console.error('Error computing home-ranked feed:', err);
+        return res.status(500).json({ msg: 'Server error' });
     }
 });
 
@@ -681,6 +863,8 @@ router.post('/', [auth, uploadMiddleware], async (req, res) => {
             const newArtwork = new Artwork(artworkData);
             const saved = await newArtwork.save();
             console.log('Poetry artwork saved:', saved._id);
+            // Invalidate ranked home cache on new upload
+            invalidateHomeRankedCache();
             return res.json(saved);
         }
 
@@ -743,6 +927,8 @@ router.post('/', [auth, uploadMiddleware], async (req, res) => {
         const newArtwork = new Artwork(artworkData);
         const artwork = await newArtwork.save();
         console.log('Artwork saved successfully:', artwork._id);
+        // Invalidate ranked home cache on new upload
+        invalidateHomeRankedCache();
         return res.json(artwork);
     } catch (err) {
         console.error('Artwork upload error:', err);

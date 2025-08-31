@@ -88,6 +88,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // --- Analytics helper ---
+    function getSessionId() {
+        try {
+            const k = 'tart_session_id';
+            let id = sessionStorage.getItem(k);
+            if (!id) {
+                id = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+                sessionStorage.setItem(k, id);
+            }
+            return id;
+        } catch (_) { return undefined; }
+    }
+    function sendArtworkEvent(type, artworkId, extra) {
+        try {
+            const payload = JSON.stringify({ type, artworkId, sessionId: getSessionId(), ...(extra || {}) });
+            const blob = new Blob([payload], { type: 'application/json' });
+            navigator.sendBeacon('/api/analytics/artwork-event', blob);
+        } catch (_) { /* ignore */ }
+    }
+
     await setupAuthUI();
 
     const params = new URLSearchParams(window.location.search);
@@ -141,6 +161,21 @@ function renderPoem(container, poem) {
             throw new Error('Artwork not found');
         }
         const artwork = await res.json();
+
+        // Analytics: mark view start and setup dwell timer
+        let viewStartTs = Date.now();
+        let endSent = false;
+        const sendEndIfNeeded = () => {
+            if (endSent) return;
+            endSent = true;
+            const dwellMs = Math.max(0, Date.now() - viewStartTs);
+            sendArtworkEvent('view_end', artwork._id, { dwellMs });
+        };
+        // Send view_start soon after data is ready
+        sendArtworkEvent('view_start', artwork._id);
+        document.addEventListener('visibilitychange', () => { if (document.hidden) sendEndIfNeeded(); }, { passive: true });
+        window.addEventListener('pagehide', sendEndIfNeeded);
+        window.addEventListener('beforeunload', sendEndIfNeeded);
 
         // Populate Page Elements
         document.title = artwork.title; // Set page title

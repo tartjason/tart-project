@@ -258,6 +258,26 @@ document.addEventListener('DOMContentLoaded', () => {
         scope.querySelectorAll('.will-reveal').forEach(el => obs.observe(el));
     }
 
+    // --- Analytics helper ---
+    function getSessionId() {
+        try {
+            const k = 'tart_session_id';
+            let id = sessionStorage.getItem(k);
+            if (!id) {
+                id = ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+                sessionStorage.setItem(k, id);
+            }
+            return id;
+        } catch (_) { return undefined; }
+    }
+    function sendArtworkEvent(type, artworkId, extra) {
+        try {
+            const payload = JSON.stringify({ type, artworkId, sessionId: getSessionId(), ...(extra || {}) });
+            const blob = new Blob([payload], { type: 'application/json' });
+            navigator.sendBeacon('/api/analytics/artwork-event', blob);
+        } catch (_) { /* ignore */ }
+    }
+
     function createArtworkCard(artwork, extraClasses = []) {
         const el = document.createElement('div');
         el.classList.add('artwork-card', ...extraClasses);
@@ -312,6 +332,8 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }
         el.addEventListener('click', () => {
+            // Treat click to open as an unblur signal
+            sendArtworkEvent('unblur', artwork._id);
             window.location.href = `/artwork.html?id=${artwork._id}`;
         });
         return el;
@@ -722,7 +744,11 @@ function showPage(page) {
 
     const fetchArtworks = async () => {
         try {
-            const res = await fetch('/api/artworks');
+            let res = await fetch('/api/artworks/home-ranked');
+            if (!res.ok) {
+                // fallback to chronological if ranked not available
+                res = await fetch('/api/artworks');
+            }
             const artworks = await res.json();
             // If showcase containers exist, use sticky hero + right grid for first 4 items
             const useShowcase = !!(stickyHero && stickyGrid);
