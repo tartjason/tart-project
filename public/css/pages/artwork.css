@@ -253,6 +253,21 @@ body.artwork-page.focus-mode .artwork-footer {
     opacity: 0;
 }
 
+/* Focus mode: completely hide secondary sections and comments */
+body.artwork-page.focus-mode #artwork-metrics,
+body.artwork-page.focus-mode .artwork-footer .artist-info-footer,
+body.artwork-page.focus-mode .artwork-footer #artist-avatar,
+body.artwork-page.focus-mode .artwork-footer #follow-btn,
+body.artwork-page.focus-mode .artwork-footer .artwork-origin,
+body.artwork-page.focus-mode #artwork-time,
+body.artwork-page.focus-mode #artwork-location,
+body.artwork-page.focus-mode #artwork-source,
+body.artwork-page.focus-mode .comments-header,
+body.artwork-page.focus-mode #comments-section {
+    visibility: hidden !important;   /* preserve layout to avoid scroll jumps */
+    pointer-events: none !important; /* prevent interaction while hidden */
+}
+
 /* On small screens, fully hide metadata blocks in focus mode */
 @media (max-width: 680px) {
   body.artwork-page.focus-mode .artwork-origin,
