@@ -116,25 +116,26 @@ async function computeHomeRanked(days) {
         return ha - hb;
     });
 
-    // Diversity in top-5 without dropping items: defer same-artist items and append later
-    const seen = new Set();
+    // Diversity for top-4 only: ensure highest quality order but cap to max 2 per artist in top 4.
+    // All artworks are included; remaining items follow original sorted order.
+    const counts = new Map(); // artistId -> count in top
     const top = [];
     const later = [];
     for (const it of items) {
-        if (top.length < 5) {
+        if (top.length < 4) {
             const aid = String(it.artistId || (it.art.artist && it.art.artist._id));
-            if (seen.has(aid)) {
+            const c = counts.get(aid) || 0;
+            if (c >= 2) {
                 later.push(it);
             } else {
-                seen.add(aid);
+                counts.set(aid, c + 1);
                 top.push(it);
             }
         } else {
             later.push(it);
         }
     }
-    const includedIds = new Set(top.map(x => String(x.art && x.art._id)));
-    const result = top.concat(later.filter(x => !includedIds.has(String(x.art && x.art._id))));
+    const result = top.concat(later);
 
     return result.map(it => ({
         ...it.art,
