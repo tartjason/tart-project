@@ -456,6 +456,17 @@ router.put('/profile', auth, async (req, res) => {
             }
         }
 
+        // Bio (plain text; strip any HTML tags server-side)
+        if (typeof body.bio !== 'undefined') {
+            let bio = String(body.bio || '').trim();
+            // strip HTML tags for safety (simple sanitizer)
+            bio = bio.replace(/<[^>]*>/g, '');
+            // collapse excessive whitespace
+            bio = bio.replace(/[\t\r]+/g, ' ').replace(/\s{3,}/g, ' ').trim();
+            if (bio.length > 2000) return res.status(400).json({ message: 'Bio too long (max 2000 chars)' });
+            if (bio) set.bio = bio; else unset.bio = '';
+        }
+
         // Privacy toggles (booleans)
         if (typeof body.followersVisible !== 'undefined') {
             set.followersVisible = toBool(body.followersVisible);
@@ -493,6 +504,7 @@ router.put('/profile', auth, async (req, res) => {
                 name: updated.name,
                 city: updated.city || '',
                 country: updated.country || '',
+                bio: updated.bio || '',
                 profilePictureUrl: updated.profilePictureUrl,
                 followersVisible: updated.followersVisible,
                 followingVisible: updated.followingVisible,

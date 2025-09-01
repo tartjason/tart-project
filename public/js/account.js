@@ -386,6 +386,16 @@ async function loadPublicProfileData(artistId) {
             }
         }
 
+        // Render bio under connections for visitor view
+        try {
+            const bioEl = document.getElementById('artist-bio');
+            if (bioEl) {
+                const text = (artist && typeof artist.bio === 'string') ? artist.bio : '';
+                bioEl.textContent = text;
+                bioEl.style.display = text ? 'block' : 'none';
+            }
+        } catch (_) { /* no-op */ }
+
         // Populate Gallery Tab (respect privacy)
         const galleryContainer = document.getElementById('artist-artworks-container');
         if (galleryContainer) {
@@ -1198,6 +1208,15 @@ async function loadProfileData() {
         window.__currentArtist = artist; // cache for edit modal
         // Update notifications indicator and list if panel open
         window.initializeNotificationsUi && window.initializeNotificationsUi();
+        // Render bio under connections
+        try {
+            const bioEl = document.getElementById('artist-bio');
+            if (bioEl) {
+                const text = (artist && typeof artist.bio === 'string') ? artist.bio : '';
+                bioEl.textContent = text;
+                bioEl.style.display = text ? 'block' : 'none';
+            }
+        } catch (_) { /* no-op */ }
         window.updateNotifBellIndicator && window.updateNotifBellIndicator(artist);
         const notifPanel = document.getElementById('notif-panel');
         if (notifPanel && !notifPanel.hidden) {
@@ -1425,9 +1444,11 @@ function openEditProfileModal() {
     const nameInput = document.getElementById('edit-name');
     const cityInput = document.getElementById('edit-city');
     const countryInput = document.getElementById('edit-country');
+    const bioInput = document.getElementById('edit-bio');
     if (nameInput) nameInput.value = artist.name || '';
     if (cityInput) cityInput.value = artist.city || '';
     if (countryInput) countryInput.value = artist.country || '';
+    if (bioInput) bioInput.value = artist.bio || '';
     // Populate Privacy toggles (default true when undefined)
     const followersCb = document.getElementById('privacy-followers-visible');
     const followingCb = document.getElementById('privacy-following-visible');
@@ -1488,6 +1509,7 @@ async function saveProfileChanges() {
     const name = (document.getElementById('edit-name')?.value || '').trim();
     const city = (document.getElementById('edit-city')?.value || '').trim();
     const country = (document.getElementById('edit-country')?.value || '').trim();
+    const bio = (document.getElementById('edit-bio')?.value || '').trim();
     // Also include privacy toggles when saving profile (keeps data in sync)
     const followersVisible = !!(document.getElementById('privacy-followers-visible')?.checked ?? (window.__currentArtist ? (window.__currentArtist.followersVisible !== false) : true));
     const followingVisible = !!(document.getElementById('privacy-following-visible')?.checked ?? (window.__currentArtist ? (window.__currentArtist.followingVisible !== false) : true));
@@ -1502,7 +1524,7 @@ async function saveProfileChanges() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ name, city, country, followersVisible, followingVisible, galleryVisible, collectionVisible })
+            body: JSON.stringify({ name, city, country, bio, followersVisible, followingVisible, galleryVisible, collectionVisible })
         });
 
         if (!res.ok) {
@@ -1517,6 +1539,15 @@ async function saveProfileChanges() {
         const regionEl = document.getElementById('artist-region');
         if (nameEl && updated.name) nameEl.textContent = updated.name;
         if (regionEl) regionEl.textContent = formatRegion(updated.city, updated.country);
+        // Update bio text under connections
+        try {
+            const bioEl = document.getElementById('artist-bio');
+            if (bioEl) {
+                const text = (updated && typeof updated.bio === 'string') ? updated.bio : '';
+                bioEl.textContent = text;
+                bioEl.style.display = text ? 'block' : 'none';
+            }
+        } catch (_) { /* no-op */ }
         // Cache
         window.__currentArtist = Object.assign({}, window.__currentArtist, updated);
         // Re-populate toggles to reflect saved values
@@ -1563,6 +1594,13 @@ async function savePrivacySettings() {
         const data = await res.json();
         const updated = data.artist || {};
         window.__currentArtist = Object.assign({}, window.__currentArtist, updated);
+        // Update bio display in profile header
+        const bioEl = document.getElementById('artist-bio');
+        if (bioEl) {
+            const text = (updated && typeof updated.bio === 'string') ? updated.bio : '';
+            bioEl.textContent = text;
+            bioEl.style.display = text ? 'block' : 'none';
+        }
         showNotice('Privacy settings updated', 'success');
     } catch (e) {
         console.error('Save privacy error:', e);

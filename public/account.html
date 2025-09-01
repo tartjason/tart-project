@@ -41,6 +41,7 @@
                     </div>
                     <p id="artist-region">City, Country</p>
                     <p id="artist-connections">0 Connections</p>
+                    <div id="artist-bio" style="margin-top:6px; color:#374151; white-space:pre-wrap;"></div>
                 </div>
                 <div class="profile-actions">
                     <a href="/upload.html" class="btn account-action-btn">Upload Artwork</a>
@@ -115,8 +116,12 @@
                             <span>Country</span>
                             <input id="edit-country" type="text" style="width:100%; max-width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; display:block;" />
                         </label>
+                        <label>
+                            <span>Bio</span>
+                            <textarea id="edit-bio" rows="3" maxlength="2000" placeholder="Tell people about yourself" style="width:100%; max-width:100%; padding:8px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box; display:block; resize:vertical; font-family: inherit; font-size: 14px; line-height: 1.4;"></textarea>
+                        </label>
                     </div>
-                    <div style="position:absolute; right:16px; bottom:16px; display:flex; gap:8px; justify-content:flex-end;">
+                    <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
                         <button id="save-profile-btn" class="btn" type="button">Save</button>
                     </div>
                 </div>
