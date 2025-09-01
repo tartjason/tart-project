@@ -53,7 +53,7 @@
       show(metaSection);
       // Toggle metrics variant
       if (metricsSlide) metricsSlide.style.display = '';
-      if (["photography","painting","oil-painting","ink-painting","colored-pencil"].includes(medium)){
+      if (["photography","painting","oil-painting","ink-painting","colored-pencil","sketch"].includes(medium)){
         if (metrics2d) { metrics2d.hidden = false; metrics2d.style.display = ''; }
         if (metrics3d) { metrics3d.hidden = true; metrics3d.style.display = 'none'; }
       } else if (["industrial-design","furniture"].includes(medium)){
@@ -201,7 +201,7 @@
           fd.append('locationCity', common.locationCity);
           fd.append('source', common.source);
           // metrics
-          if (["photography","painting","oil-painting","ink-painting","colored-pencil"].includes(common.medium)){
+          if (["photography","painting","oil-painting","ink-painting","colored-pencil","sketch"].includes(common.medium)){
             const w = qs('#artwork-width')?.value;
             const h = qs('#artwork-height')?.value;
             const u = qs('#artwork-units')?.value;
@@ -231,7 +231,7 @@
           // No new image: send JSON
           const body = { title: common.title, description: common.description, medium: common.medium, locationCountry: common.locationCountry, locationCity: common.locationCity, source: common.source };
           // metrics optional
-          if (["photography","painting","oil-painting","ink-painting","colored-pencil"].includes(common.medium)){
+          if (["photography","painting","oil-painting","ink-painting","colored-pencil","sketch"].includes(common.medium)){
             body.width = qs('#artwork-width')?.value || undefined;
             body.height = qs('#artwork-height')?.value || undefined;
             body.units = qs('#artwork-units')?.value || undefined;

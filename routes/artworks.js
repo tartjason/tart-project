@@ -396,7 +396,7 @@ router.put('/:id', [auth, uploadMiddleware], async (req, res) => {
 
             // Metrics parsing depending on medium
             let metrics2d, metrics3d;
-            if (nextMedium === 'photography' || nextMedium === 'painting' || nextMedium === 'oil-painting' || nextMedium === 'ink-painting' || nextMedium === 'colored-pencil') {
+            if (nextMedium === 'photography' || nextMedium === 'painting' || nextMedium === 'oil-painting' || nextMedium === 'ink-painting' || nextMedium === 'colored-pencil' || nextMedium === 'sketch') {
                 const w = clampNum(body.width);
                 const h = clampNum(body.height);
                 const u = validUnit(body.units);
@@ -417,7 +417,7 @@ router.put('/:id', [auth, uploadMiddleware], async (req, res) => {
             } else {
                 // If medium changed from 2D to 3D or vice versa without new metrics, clear the old metrics to avoid mismatch
                 if (existing.metrics2d && (nextMedium === 'industrial-design' || nextMedium === 'furniture')) update.metrics2d = undefined;
-                if (existing.metrics3d && (nextMedium === 'photography' || nextMedium === 'painting' || nextMedium === 'oil-painting' || nextMedium === 'ink-painting' || nextMedium === 'colored-pencil')) update.metrics3d = undefined;
+                if (existing.metrics3d && (nextMedium === 'photography' || nextMedium === 'painting' || nextMedium === 'oil-painting' || nextMedium === 'ink-painting' || nextMedium === 'colored-pencil' || nextMedium === 'sketch')) update.metrics3d = undefined;
             }
 
             // If switching from poetry to non-poetry, clear poem
@@ -892,7 +892,7 @@ router.post('/', [auth, uploadMiddleware], async (req, res) => {
 
         // Metrics parsing
         let metrics2d, metrics3d;
-        if (medium === 'photography' || medium === 'painting' || medium === 'oil-painting' || medium === 'ink-painting' || medium === 'colored-pencil') {
+        if (medium === 'photography' || medium === 'painting' || medium === 'oil-painting' || medium === 'ink-painting' || medium === 'colored-pencil' || medium === 'sketch') {
             const w = clampNum(body.width);
             const h = clampNum(body.height);
             const u = validUnit(body.units);
