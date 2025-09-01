@@ -39,7 +39,7 @@
 /* Right column items: slightly wide (reduce height) */
 .showcase-right .artwork-card img,
 .showcase-right .artwork-card .poetry-preview {
-    aspect-ratio: 5 / 4; /* was 1 / 1 */
+    aspect-ratio: 1 / 1; /* switch to 5:5 square */
     height: auto;
 }
 
@@ -390,7 +390,7 @@ main.page-has-sidebar {
 /* Match gallery card media ratio to right-column items (5:4) */
 .gallery .artwork-card img,
 .gallery .artwork-card .poetry-preview {
-    aspect-ratio: 5 / 4;
+    aspect-ratio: 1 / 1; /* switch to 5:5 square */
     height: auto;
 }
 
@@ -542,4 +542,58 @@ main.page-has-sidebar {
 .artwork-card.poetry .poetry-preview .poem-viewer {
     /* Inherits typography from pages/artwork.css */
     padding: 0.25rem 0; /* slightly tighter for cards */
+}
+
+/* Desktop-only: show metadata only on hover; otherwise only blurred media is visible */
+@media (min-width: 901px) {
+  .artwork-card { position: relative; }
+
+  /* Hide info by default and place as an overlay at the bottom */
+  .artwork-card .artwork-info {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 8px 12px; /* tighter */
+    background: rgba(255, 255, 255, 0.85); /* less prominent */
+    backdrop-filter: saturate(180%) blur(8px);
+    border-top: 1px solid rgba(17,17,17,0.06);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 160ms ease, transform 160ms ease;
+    pointer-events: none; /* avoid intercepting hover before reveal */
+  }
+
+  /* Make overlay typography smaller on desktop */
+  .artwork-card .artwork-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    line-height: 1.25;
+  }
+  .artwork-card .artwork-info p {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.25;
+    color: #444;
+  }
+
+  /* Reveal on hover */
+  .artwork-card:hover .artwork-info {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  /* Unblur on hover (desktop) */
+  .artwork-card:hover .blurred {
+    filter: blur(0);
+  }
+
+  /* Ensure AI badge remains positioned within overlay area */
+  .artwork-card .artwork-info.has-badge { padding-right: 3rem; padding-bottom: 2.25rem; }
+
+  /* Poetry cards: same overlay behavior, keep transparent preview area */
+  .artwork-card.poetry .artwork-info {
+    background: rgba(255, 255, 255, 0.95);
+  }
 }
