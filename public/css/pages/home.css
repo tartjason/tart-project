@@ -385,6 +385,7 @@ main.page-has-sidebar {
     height: var(--media-h);
     object-fit: cover;
     transition: transform 200ms ease;
+    display: block; /* remove baseline gap that causes thin white strip */
 }
 
 /* Match gallery card media ratio to right-column items (5:4) */
