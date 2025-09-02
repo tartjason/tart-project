@@ -197,8 +197,6 @@ function renderPoem(container, poem) {
                 renderPoem(poemContainer, artwork.poem);
             }
             document.body.classList.add('poetry-mode');
-            // Enable focus mode for poetry as well
-            setupFocusMode();
         } else {
             // Image rendering
             // Make sure poetry mode is off first to avoid CSS hiding the image
@@ -217,7 +215,6 @@ function renderPoem(container, poem) {
             if (mainImg) {
                 setupAmbientBg(artwork.imageUrl);
                 setupLightbox(mainImg, artwork.imageUrl);
-                setupFocusMode();
             }
             // Ensure poetry mode is off for non-poetry (redundant safety)
             document.body.classList.remove('poetry-mode');
@@ -539,20 +536,7 @@ function setupLightbox(triggerImg, imageUrl) {
     overlayImg.addEventListener('pointercancel', endPan);
 }
 
-function setupFocusMode() {
-    const body = document.body;
-    if (!body.classList.contains('artwork-page')) return;
-    let timer;
-    const reset = () => {
-        body.classList.remove('focus-mode');
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => body.classList.add('focus-mode'), 1800);
-    };
-    ['mousemove','keydown','touchstart','pointerdown','scroll'].forEach(evt => {
-        document.addEventListener(evt, reset, { passive: true });
-    });
-    reset();
-}
+/* focus mode removed */
 
 // -------- Fade-in reveal helpers (match home page behavior) --------
 let revealObserver;
