@@ -1448,7 +1448,24 @@ function openEditProfileModal() {
     if (nameInput) nameInput.value = artist.name || '';
     if (cityInput) cityInput.value = artist.city || '';
     if (countryInput) countryInput.value = artist.country || '';
-    if (bioInput) bioInput.value = artist.bio || '';
+    // Initialize Bio with limit and counter
+    if (bioInput) {
+        const max = 100;
+        const counter = document.getElementById('edit-bio-counter');
+        const initial = String(artist.bio || '');
+        const limited = initial.slice(0, max);
+        bioInput.value = limited;
+        if (counter) counter.textContent = `${limited.length}/${max}`;
+        const onBioInput = () => {
+            const v = String(bioInput.value || '').slice(0, max);
+            if (v !== bioInput.value) bioInput.value = v;
+            if (counter) counter.textContent = `${v.length}/${max}`;
+        };
+        // remove previous handler if exists, then add
+        bioInput.removeEventListener('input', bioInput.__onBioInput);
+        bioInput.__onBioInput = onBioInput;
+        bioInput.addEventListener('input', onBioInput);
+    }
     // Populate Privacy toggles (default true when undefined)
     const followersCb = document.getElementById('privacy-followers-visible');
     const followingCb = document.getElementById('privacy-following-visible');
@@ -1517,6 +1534,8 @@ async function saveProfileChanges() {
     const collectionVisible = !!(document.getElementById('privacy-collection-visible')?.checked ?? (window.__currentArtist ? (window.__currentArtist.collectionVisible !== false) : true));
 
     if (!name) { showNotice('Name is required.', 'error'); return; }
+    const maxBio = 100;
+    if (bio.length > maxBio) { showNotice(`Bio must be ${maxBio} characters or fewer.`, 'error'); return; }
 
     try {
         const res = await authFetch('/api/auth/profile', {
