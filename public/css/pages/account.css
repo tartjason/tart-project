@@ -157,6 +157,41 @@
     display: none;
 }
 
+/* --- Account page: always show artwork info under the media --- */
+/* Cancel the desktop hover-overlay behavior defined in pages/home.css */
+body.account-page .artwork-card { position: static; }
+body.account-page .artwork-card .artwork-info {
+    position: static !important;   /* place below media */
+    opacity: 1 !important;         /* always visible */
+    transform: none !important;    /* no slide-up animation */
+    pointer-events: auto !important;
+    background: #fff;              /* keep white card look */
+    padding: 1rem;                 /* ensure spacing when static */
+    border-top: 1px solid rgba(17,17,17,0.06); /* subtle divider from media */
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+}
+/* Keep poetry variant consistent when info is static */
+body.account-page .artwork-card.poetry .artwork-info {
+    background: transparent;       /* poetry keeps transparent base */
+    border-top: 1px solid transparent;
+}
+/* Avoid image unblur/scale-only-on-hover when always-on info is used */
+body.account-page .artwork-card .blurred { filter: none !important; }
+body.account-page .artwork-card:hover .blurred { filter: none !important; }
+/* Keep hover elevation but prevent overlay reveal rules from re-applying */
+@media (min-width: 901px) {
+  body.account-page .artwork-card .artwork-info { opacity: 1 !important; transform: none !important; }
+}
+
+/* --- Account page Gallery: use 5:4 media ratio instead of 1:1 --- */
+/* Only affect the Gallery grid on the Account page */
+body.account-page #gallery .gallery .artwork-card img,
+body.account-page #gallery .gallery .artwork-card .poetry-preview {
+    aspect-ratio: 5 / 4 !important;
+    height: auto !important;
+}
+
 /* --- Notifications (Account header) --- */
 .name-row {
     display: flex;

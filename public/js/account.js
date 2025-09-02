@@ -404,7 +404,7 @@ async function loadPublicProfileData(artistId) {
                 galleryContainer.innerHTML = '<p>Gallery is hidden by the artist.</p>';
             } else if (artist.artworks && artist.artworks.length > 0) {
                 artist.artworks.forEach(aw => {
-                    const card = createArtworkCard(aw, false);
+                    const card = createArtworkCard(aw, false, false);
                     galleryContainer.appendChild(card);
                 });
             } else {
@@ -420,7 +420,7 @@ async function loadPublicProfileData(artistId) {
                 collectionContainer.innerHTML = '<p>Collection is hidden by the artist.</p>';
             } else if (artist.collections && artist.collections.length > 0) {
                 artist.collections.forEach(aw => {
-                    const card = createArtworkCard(aw, true);
+                    const card = createArtworkCard(aw, true, true);
                     collectionContainer.appendChild(card);
                 });
             } else {
@@ -1247,7 +1247,7 @@ async function loadProfileData() {
         galleryContainer.innerHTML = '';
         if (artist.artworks && artist.artworks.length) {
             artist.artworks.forEach(artwork => {
-                const card = createArtworkCard(artwork, true);
+                const card = createArtworkCard(artwork, true, false);
                 galleryContainer.appendChild(card);
             });
         } else {
@@ -1275,7 +1275,7 @@ async function loadProfileData() {
         collectionContainer.innerHTML = ''; // Clear existing
         if (artist.collections && artist.collections.length > 0) {
             artist.collections.forEach(artwork => {
-                const card = createArtworkCard(artwork, true);
+                const card = createArtworkCard(artwork, true, true);
                 collectionContainer.appendChild(card);
             });
         } else {
@@ -1700,7 +1700,7 @@ function sanitizeLineHtml(html) {
     return clean;
 }
 
-function createArtworkCard(artwork, showArtistName) {
+function createArtworkCard(artwork, showArtistName, isCollection) {
     const card = document.createElement('div');
     card.className = 'artwork-card';
     card.style.position = 'relative';
@@ -1817,56 +1817,89 @@ function createArtworkCard(artwork, showArtistName) {
                 dd.appendChild(it);
             }
 
-            addItem('Edit', () => {
-                const id = String(artwork._id);
-                window.location.href = `/edit-artwork.html?id=${encodeURIComponent(id)}`;
-            });
-            // Hide/Unhide toggle
-            const getToggleText = () => (artwork.isPrivate ? 'Unhide (Make Public)' : 'Hide (Make Private)');
-            const hideItem = document.createElement('button');
-            hideItem.type = 'button';
-            hideItem.textContent = getToggleText();
-            hideItem.style.cssText = 'display:block; width:100%; text-align:left; padding:8px 12px; background:#fff; border:0; cursor:pointer; font-size:14px;';
-            hideItem.addEventListener('click', async (ev) => {
-                ev.stopPropagation();
-                dd.style.display = 'none';
-                const id = String(artwork._id);
-                const next = !artwork.isPrivate;
-                const msg = next
-                    ? 'This will hide the artwork from public pages. Only you will see it in your account. Continue?'
-                    : 'This will make the artwork visible to everyone. Continue?';
-                if (!confirm(msg)) return;
-                try {
-                    const res = await authFetch(`/api/artworks/${encodeURIComponent(id)}/hide`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ isPrivate: next })
-                    });
-                    if (!res.ok) {
-                        const err = await res.json().catch(() => ({ msg: 'Failed to update privacy' }));
-                        throw new Error(err.msg || err.message || 'Failed to update privacy');
+            // Prefer explicit context: when rendering the Collection tab, show only Remove
+            if (isCollection) {
+                // Collection item: show only Remove
+                addItem('Remove', async () => {
+                    const id = String(artwork._id);
+                    try {
+                        const res = await authFetch(`/api/artworks/${encodeURIComponent(id)}/collect`, { method: 'PUT' });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({ msg: 'Failed to remove from collection' }));
+                            throw new Error(err.msg || err.message || 'Failed to remove from collection');
+                        }
+                        // Update local currentArtist cache
+                        try {
+                            if (window.__currentArtist && Array.isArray(window.__currentArtist.collections)) {
+                                window.__currentArtist.collections = window.__currentArtist.collections.filter(x => String(x && (x._id || x.id) ? (x._id || x.id) : x) !== String(artwork._id));
+                            }
+                        } catch (_) {}
+                        // Remove card from UI
+                        const parent = card.parentElement;
+                        card.remove();
+                        // If collection container is now empty, show placeholder text
+                        if (parent && parent.id === 'artist-collection-container' && parent.querySelectorAll('.artwork-card').length === 0) {
+                            parent.innerHTML = '<p>No collections yet.</p>';
+                        }
+                        showNotice('Removed from your collection', 'success');
+                    } catch (e) {
+                        console.error('Remove from collection error:', e);
+                        showNotice(e.message || 'Failed to remove from collection', 'error');
                     }
-                    const updated = await res.json();
-                    artwork.isPrivate = !!(updated && updated.isPrivate);
-                    // Update badge
-                    if (card.__privateBadge) {
-                        card.__privateBadge.style.display = artwork.isPrivate ? 'inline-block' : 'none';
+                });
+            } else {
+                // My own artwork: keep Edit / Hide / Delete
+                addItem('Edit', () => {
+                    const id = String(artwork._id);
+                    window.location.href = `/edit-artwork.html?id=${encodeURIComponent(id)}`;
+                });
+                // Hide/Unhide toggle
+                const getToggleText = () => (artwork.isPrivate ? 'Unhide (Make Public)' : 'Hide (Make Private)');
+                const hideItem = document.createElement('button');
+                hideItem.type = 'button';
+                hideItem.textContent = getToggleText();
+                hideItem.style.cssText = 'display:block; width:100%; text-align:left; padding:8px 12px; background:#fff; border:0; cursor:pointer; font-size:14px;';
+                hideItem.addEventListener('click', async (ev) => {
+                    ev.stopPropagation();
+                    dd.style.display = 'none';
+                    const id = String(artwork._id);
+                    const next = !artwork.isPrivate;
+                    const msg = next
+                        ? 'This will hide the artwork from public pages. Only you will see it in your account. Continue?'
+                        : 'This will make the artwork visible to everyone. Continue?';
+                    if (!confirm(msg)) return;
+                    try {
+                        const res = await authFetch(`/api/artworks/${encodeURIComponent(id)}/hide`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ isPrivate: next })
+                        });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({ msg: 'Failed to update privacy' }));
+                            throw new Error(err.msg || err.message || 'Failed to update privacy');
+                        }
+                        const updated = await res.json();
+                        artwork.isPrivate = !!(updated && updated.isPrivate);
+                        // Update badge
+                        if (card.__privateBadge) {
+                            card.__privateBadge.style.display = artwork.isPrivate ? 'inline-block' : 'none';
+                        }
+                        // Update menu text
+                        hideItem.textContent = getToggleText();
+                        showNotice(artwork.isPrivate ? 'Artwork set to Private' : 'Artwork made Public', 'success');
+                    } catch (e) {
+                        console.error('Hide toggle error:', e);
+                        showNotice(e.message || 'Failed to update privacy', 'error');
                     }
-                    // Update menu text
-                    hideItem.textContent = getToggleText();
-                    showNotice(artwork.isPrivate ? 'Artwork set to Private' : 'Artwork made Public', 'success');
-                } catch (e) {
-                    console.error('Hide toggle error:', e);
-                    showNotice(e.message || 'Failed to update privacy', 'error');
-                }
-            });
-            hideItem.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); hideItem.click(); } });
-            hideItem.addEventListener('mouseenter', () => { hideItem.style.background = '#f5f5f5'; });
-            hideItem.addEventListener('mouseleave', () => { hideItem.style.background = '#fff'; });
-            dd.appendChild(hideItem);
-            addItem('Delete', (ev) => {
-                deleteArtwork(String(artwork._id), ev);
-            });
+                });
+                hideItem.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); hideItem.click(); } });
+                hideItem.addEventListener('mouseenter', () => { hideItem.style.background = '#f5f5f5'; });
+                hideItem.addEventListener('mouseleave', () => { hideItem.style.background = '#fff'; });
+                dd.appendChild(hideItem);
+                addItem('Delete', (ev) => {
+                    deleteArtwork(String(artwork._id), ev);
+                });
+            }
 
             btn.addEventListener('click', (ev) => {
                 ev.stopPropagation();
