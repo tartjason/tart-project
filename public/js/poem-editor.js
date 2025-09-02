@@ -443,16 +443,15 @@
       let el = this._getCurrentLineEl();
       if (!el) return;
       const id = el.dataset.id;
-      const idx = this._indexById(id);
       const pasteText = (e.clipboardData || window.clipboardData).getData('text');
       const parts = pasteText.split(/\r?\n/);
       // Insert first part at current caret to preserve inline styles around caret
       document.execCommand('insertText', false, parts[0]);
       // Persist to model
-      this._updateLineFromEl(el, this.lines[idx]);
+      this._updateLineFromEl(el, this._lineById(id));
       // For subsequent parts, split and insert
       for (let i = 1; i < parts.length; i++) {
-        const { newLine, newEl } = this._splitCurrentLineAtCaret(el, idx);
+        const { newLine, newEl } = this._splitCurrentLineAtCaret(el);
         if (newEl) {
           newEl.focus();
           document.execCommand('insertText', false, parts[i]);
@@ -598,16 +597,15 @@
       e.preventDefault();
       const el = e.currentTarget;
       const id = el.dataset.id;
-      const lineIdx = this._indexById(id);
       const pasteText = (e.clipboardData || window.clipboardData).getData("text");
       const parts = pasteText.split(/\r?\n/);
       // Insert first part at current caret to preserve inline styles around caret
       document.execCommand('insertText', false, parts[0]);
       // Persist to model
-      this._updateLineFromEl(el, this.lines[lineIdx]);
+      this._updateLineFromEl(el, this._lineById(id));
       // For subsequent parts, split and insert
       for (let i = 1; i < parts.length; i++) {
-        const { newLine, newEl } = this._splitCurrentLineAtCaret(el, lineIdx);
+        const { newLine, newEl } = this._splitCurrentLineAtCaret(el);
         if (newEl) {
           newEl.focus();
           document.execCommand('insertText', false, parts[i]);
