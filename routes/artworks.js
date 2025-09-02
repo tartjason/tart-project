@@ -136,6 +136,27 @@ async function computeHomeRanked(days) {
         }
     }
     const result = top.concat(later);
+    
+    // Pin newest artwork to the very top for 1 hour
+    // This ensures the most recent upload is showcased as the hero temporarily.
+    try {
+        const ONE_HOUR_MS = 60 * 60 * 1000;
+        let newestIdx = -1;
+        let newestDateMs = 0;
+        for (let i = 0; i < result.length; i++) {
+            const d = new Date(result[i].art && result[i].art.date ? result[i].art.date : 0).getTime();
+            if (Number.isFinite(d) && d > newestDateMs) {
+                newestDateMs = d;
+                newestIdx = i;
+            }
+        }
+        if (newestIdx >= 0 && (Date.now() - newestDateMs) < ONE_HOUR_MS) {
+            const [pinned] = result.splice(newestIdx, 1);
+            result.unshift(pinned);
+        }
+    } catch (e) {
+        // non-fatal; fall back to ranked order
+    }
 
     return result.map(it => ({
         ...it.art,
