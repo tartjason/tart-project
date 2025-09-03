@@ -1,6 +1,20 @@
 document.addEventListener('DOMContentLoaded', async () => {
     const token = localStorage.getItem('token');
     const authContainer = document.getElementById('auth-container');
+    const backLink = document.getElementById('artwork-back');
+
+    if (backLink) {
+        backLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (document.referrer && document.referrer.startsWith(window.location.origin) && window.history.length > 1) {
+                window.history.back();
+            } else if (document.referrer) {
+                window.location.href = document.referrer;
+            } else {
+                window.location.href = '/';
+            }
+        });
+    }
 
     // --- Header auth UI (avatar/login) mirroring home page ---
     async function setupAuthUI() {

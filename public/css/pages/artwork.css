@@ -20,6 +20,16 @@ body.artwork-page .form-textarea::placeholder { color: #999; }
     text-decoration: none;
 }
 
+.artwork-page header .header-logo-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.artwork-page header .header-back-link {
+    margin-top: 4px;
+}
+
 .artwork-page header #auth-container {
     min-width: 120px; /* reserve space to prevent layout shift on mount */
     display: flex;
