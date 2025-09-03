@@ -9,6 +9,128 @@
     margin: 0 auto 2rem auto;
 }
 
+/* Home filters (AREA17-style) */
+.home-filter-container {
+    max-width: 1200px;
+    /* Reduce space above the button */
+    margin: 16px auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 0.25rem;
+}
+
+.filter-container { position: relative; }
+
+/* Trigger button (match reference) */
+.filter-container .filter-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #ffffff;
+    color: #000000;
+    border: 1px solid #e1e1e1;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+.filter-container .filter-trigger:hover {
+    background: #f8f8f8;
+    border-color: #cccccc;
+    transform: translateY(-1px);
+}
+.filter-container .filter-trigger:active {
+    transform: translateY(0);
+    transition-duration: 0.1s;
+}
+.filter-container .filter-trigger:focus-visible {
+    outline: 1px solid #000000;
+    outline-offset: 4px;
+}
+.filter-container .filter-trigger .filter-arrow {
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid #666666;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.filter-container .filter-trigger.active .filter-arrow { transform: rotate(180deg); }
+
+/* Panel (match reference) */
+.filter-container .filter-panel {
+    position: absolute;
+    top: 100%;
+    right: 0; /* anchor to the trigger's right edge so it doesn't overflow viewport */
+    left: auto;
+    background: #ffffff;
+    border: 1px solid #e1e1e1;
+    margin-top: 4px;
+    padding: 24px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1000;
+    min-width: 320px;
+    max-width: min(92vw, 420px); /* keep panel within viewport on small screens */
+    border-radius: 4px;
+    transform-origin: top right;
+}
+.filter-container .filter-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.filter-container .filter-section { margin-bottom: 24px; }
+.filter-container .filter-section:last-child { margin-bottom: 0; }
+.filter-container .filter-section-title { font-size: 14px; font-weight: 500; color: #000; letter-spacing: -0.005em; margin-bottom: 12px; text-transform: uppercase; }
+.filter-container .medium-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+.filter-container .sort-filters { display: flex; gap: 16px; }
+
+/* Custom checkbox option (match reference) */
+.filter-container .filter-option { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; user-select: none; }
+.filter-container .filter-option input.filter-checkbox { position: absolute; opacity: 0; pointer-events: none; }
+.filter-container .filter-option .filter-checkmark {
+    width: 16px; height: 16px; border: 1px solid #cccccc; background: #ffffff; display: flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0;
+}
+.filter-container .filter-option .filter-checkmark::after {
+    content: ''; width: 8px; height: 8px; background: #000000; opacity: 0; transform: scale(0); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.filter-container .filter-option input.filter-checkbox:checked + .filter-checkmark { border-color: #000000; background: #ffffff; }
+.filter-container .filter-option input.filter-checkbox:checked + .filter-checkmark::after { opacity: 1; transform: scale(1); }
+.filter-container .filter-option:hover .filter-checkmark { border-color: #000000; }
+.filter-container .filter-option .filter-label { font-size: 14px; font-weight: 400; color: #333333; letter-spacing: -0.005em; }
+
+/* Custom radio option (match reference) */
+.filter-container .sort-option { display: flex; align-items: center; gap: 8px; cursor: pointer; position: relative; user-select: none; }
+.filter-container .sort-option input.sort-radio { position: absolute; opacity: 0; pointer-events: none; }
+.filter-container .sort-option .sort-radio-mark {
+    width: 16px; height: 16px; border: 1px solid #cccccc; border-radius: 50%; background: #ffffff; display: flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); flex-shrink: 0;
+}
+.filter-container .sort-option .sort-radio-mark::after {
+    content: ''; width: 8px; height: 8px; background: #000000; border-radius: 50%; opacity: 0; transform: scale(0); transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.filter-container .sort-option input.sort-radio:checked + .sort-radio-mark { border-color: #000000; }
+.filter-container .sort-option input.sort-radio:checked + .sort-radio-mark::after { opacity: 1; transform: scale(1); }
+.filter-container .sort-option:hover .sort-radio-mark { border-color: #000000; }
+.filter-container .sort-option .filter-label { font-size: 14px; font-weight: 400; color: #333333; letter-spacing: -0.005em; }
+
+/* Footer actions */
+.filter-container .filter-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #f0f0f0; }
+.filter-container .filter-count { font-size: 12px; font-weight: 400; color: #666; }
+.filter-container .filter-buttons { display: flex; gap: 8px; }
+.filter-container .filter-btn { padding: 6px 12px; border: none; font-size: 12px; font-weight: 400; letter-spacing: 0; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); text-transform: uppercase; }
+.filter-container .filter-btn--clear { background: transparent; color: #666; }
+.filter-container .filter-btn--clear:hover { color: #000; transform: translateY(-1px); }
+.filter-container .filter-btn--apply { background: #000; color: #fff; }
+.filter-container .filter-btn--apply:hover { background: #333; transform: translateY(-1px); }
+
 .showcase-left {
     position: sticky;
     top: 2rem;
@@ -340,6 +462,9 @@
 main.page-has-sidebar {
     max-width: none;
     margin: 0;
+    /* Reduce default main padding-top (2rem) to tighten space above filters */
+    padding-top: 0.75rem;
+    padding-bottom: 1.5rem;
     padding-left: 0;
     padding-right: 0;
 }

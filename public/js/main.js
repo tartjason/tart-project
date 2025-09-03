@@ -13,6 +13,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const navHome = document.getElementById('nav-home');
     const token = localStorage.getItem('token');
 
+    // ---- Home filter state (AREA17) ----
+    const filterTrigger = document.getElementById('filter-trigger');
+    const filterPanel = document.getElementById('filter-panel');
+    const applyBtn = document.getElementById('apply-filters');
+    const clearBtn = document.getElementById('clear-filters');
+    const filterCountEl = document.getElementById('filter-count');
+    const homeFilterContainer = document.querySelector('.home-filter-container');
+    let _allArtworks = [];
+    let _rankedArtworks = [];
+    let _selectedMediums = new Set();
+    let _sortMode = 'default'; // 'default' | 'popularity' | 'latest'
+
     const setupAuthUI = async () => {
         const t = localStorage.getItem('token');
         if (t) {
@@ -283,33 +295,143 @@ document.addEventListener('DOMContentLoaded', () => {
         el.classList.add('artwork-card', ...extraClasses);
         const isHero = Array.isArray(extraClasses) && extraClasses.includes('hero');
         if (artwork.medium === 'poetry') {
+            console.log('Processing poetry artwork:', artwork.title);
+            console.log('Poem data structure:', {
+                hasPoem: !!artwork.poem,
+                poemType: artwork.poem ? typeof artwork.poem : 'none',
+                hasPoetryData: Array.isArray(artwork.poetryData),
+                description: artwork.description ? 'has description' : 'no description'
+            });
             el.classList.add('poetry');
-            // Build faithful lines using poem metadata when available
+            // Always show only 2 lines in grid view, 4 lines in hero view
             const desiredLineCount = isHero ? 4 : 2;
             let lines = [];
-            if (artwork && artwork.poem && Array.isArray(artwork.poem.lines) && artwork.poem.lines.length) {
-                lines = artwork.poem.lines.slice(0, desiredLineCount).map((line) => ({
-                    html: convertEscapedFontToSpan(String(line.html || '')),
-                    indent: Number.isFinite(line.indent) ? line.indent : 0,
-                    spacing: Number.isFinite(line.spacing) ? line.spacing : 0
-                }));
-            } else if (artwork && Array.isArray(artwork.poetryData) && artwork.poetryData.length) {
-                lines = artwork.poetryData.slice(0, desiredLineCount).map((l) => ({
-                    html: sanitizeLineHtml(l.text || ''),
-                    indent: 0,
-                    spacing: 0
-                }));
-            } else {
-                // Fallback single line from description/title
-                lines = [{ html: escapeHtml(artwork.description || artwork.title || ''), indent: 0, spacing: 0 }];
+            
+            // Helper to split text into lines, handling both newlines and <br> tags
+            const splitIntoLines = (text) => {
+                if (!text) return [];
+                
+                // First split by <br> tags, then by newlines
+                const lines = [];
+                const parts = text.split(/(<br\s*\/?>|\r?\n)/i);
+                
+                for (let i = 0; i < parts.length; i++) {
+                    const part = parts[i];
+                    // Skip empty parts and <br> tags (we'll add them as empty lines)
+                    if (!part || part.match(/^<br\s*\/?>$/i)) {
+                        lines.push('');
+                        continue;
+                    }
+                    // Skip the split delimiters (they're captured in the split)
+                    if (i > 0 && (parts[i-1] === '\n' || parts[i-1] === '\r\n' || parts[i-1].match(/^<br\s*\/?>$/i))) {
+                        continue;
+                    }
+                    // Trim and add non-empty lines
+                    const trimmed = part.trim();
+                    if (trimmed) {
+                        lines.push(trimmed);
+                    }
+                }
+                
+                return lines;
+            };
+            
+            // Try to get lines from poem data structure first
+            if (artwork && artwork.poem) {
+                let textContent = '';
+                
+                // Handle different poem data structures
+                if (Array.isArray(artwork.poem.lines)) {
+                    // If we have an array of lines, join them with newlines
+                    textContent = artwork.poem.lines
+                        .filter(line => line && (line.html || line.text))
+                        .map(line => String(line.html || line.text || ''))
+                        .join('\n');
+                } else if (artwork.poem.text) {
+                    // If we have a single text block
+                    textContent = artwork.poem.text;
+                }
+                
+                // Split into lines, handling both newlines and <br> tags
+                if (textContent) {
+                    // Replace all <br> tags with newlines
+                    const normalizedText = textContent.replace(/<br\s*\/?>/gi, '\n');
+                    // Split by newlines and filter out empty lines
+                    const rawLines = normalizedText.split(/\r?\n/)
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0);
+                    
+                    // Take only the desired number of lines
+                    lines = rawLines
+                        .slice(0, desiredLineCount)
+                        .map(line => ({
+                            html: convertEscapedFontToSpan(line),
+                            indent: 0,
+                            spacing: 0
+                        }));
+                }
+            }
+            
+            // If no lines from poem data, try poetryData array
+            if (lines.length === 0 && Array.isArray(artwork.poetryData) && artwork.poetryData.length) {
+                // Join all text with newlines, then split into lines
+                const textContent = artwork.poetryData
+                    .filter(item => item && item.text)
+                    .map(item => String(item.text || '').trim())
+                    .join('\n');
+                
+                // Split into lines, handling both newlines and <br> tags
+                if (textContent) {
+                    // Replace all <br> tags with newlines
+                    const normalizedText = textContent.replace(/<br\s*\/?>/gi, '\n');
+                    // Split by newlines and filter out empty lines
+                    const rawLines = normalizedText.split(/\r?\n/)
+                        .map(line => line.trim())
+                        .filter(line => line.length > 0);
+                    
+                    // Take only the desired number of lines
+                    lines = rawLines
+                        .slice(0, desiredLineCount)
+                        .map(line => ({
+                            html: convertEscapedFontToSpan(line),
+                            indent: 0,
+                            spacing: 0
+                        }));
+                }
+            }
+            
+            // If still no lines, try to parse from description or title
+            if (lines.length === 0) {
+                const fallbackText = (artwork.description || artwork.title || '').trim();
+                const fallbackLines = splitIntoLines(fallbackText);
+                lines = fallbackLines
+                    .slice(0, desiredLineCount)
+                    .map(line => ({
+                        html: escapeHtml(line),
+                        indent: 0,
+                        spacing: 0
+                    }));
+            }
+            
+            // If we still have no lines, use a placeholder
+            if (lines.length === 0) {
+                lines = [{ html: '&nbsp;', indent: 0, spacing: 0 }];
             }
 
-            const linesHtml = lines.map((ln, idx) => {
+            // Take only the desired number of lines
+            const visibleLines = lines.slice(0, desiredLineCount);
+            
+            console.log('Processed lines:', lines);
+            console.log('Visible lines:', visibleLines);
+            
+            const linesHtml = visibleLines.map((ln, idx) => {
                 const pad = ln.indent > 0 ? `${ln.indent * 2}em` : '0';
                 const mt = ln.spacing > 0 ? `${ln.spacing * 0.4}em` : '0';
                 const mtStyle = mt !== '0' ? `margin-top: ${mt};` : '';
                 return `<div class="poem-line" style="padding-left: ${pad}; ${mtStyle}">${ln.html}</div>`;
             }).join('');
+            
+            console.log('Generated HTML:', linesHtml);
 
             el.innerHTML = `
                 <div class="poetry-preview">
@@ -337,6 +459,94 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = `/artwork.html?id=${artwork._id}`;
         });
         return el;
+    }
+
+    // ------- Rendering helpers for home list -------
+    function renderFromList(list) {
+        const useShowcase = !!(stickyHero && stickyGrid);
+        try {
+            if (useShowcase) {
+                stickyHero.innerHTML = '';
+                stickyGrid.innerHTML = '';
+                artworksContainer.innerHTML = '';
+
+                const hero = list[0];
+                const rightCol = list.slice(1, 4);
+                const rest = list.slice(4);
+
+                if (hero) {
+                    const heroCard = createArtworkCard(hero, ['hero']);
+                    heroCard.classList.add('will-reveal');
+                    heroCard.style.setProperty('--stagger', '0ms');
+                    stickyHero.appendChild(heroCard);
+                }
+                rightCol.forEach((a, i) => {
+                    const card = createArtworkCard(a);
+                    card.classList.add('will-reveal');
+                    card.style.setProperty('--stagger', `${(i + 1) * 100}ms`);
+                    stickyGrid.appendChild(card);
+                });
+
+                rest.forEach((a, i) => {
+                    const card = createArtworkCard(a);
+                    card.classList.add('will-reveal');
+                    const delay = (i % 10) * 60;
+                    card.style.setProperty('--stagger', `${delay}ms`);
+                    artworksContainer.appendChild(card);
+                });
+
+                observeNewReveals(document);
+            } else {
+                artworksContainer.innerHTML = '';
+                list.forEach(a => artworksContainer.appendChild(createArtworkCard(a)));
+            }
+        } catch (e) {
+            console.error('Render error:', e);
+        }
+    }
+
+    function getFilteredList() {
+        const base = _allArtworks.length ? _allArtworks : _rankedArtworks;
+        if (!_selectedMediums || _selectedMediums.size === 0) return base;
+        return base.filter(a => _selectedMediums.has(a.medium));
+    }
+
+    function getSortedList(list) {
+        const arr = [...list];
+        if (_sortMode === 'latest') {
+            return arr.sort((a, b) => new Date(b.date || b.createdAt || 0) - new Date(a.date || a.createdAt || 0));
+        }
+        if (_sortMode === 'default') {
+            // Preserve server/default algorithm order using ranked baseline
+            if (Array.isArray(_rankedArtworks) && _rankedArtworks.length) {
+                const idx = new Map(_rankedArtworks.map((x, i) => [x._id, i]));
+                return arr.sort((a, b) => (idx.get(a._id) ?? 999999) - (idx.get(b._id) ?? 999999));
+            }
+            return arr; // no-op if no baseline
+        }
+        // popularity: primarily collectsCount, then commentsCount, fallback to ranked order if available index
+        return arr.sort((a, b) => {
+            const pa = (a.collectsCount || 0) * 10 + (a.commentsCount || 0);
+            const pb = (b.collectsCount || 0) * 10 + (b.commentsCount || 0);
+            if (pb !== pa) return pb - pa;
+            // tie-breaker: if both in ranked list, keep ranked order
+            const ia = _rankedArtworks.findIndex(x => x._id === a._id);
+            const ib = _rankedArtworks.findIndex(x => x._id === b._id);
+            if (ia !== -1 && ib !== -1) return ia - ib;
+            return 0;
+        });
+    }
+
+    function applyFiltersAndRender() {
+        const filtered = getFilteredList();
+        const sorted = getSortedList(filtered);
+        renderFromList(sorted);
+    }
+
+    function updateFilterCountUI() {
+        if (!filterCountEl) return;
+        const n = _selectedMediums.size;
+        filterCountEl.textContent = `${n} filter${n === 1 ? '' : 's'} applied`;
     }
 
     // -------- Sidebar + Page Switching --------
@@ -589,6 +799,8 @@ function showPage(page) {
         pageContent.hidden = true;
         showcase && (showcase.style.display = '');
         artworksContainer.style.display = '';
+        // Show filter on Home
+        if (homeFilterContainer) homeFilterContainer.style.display = '';
         // Re-render artworks if container is empty
         if (!artworksContainer.children.length) fetchArtworks();
         // observe any pending reveals in artworks containers
@@ -599,6 +811,14 @@ function showPage(page) {
         pageContent.innerHTML = renderTartHTML();
         showcase && (showcase.style.display = 'none');
         artworksContainer.style.display = 'none';
+        // Hide filter and close panel when leaving Home
+        if (homeFilterContainer) homeFilterContainer.style.display = 'none';
+        if (filterPanel && filterPanel.classList.contains('active')) {
+            filterPanel.classList.remove('active');
+            filterTrigger && filterTrigger.classList.remove('active');
+            filterTrigger && filterTrigger.setAttribute('aria-expanded', 'false');
+            filterPanel.setAttribute('aria-hidden', 'true');
+        }
         // Tart uses direct fade-in; still observe in case future will-reveal exists
         observeNewReveals(pageContent);
         // Wire CTA: if not logged in, open login then redirect to account; if logged in, go to upload
@@ -620,6 +840,14 @@ function showPage(page) {
         pageContent.innerHTML = renderAboutHTML();
         showcase && (showcase.style.display = 'none');
         artworksContainer.style.display = 'none';
+        // Hide filter and close panel when leaving Home
+        if (homeFilterContainer) homeFilterContainer.style.display = 'none';
+        if (filterPanel && filterPanel.classList.contains('active')) {
+            filterPanel.classList.remove('active');
+            filterTrigger && filterTrigger.classList.remove('active');
+            filterTrigger && filterTrigger.setAttribute('aria-expanded', 'false');
+            filterPanel.setAttribute('aria-hidden', 'true');
+        }
         observeNewReveals(pageContent);
     }
 
@@ -750,51 +978,87 @@ function showPage(page) {
                 res = await fetch('/api/artworks');
             }
             const artworks = await res.json();
-            // If showcase containers exist, use sticky hero + right grid for first 4 items
-            const useShowcase = !!(stickyHero && stickyGrid);
-            if (useShowcase) {
-                stickyHero.innerHTML = '';
-                stickyGrid.innerHTML = '';
-                artworksContainer.innerHTML = '';
+            // Ensure counts exist if backend fallback was used
+            const withCounts = Array.isArray(artworks) ? artworks.map(a => ({
+                ...a,
+                collectsCount: typeof a.collectsCount === 'number' ? a.collectsCount : 0,
+                commentsCount: typeof a.commentsCount === 'number' ? a.commentsCount : 0,
+            })) : [];
 
-                const hero = artworks[0];
-                const rightCol = artworks.slice(1, 4);
-                const rest = artworks.slice(4);
-
-                if (hero) {
-                    const heroCard = createArtworkCard(hero, ['hero']);
-                    heroCard.classList.add('will-reveal');
-                    heroCard.style.setProperty('--stagger', '0ms');
-                    stickyHero.appendChild(heroCard);
-                }
-                rightCol.forEach((a, i) => {
-                    const card = createArtworkCard(a);
-                    card.classList.add('will-reveal');
-                    card.style.setProperty('--stagger', `${(i + 1) * 100}ms`);
-                    stickyGrid.appendChild(card);
-                });
-
-                // Uniform grid for the remaining list (no tall/featured variants)
-                rest.forEach((a, i) => {
-                    const card = createArtworkCard(a);
-                    card.classList.add('will-reveal');
-                    const delay = (i % 10) * 60; // cap stagger cycles for long lists
-                    card.style.setProperty('--stagger', `${delay}ms`);
-                    artworksContainer.appendChild(card);
-                });
-
-                // Start observing reveals for home items
-                observeNewReveals(document);
-            } else {
-                // Fallback: original single grid behavior
-                artworksContainer.innerHTML = '';
-                artworks.forEach(a => artworksContainer.appendChild(createArtworkCard(a)));
-            }
+            // If response was from /home-ranked, treat as ranked baseline
+            _rankedArtworks = withCounts;
+            _allArtworks = withCounts;
+            applyFiltersAndRender();
         } catch (error) {
             console.error('Failed to fetch artworks:', error);
             artworksContainer.innerHTML = '<p>Could not load artworks.</p>';
         }
     };
+
+    // ---- Wire AREA17 filter UI ----
+    if (filterTrigger && filterPanel) {
+        const openPanel = () => {
+            filterPanel.classList.add('active');
+            filterTrigger.classList.add('active');
+            filterTrigger.setAttribute('aria-expanded', 'true');
+            filterPanel.setAttribute('aria-hidden', 'false');
+            document.addEventListener('click', outsideClickHandler);
+            document.addEventListener('keydown', escHandler);
+        };
+        const closePanel = () => {
+            filterPanel.classList.remove('active');
+            filterTrigger.classList.remove('active');
+            filterTrigger.setAttribute('aria-expanded', 'false');
+            filterPanel.setAttribute('aria-hidden', 'true');
+            document.removeEventListener('click', outsideClickHandler);
+            document.removeEventListener('keydown', escHandler);
+        };
+        const outsideClickHandler = (e) => {
+            if (!filterTrigger.contains(e.target) && !filterPanel.contains(e.target)) {
+                closePanel();
+            }
+        };
+        const escHandler = (e) => { if (e.key === 'Escape') closePanel(); };
+
+        filterTrigger.addEventListener('click', () => {
+            if (filterPanel.classList.contains('active')) closePanel(); else openPanel();
+        });
+
+        // Track checkbox changes for count UI
+        document.querySelectorAll('.filter-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                if (cb.checked) _selectedMediums.add(cb.value); else _selectedMediums.delete(cb.value);
+                updateFilterCountUI();
+            });
+        });
+
+        // Sort radio
+        document.querySelectorAll('.sort-radio').forEach(r => {
+            r.addEventListener('change', () => {
+                if (r.checked) _sortMode = r.value; // 'popularity' | 'latest'
+            });
+        });
+
+        // Apply
+        applyBtn && applyBtn.addEventListener('click', () => {
+            closePanel();
+            applyFiltersAndRender();
+        });
+
+        // Clear
+        clearBtn && clearBtn.addEventListener('click', () => {
+            _selectedMediums.clear();
+            document.querySelectorAll('.filter-checkbox').forEach(cb => { cb.checked = false; });
+            // reset sort to default
+            _sortMode = 'default';
+            const def = document.querySelector('.sort-radio[value="default"]');
+            if (def) def.checked = true;
+            updateFilterCountUI();
+        });
+
+        // Initialize count label
+        updateFilterCountUI();
+    }
 
     setupAuthUI();
     // Initial route

@@ -65,6 +65,27 @@ async function computeHomeRanked(days) {
         }},
     ]);
 
+    // Popularity aggregates: collects and comments per artwork
+    // Note: small collections; these group-bys are acceptable. If needed, optimize with cached counts.
+    let collectsByArt = new Map();
+    let commentsByArt = new Map();
+    try {
+        const collectsAgg = await Collect.aggregate([
+            { $group: { _id: '$artwork', count: { $sum: 1 } } }
+        ]);
+        collectsAgg.forEach(row => collectsByArt.set(String(row._id), row.count));
+    } catch (e) {
+        collectsByArt = new Map();
+    }
+    try {
+        const commentsAgg = await Comment.aggregate([
+            { $group: { _id: '$artworkId', count: { $sum: 1 } } }
+        ]);
+        commentsAgg.forEach(row => commentsByArt.set(String(row._id), row.count));
+    } catch (e) {
+        commentsByArt = new Map();
+    }
+
     const allArts = await Artwork.find({ isPrivate: { $ne: true } })
         .populate('artist', ['name', '_id'])
         .lean();
@@ -166,7 +187,10 @@ async function computeHomeRanked(days) {
             viewStart: it.metrics.viewStart || 0,
             viewEnd: it.metrics.viewEnd || 0,
             avgDwellMs: Math.round(it.metrics.avgDwellMs || 0)
-        }
+        },
+        // Popularity helpers for frontend sorting
+        collectsCount: collectsByArt.get(String(it.art._id)) || 0,
+        commentsCount: commentsByArt.get(String(it.art._id)) || 0
     }));
 }
 
