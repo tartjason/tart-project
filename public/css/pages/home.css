@@ -378,33 +378,31 @@
   }
 }
 
-/* Tiny toggle button near logo (mimics compact left control) */
-.logo-toggle { display: inline-flex; align-items: center; gap: 0; position: relative; cursor: pointer; }
+/* Tiny toggle button near logo */
+.logo-toggle { display: inline-flex; align-items: center; gap: 8px; }
 
-/* Smoothly fade logo text when revealing toggle */
+/* Keep logo text visible */
 .logo-toggle h1 { margin: 0; transition: opacity 160ms ease; }
 
-/* Place toggle directly over the logo; hidden until hover/focus */
+/* Show toggle to the right of logo */
 .logo-toggle .sidebar-toggle {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 160ms ease;
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    transition: none;
 }
 
-/* On hover over the logo area, swap text for toggle */
-.logo-toggle:hover h1 { opacity: 0; }
+/* Ensure hover does not hide logo or toggle */
+.logo-toggle:hover h1 { opacity: 1; }
 .logo-toggle:hover .sidebar-toggle { opacity: 1; pointer-events: auto; }
 
 /* Also reveal toggle when focused for keyboard accessibility */
 .logo-toggle .sidebar-toggle:focus-visible { opacity: 1; pointer-events: auto; }
 
 .sidebar-toggle {
-    width: 30px;
-    height: 30px;
+    width: 24px;
+    height: 24px;
     padding: 0;
     border: none;
     background: transparent;
@@ -417,9 +415,9 @@
 /* Icon container: draws the rounded-rectangle outline */
 .sidebar-toggle .toggle-icon {
     position: relative;
-    width: 20px;   /* visual width of the icon */
-    height: 16px;  /* visual height of the icon */
-    border-radius: 4px;
+    width: 16px;   /* visual width of the icon */
+    height: 12px;  /* visual height of the icon */
+    border-radius: 3px;
     box-sizing: border-box;
 }
 

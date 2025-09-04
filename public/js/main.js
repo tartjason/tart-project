@@ -863,9 +863,6 @@ function showPage(page) {
             sidebarToggle.setAttribute('aria-label', label);
             sidebarToggle.setAttribute('title', label);
         }
-        if (logoToggleContainer) {
-            logoToggleContainer.setAttribute('title', label);
-        }
     }
 
     // -------- Mobile helpers: detect and close sidebar --------
@@ -891,30 +888,6 @@ function showPage(page) {
         });
     }
 
-    if (logoToggleContainer && appEl) {
-        // Toggle when clicking the logo area on desktop only
-        logoToggleContainer.addEventListener('click', (e) => {
-            if (e.target && e.target.closest('#sidebar-toggle')) return;
-            if (isMobile()) return; // Do not toggle via logo on mobile
-            const open = appEl.classList.contains('sidebar-open');
-            appEl.classList.toggle('sidebar-open', !open);
-            appEl.classList.toggle('sidebar-closed', open);
-            updateSidebarToggleA11y();
-        });
-        // Improve accessibility for keyboard users on desktop only
-        logoToggleContainer.setAttribute('role', 'button');
-        logoToggleContainer.setAttribute('tabindex', '0');
-        logoToggleContainer.addEventListener('keydown', (e) => {
-            if (isMobile()) return; // No-op on mobile
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                const open = appEl.classList.contains('sidebar-open');
-                appEl.classList.toggle('sidebar-open', !open);
-                appEl.classList.toggle('sidebar-closed', open);
-                updateSidebarToggleA11y();
-            }
-        });
-    }
     // Initialize correct labels/titles on load
     updateSidebarToggleA11y();
 
