@@ -94,6 +94,11 @@ app.get('/sites/:artistId/site.json', async (req, res) => {
 // Serve static files from the 'public' directory (HTML, CSS, JS)
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Party page route: explicit to avoid being captured by "/:slug"
+app.get('/party', (req, res) => {
+    return res.sendFile(path.join(__dirname, 'public', 'party.html'));
+});
+
 // Back-compat: redirect /s/:slug to root-level /:slug
 app.get('/s/:slug', (req, res) => {
     const slug = String(req.params.slug || '');
@@ -105,7 +110,7 @@ app.get('/s/:slug', (req, res) => {
 app.get('/:slug', (req, res, next) => {
     const slug = String(req.params.slug || '').toLowerCase();
     const reserved = new Set([
-        'api', 'sites', 'js', 'css', 'uploads', 'static', 'assets', 'images', 'img', 'fonts',
+        'api', 'sites', 'js', 'css', 'uploads', 'static', 'assets', 'images', 'img', 'fonts', 'party',
         'favicon.ico', 'robots.txt', 's', 'site.html', 'index.html'
     ]);
     if (!slug || reserved.has(slug) || slug.includes('.')) return next();

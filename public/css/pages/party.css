@@ -1,0 +1,46 @@
+/* Party page dark theme overrides */
+
+body.party-page {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+  color: #e5e7eb;
+}
+
+.party-header {
+  background: transparent;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  color: #e5e7eb;
+}
+
+.party-logo-link {
+  color: #e5e7eb;
+  text-decoration: none;
+}
+.party-logo-link:hover { text-decoration: none; }
+
+.party-main {
+  min-height: calc(100vh - 64px);
+}
+
+/* Auth avatar & dropdown — dark variant */
+.party-header .header-avatar {
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+.party-header .avatar-dropdown {
+  background: #243455;
+  color: #e5e7eb;
+  border: 1px solid #314266;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+}
+
+.party-header .avatar-dropdown .dropdown-item {
+  color: #e5e7eb;
+  background: transparent;
+}
+
+.party-header .avatar-dropdown .dropdown-item:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+/* Hide homepage tagline spacing effects on this page */
+.party-header p { display: none; }
