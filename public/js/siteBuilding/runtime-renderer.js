@@ -121,12 +121,13 @@
           el.innerHTML = String(value);
         } else if (type === 'imageurl') {
           const url = String(value);
+          // Defer heavy background images until in-view using lazy loader
+          // Store URL on element to be picked up by initLazyBackgrounds
           if (url) {
-            const current = el.getAttribute('style') || '';
-            const separator = current && !current.trim().endsWith(';') ? '; ' : '';
-            const imgStyle = `background-image: url('${url}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
-            el.setAttribute('style', current + separator + imgStyle);
-            // Remove any placeholder text/content inside the image container
+            el.setAttribute('data-bg-url', url);
+            // Add a class hook for optional styling (e.g., min-height placeholders)
+            if (!el.classList.contains('lazy-bg')) el.classList.add('lazy-bg');
+            // Clear any inner content to avoid overlaying text
             try { el.innerHTML = ''; } catch {}
             // Hide adjacent helper caption paragraph, if present
             try {
@@ -134,6 +135,7 @@
               if (sib && sib.tagName === 'P') sib.style.display = 'none';
             } catch {}
           } else {
+            el.removeAttribute('data-bg-url');
             el.style.backgroundImage = '';
           }
         } else {
@@ -142,6 +144,41 @@
       });
     } catch (err) {
       console.error('applyDataBindings error:', err);
+    }
+  }
+
+  // Lazy-load background images set via data-bg-url to avoid blocking initial paint
+  function initLazyBackgrounds(root) {
+    try {
+      const scope = root && root.querySelectorAll ? root : document;
+      const candidates = Array.from(scope.querySelectorAll('[data-bg-url]'));
+      if (candidates.length === 0) return;
+      const setBg = (el) => {
+        const url = el.getAttribute('data-bg-url');
+        if (!url) return;
+        const current = el.getAttribute('style') || '';
+        const separator = current && !current.trim().endsWith(';') ? '; ' : '';
+        const imgStyle = `background-image: url('${url}'); background-size: cover; background-position: center; background-repeat: no-repeat;`;
+        el.setAttribute('style', current + separator + imgStyle);
+        el.removeAttribute('data-bg-url');
+        el.classList.remove('lazy-bg');
+      };
+      // If IntersectionObserver is unavailable, eager-load as a safe fallback
+      if (typeof IntersectionObserver !== 'function') {
+        candidates.forEach(setBg);
+        return;
+      }
+      const io = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setBg(entry.target);
+            obs.unobserve(entry.target);
+          }
+        });
+      }, { root: null, rootMargin: '200px 0px', threshold: 0.01 });
+      candidates.forEach(el => io.observe(el));
+    } catch (err) {
+      console.error('initLazyBackgrounds error:', err);
     }
   }
 
@@ -173,8 +210,10 @@
       const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
       const title = (a && a.title) || 'Untitled';
       const safeTitle = title.replace(/"/g,'&quot;');
-      const img = a && a.imageUrl
-        ? `<img src="${a.imageUrl}" alt="${safeTitle}" style="display:block; width:100%; height:auto;">`
+      const imgUrl = a && a.imageUrl ? String(a.imageUrl) : '';
+      const thumb = imgUrl ? (`/api/image/thumbnail?url=${encodeURIComponent(imgUrl)}&w=480&q=75`) : '';
+      const img = imgUrl
+        ? `<img src="${thumb}" alt="${safeTitle}" style="display:block; width:100%; height:auto;" loading="lazy" decoding="async" fetchpriority="low">`
         : `<div style="height: 180px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; color:#999;">${safeTitle}</div>`;
       return `
         <a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">
@@ -222,10 +261,12 @@
     const inPreview = (typeof window !== 'undefined' && !!window.PreviewRenderer);
     const gridItems = selection.map(a => {
       const linkHref = `/artwork.html?id=${encodeURIComponent((a && a._id) ? a._id : '')}`;
+      const imgUrl = a && a.imageUrl ? String(a.imageUrl) : '';
+      const thumb = imgUrl ? (`/api/image/thumbnail?url=${encodeURIComponent(imgUrl)}&w=480&q=75`) : '';
       return `
       <a href="${linkHref}" style="display:block; text-decoration:none; color:inherit;">
         <div style="background:#fff;">
-          ${a && a.imageUrl ? `<img src="${a.imageUrl}" alt="${((a && a.title)||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;">` : `
+          ${imgUrl ? `<img src="${thumb}" alt="${((a && a.title)||'Untitled').replace(/"/g,'&quot;')}" style="display:block; width:100%; height:auto;" loading="lazy" decoding="async" fetchpriority="low">` : `
             <div style=\"height: 180px; background: #f0f0f0; display:flex; align-items:center; justify-content:center; color:#999;\">${(a && a.title)||'Untitled'}</div>
           `}
           <div style="padding:6px 4px; font-size:0.9rem; text-align:center; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${(a && a.title) || 'Untitled'}</div>
@@ -260,7 +301,7 @@
     // Provide content as <img> to preserve original aspect ratio; fall back to text when absent
     const linkHref = a && a._id ? `/artwork.html?id=${encodeURIComponent(a._id)}` : null;
     const baseImgHtml = a && a.imageUrl
-      ? `<img src="${a.imageUrl}" alt="${((a && a.title) || 'Untitled').replace(/"/g,'&quot;')}" style="display:block; max-width: 100%; max-height: 75vh; width:auto; height:auto; margin:0 auto 16px;" />`
+      ? `<img src="${a.imageUrl}" alt="${((a && a.title) || 'Untitled').replace(/"/g,'&quot;')}" style="display:block; max-width: 100%; max-height: 75vh; width:auto; height:auto; margin:0 auto 16px;" loading="lazy" decoding="async" fetchpriority="low" />`
       : (a
           ? `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${(a.title||'Untitled')}</div>`
           : `<div style=\"text-align:center; color:#888; margin:0 auto 16px;\">${config.emptyArtworksMessage}</div>`);
@@ -349,6 +390,7 @@
     renderTemplate,
     applyDataStyles,
     applyDataBindings,
+    initLazyBackgrounds,
     getValueAtPath,
 
     // about helpers

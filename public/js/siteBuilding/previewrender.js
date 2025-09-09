@@ -140,6 +140,7 @@
       if (previewFrame) previewFrame.innerHTML = previewHTML;
       this.applyDataStyles(previewFrame);
       this.applyDataBindings(previewFrame);
+      try { const RR = window.RuntimeRenderer; if (RR && RR.initLazyBackgrounds) RR.initLazyBackgrounds(previewFrame); } catch {}
       // Update header title from logged-in user if possible using shared module
       try {
         const SH = window.SiteHeader;
@@ -184,6 +185,7 @@
         this.setupGlobalFunctions();
         this.applyDataStyles(previewFrame);
         this.applyDataBindings(previewFrame);
+        try { const RR = window.RuntimeRenderer; if (RR && RR.initLazyBackgrounds) RR.initLazyBackgrounds(previewFrame); } catch {}
         const sidePanel = document.getElementById('works-side-panel');
         if (sidePanel) sidePanel.style.display = 'none';
       }
@@ -341,6 +343,7 @@
                 previewContent.innerHTML = this.createHomePreview();
                 this.applyDataStyles(previewContent);
                 this.applyDataBindings(previewContent);
+                try { const RR = window.RuntimeRenderer; if (RR && RR.initLazyBackgrounds) RR.initLazyBackgrounds(previewContent); } catch {}
                 this.attachEditableListeners(previewContent);
                 const sidePanel = document.getElementById('works-side-panel');
                 const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
@@ -456,6 +459,7 @@
             previewContent.innerHTML = this.createHomePreview();
             this.applyDataStyles(previewContent);
             this.applyDataBindings(previewContent);
+            try { const RR = window.RuntimeRenderer; if (RR && RR.initLazyBackgrounds) RR.initLazyBackgrounds(previewContent); } catch {}
             this.attachEditableListeners(previewContent);
             const sidePanel = document.getElementById('works-side-panel');
             const homeLayout = (this.surveyData.layouts && this.surveyData.layouts.homepage) || 'grid';
@@ -557,6 +561,7 @@
       // Keep side panel state consistent when on Works
       this.applyDataStyles(previewContent);
       this.applyDataBindings(previewContent);
+      try { const RR = window.RuntimeRenderer; if (RR && RR.initLazyBackgrounds) RR.initLazyBackgrounds(previewContent); } catch {}
       this.attachEditableListeners(previewContent);
       if (this.currentPreviewPage === 'works') {
         this.ensureExternalWorksSidePanel();

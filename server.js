@@ -18,8 +18,9 @@ console.log('[ENV] S3_BUCKET set:', !!process.env.S3_BUCKET, 'AWS_REGION:', proc
 console.log('[ENV] MONGODB_URI present:', !!process.env.MONGODB_URI, 'uses SRV:', (process.env.MONGODB_URI || '').startsWith('mongodb+srv://'));
 
 // Use express.json() middleware to parse JSON in request bodies
-// This is the modern replacement for body-parser
-app.use(express.json());
+// Increase limit for Studio uploads that send base64 data URLs
+app.use(express.json({ limit: '12mb' }));
+app.use(express.urlencoded({ extended: true, limit: '12mb' }));
 // Initialize Passport (Google OAuth configured in middleware/passport)
 app.use(passport.initialize());
 
@@ -40,10 +41,15 @@ app.use('/api/website-state', require('./routes/websiteState'));
 app.use('/api/public', require('./routes/public'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/comments', require('./routes/comments'));
+// Studio: server-backed posts and comments
+app.use('/api/studio-posts', require('./routes/studioPosts'));
+app.use('/api/studio', require('./routes/studioComments'));
 // Uploads (images to S3/CDN)
 app.use('/api/uploads', require('./routes/uploads'));
 // Analytics events
 app.use('/api/analytics', require('./routes/analytics'));
+// Image proxy/resizer (thumbnails)
+app.use('/api/image', require('./routes/imageProxy'));
 
 // --- Backend proxy for compiled site JSON in S3 ---
 app.get('/sites/:artistId/site.json', async (req, res) => {

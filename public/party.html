@@ -5,20 +5,121 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Tart — Party</title>
   <link rel="stylesheet" href="/css/style.css?v=1.2" />
-  <link rel="stylesheet" href="/css/pages/party.css?v=1.0" />
-</head>
+  <link rel="stylesheet" href="/css/pages/party.css?v=1.3" />
+  <!-- The Party page reuses the in-page sidebar/toggle patterns from Home -->
+  </head>
 <body class="party-page">
-  <div class="app">
+  <div class="app sidebar-open"><!-- default open on desktop -->
     <div class="content">
       <header class="party-header">
-        <div class="header-left">
-          <h1><a href="/" id="tart-logo-party" class="party-logo-link">Tart</a></h1>
+        <div class="logo-toggle header-left">
+          <h1><a href="/" id="tart-logo-party" class="party-logo-link">Tart <span class="retreat-mark">Retreat</span></a></h1>
+          <button id="sidebar-toggle" class="sidebar-toggle" aria-label="Toggle menu" title="Toggle menu">
+            <span class="toggle-icon" aria-hidden="true"></span>
+          </button>
         </div>
         <div id="auth-container"></div>
       </header>
-      <main class="party-main" aria-label="Tart Party"></main>
+
+      <!-- In-page layout with left sidebar and main content -->
+      <main class="party-main page-has-sidebar" aria-label="Tart Party">
+        <div class="page-layout">
+          <aside class="sidebar" aria-label="Party navigation">
+            <div class="sidebar-inner">
+              <nav class="sidebar-nav">
+                <button type="button" class="nav-item active" data-page="studio">Studio</button>
+              </nav>
+            </div>
+          </aside>
+
+          <section class="main-panel" id="party-content" tabindex="-1">
+            <!-- Default Party page content: Studio -->
+            <div class="party-studio">
+              <p style="color:#9ca3af;">Welcome to Tart Studio. Create and share your drafts here.</p>
+              <div id="studio-grid" class="studio-grid" aria-live="polite"></div>
+            </div>
+          </section>
+        </div>
+      </main>
     </div>
   </div>
+  
+  <!-- Floating Add button -->
+  <button id="studio-add-btn" class="studio-fab" type="button" aria-label="Add to Studio" title="Add to Studio">
+    <span aria-hidden="true">+</span>
+  </button>
+
+  <!-- Studio Upload Modal -->
+  <div id="studio-modal" class="studio-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="studio-modal-title" style="display:none;">
+    <div class="studio-modal-backdrop" data-close="studio"></div>
+    <div class="studio-modal-dialog">
+      <header class="studio-modal-header">
+        <h3 id="studio-modal-title">Upload to Studio</h3>
+        <button type="button" class="studio-close" id="studio-close" aria-label="Close">×</button>
+      </header>
+      <section class="studio-modal-body">
+        <!-- Top medium selector (compact) -->
+        <div class="studio-topbar">
+          <label for="studio-medium">Medium</label>
+          <div class="select-wrapper">
+            <select id="studio-medium">
+              <option value="poetry" selected>Poetry</option>
+              <option value="photography">Photography</option>
+              <option value="painting">Painting</option>
+              <option value="oil-painting">Oil painting</option>
+              <option value="ink-painting">Ink painting</option>
+              <option value="colored-pencil">Colored Pencil</option>
+              <option value="sketch">Sketch</option>
+              <option value="industrial-design">Industrial Design</option>
+            </select>
+          </div>
+          <label for="studio-status">Status</label>
+          <div class="select-wrapper">
+            <select id="studio-status">
+              <option value="in-progress" selected>In progress</option>
+              <option value="finished">Finished</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="studio-form">
+          <!-- Non-poetry flow: upload prompt + preview -->
+          <div class="studio-upload" id="studio-upload-wrap">
+            <div id="studio-drop" class="studio-drop" tabindex="0">
+              <input id="studio-file" type="file" accept="image/*,video/*" hidden />
+              <div class="studio-drop-inner">
+                <div class="upload-icon">⌁</div>
+                <div class="upload-text">Click or drop a file to upload</div>
+              </div>
+            </div>
+            <div id="studio-preview" class="studio-preview" hidden>
+              <img id="studio-preview-img" alt="Preview" title="Click to change file" />
+            </div>
+          </div>
+
+          <!-- Poetry flow: editor area -->
+          <div id="studio-poetry-wrap" class="studio-poetry" hidden>
+            <div id="studio-poem-editor" class="poem-editor-mount" aria-label="Poem editor"></div>
+          </div>
+
+          <!-- Shared metadata -->
+          <label class="studio-field">
+            <span>Title</span>
+            <input id="studio-title" type="text" maxlength="120" placeholder="Add a title" />
+          </label>
+          <label class="studio-field">
+            <span>Short description</span>
+            <textarea id="studio-desc" rows="3" maxlength="500" placeholder="Say something about this work (optional)"></textarea>
+          </label>
+        </div>
+      </section>
+      <footer class="studio-modal-footer">
+        <button type="button" class="btn" id="studio-cancel">Cancel</button>
+        <button type="button" class="btn primary" id="studio-save">Upload to Studio</button>
+      </footer>
+    </div>
+  </div>
+  <script src="/js/poem-editor.js?v=1.0"></script>
   <script src="/js/party.js"></script>
   </body>
   </html>
