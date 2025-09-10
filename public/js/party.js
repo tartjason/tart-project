@@ -130,6 +130,32 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Lazily load comments for cards that become visible
+  function setupCommentsLazyLoading() {
+    if (!studioGrid) return;
+    // Disconnect any previous observer
+    if (studioGrid._commentsIO && typeof studioGrid._commentsIO.disconnect === 'function') {
+      try { studioGrid._commentsIO.disconnect(); } catch (_) {}
+    }
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const card = entry.target;
+            io.unobserve(card);
+            loadCommentsForCard(card, true);
+          }
+        });
+      }, { root: null, rootMargin: '200px 0px', threshold: 0.01 });
+      studioGrid.querySelectorAll('.studio-card').forEach((c) => io.observe(c));
+      studioGrid._commentsIO = io;
+    } else {
+      // Fallback: load a few initial cards
+      const first = Array.from(studioGrid.querySelectorAll('.studio-card')).slice(0, 3);
+      first.forEach((c) => loadCommentsForCard(c, true));
+    }
+  }
+
   function estimateDataUrlBytes(dataUrl) {
     try {
       if (!dataUrl || typeof dataUrl !== 'string') return 0;
@@ -187,44 +213,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   createFireflies();
 
-  // --- Bottom Grass Strip (tiled PNGs) ---
-  function createGrassStrip() {
+  // --- Bottom Cloud Footer (replaces grass strip) ---
+  function ensureCloudFooter() {
     try {
-      const existing = document.querySelector('.party-grass');
-      const layer = existing || document.createElement('div');
-      layer.className = 'party-grass';
-      if (!existing) document.body.appendChild(layer);
-      // Choose a tile count that divides viewport width (no gaps at ends)
-      const vw = Math.max(320, window.innerWidth);
-      // Aim for ~8–14 tiles depending on width
-      let tiles = Math.round(vw / 160);
-      tiles = Math.max(6, Math.min(18, tiles));
-      layer.style.setProperty('--tiles', String(tiles));
-      const needed = tiles; // exactly fill 100vw
-      const urls = [
-        'url("/assets/Grass%202.png")'
-      ];
-      const current = Array.from(layer.querySelectorAll('.grass-tile'));
-      // Adjust count
-      if (current.length > needed) {
-        current.slice(needed).forEach((el) => el.remove());
+      let el = document.querySelector('.party-cloud');
+      if (!el) {
+        el = document.createElement('div');
+        el.className = 'party-cloud';
+        document.body.appendChild(el);
       }
-      if (current.length < needed) {
-        const toAdd = needed - current.length;
-        for (let i = 0; i < toAdd; i++) {
-          const el = document.createElement('div');
-          el.className = 'grass-tile';
-          layer.appendChild(el);
-        }
+      // Keep breathing space roughly equal to cloud height so content doesn't collide
+      if (appRoot) {
+        const desktop = window.innerWidth > 680;
+        appRoot.style.setProperty('--breathing-extra', desktop ? '200px' : '160px');
       }
-      // Assign same background for each tile (Grass 2)
-      Array.from(layer.querySelectorAll('.grass-tile')).forEach((el) => {
-        el.style.backgroundImage = urls[0];
-      });
     } catch(_) { /* ignore */ }
   }
-  createGrassStrip();
-  window.addEventListener('resize', (() => { let t; return () => { clearTimeout(t); t = setTimeout(() => { createGrassStrip(); }, 120); }; })());
+  ensureCloudFooter();
+  window.addEventListener('resize', (() => { let t; return () => { clearTimeout(t); t = setTimeout(() => ensureCloudFooter(), 120); }; })());
 
   // --- Studio FAB + Modal Logic ---
   const $ = (sel) => document.querySelector(sel);
@@ -307,17 +313,20 @@ document.addEventListener('DOMContentLoaded', () => {
       _feed.loading = false; return;
     }
     studioGrid.innerHTML = _feed.items.map(p => renderStudioCard(p)).join('');
-    // Hydrate cards: set artist id for permission checks and load comments
+    // Hydrate cards: set artist id for permission checks
     _feed.items.forEach((p) => {
       const pid = p && (p._id || p.id);
       const card = studioGrid.querySelector(`.studio-card[data-id="${CSS.escape(String(pid))}"]`);
       if (card) {
         card._postArtistId = p.artist && p.artist._id ? String(p.artist._id) : '';
-        loadCommentsForCard(card, true);
       }
     });
     // Rebind image load listeners for equalization and run once
     setupEqualizeObservers();
+    // Lazily fetch comments for cards as they enter viewport
+    setupCommentsLazyLoading();
+    // Hydrate quick reactions UI on freshly rendered cards
+    hydrateQuickReactionsUI();
     equalizeStudioRows();
     _feed.loading = false;
   }
@@ -528,25 +537,138 @@ document.addEventListener('DOMContentLoaded', () => {
     const res = await fetch(`/api/studio/comments/${encodeURIComponent(String(id))}`, { method: 'DELETE', headers: { 'x-auth-token': t } });
     if (!res.ok && res.status !== 204) throw new Error('Failed to delete');
   }
+
+  // --- Quick Reactions (client-side, local persistence) ---
+  const QR_STORAGE_KEY = 'partyQuickReactions:v1';
+  function readQRStore() {
+    try { return JSON.parse(localStorage.getItem(QR_STORAGE_KEY) || '{}') || {}; } catch(_) { return {}; }
+  }
+  function writeQRStore(store) {
+    try { localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(store || {})); } catch(_) {}
+  }
+  function getPostReactions(postId) {
+    const s = readQRStore();
+    const arr = Array.isArray(s[postId]) ? s[postId] : [];
+    // de-dup by userId keeping last
+    const byU = new Map();
+    arr.forEach(it => { if (it && it.userId) byU.set(String(it.userId), it); });
+    return Array.from(byU.values());
+  }
+  function setUserReaction(postId, user) {
+    // user = { userId, avatarUrl, emoji }
+    const s = readQRStore();
+    const arr = Array.isArray(s[postId]) ? s[postId] : [];
+    const idx = arr.findIndex(it => String(it.userId) === String(user.userId));
+    if (idx >= 0) arr[idx] = user; else arr.push(user);
+    s[postId] = arr;
+    writeQRStore(s);
+  }
+  function clearUserReaction(postId, userId) {
+    const s = readQRStore();
+    const arr = Array.isArray(s[postId]) ? s[postId] : [];
+    s[postId] = arr.filter(it => String(it.userId) !== String(userId));
+    writeQRStore(s);
+  }
+
+  function renderQRMin(container, reactions) {
+    if (!container) return;
+    const avatars = container.querySelector('.qr-avatars');
+    if (!avatars) return;
+    const maxCircles = 3;
+    const extra = Math.max(0, reactions.length - maxCircles);
+    const show = extra > 0 ? reactions.slice(0, maxCircles - 1) : reactions.slice(0, maxCircles);
+    let html = '';
+    if (reactions.length === 1) {
+      const r = reactions[0];
+      html = `
+        <span class="qr-avatar" style="z-index:30" title="${r.emoji || ''}">
+          <img src="${r.avatarUrl || '/assets/default-avatar.svg'}" alt=""/>
+          ${r.emoji ? `<span class="qr-badge-emoji">${r.emoji}</span>` : ''}
+        </span>
+      `;
+    } else {
+      html = show.map((r, i) => `
+        <span class="qr-avatar" style="z-index:${30 - i}" title="${r.emoji || ''}">
+          <img src="${r.avatarUrl || '/assets/default-avatar.svg'}" alt=""/>
+        </span>
+      `).join('');
+    }
+    if (extra > 0) {
+      const i = show.length; // third circle
+      html += `<span class="qr-avatar more" style="z-index:${30 - i}">${extra}+</span>`;
+    }
+    avatars.innerHTML = html;
+    container.hidden = reactions.length === 0;
+  }
+  function renderQRExpanded(container, reactions) {
+    if (!container) return;
+    const row = container.querySelector('.qr-row');
+    if (!row) return;
+    row.innerHTML = reactions.map((r) => `
+      <span class="qr-badge" role="listitem" title="${r.emoji || ''}">
+        <img class="qr-badge-avatar" src="${r.avatarUrl || '/assets/default-avatar.svg'}" alt=""/>
+        <span class="qr-badge-emoji">${r.emoji || ''}</span>
+      </span>
+    `).join('');
+  }
+  function updateQuickReactionUIForCard(card) {
+    const postId = card?.dataset?.id;
+    if (!postId) return;
+    const reactions = getPostReactions(postId);
+    renderQRMin(card.querySelector('.quick-reaction-min'), reactions);
+    const expanded = card.querySelector('.quick-reaction-expanded');
+    if (expanded && !expanded.hidden) renderQRExpanded(expanded, reactions);
+  }
+  function hydrateQuickReactionsUI() {
+    if (!studioGrid) return;
+    studioGrid.querySelectorAll('.studio-card').forEach((card) => updateQuickReactionUIForCard(card));
+  }
   function renderCommentsSection(postId) {
     // Artwork-like shell
     return `
-      <div class="comments-section studio-comments" data-post-id="${postId}">
-        <ul class="comments-list"></ul>
-        <div id="comments-load-more-${postId}" class="comments-load-more"></div>
-        <form class="comment-form" autocomplete="off">
-          <div class="form-group">
-            <textarea class="form-textarea" name="comment" placeholder="Add a comment"></textarea>
-            <button type="submit" class="submit-btn" aria-label="Post comment">
-              <svg width="36" height="36" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <!-- Translucent circle -->
-                <circle cx="30" cy="30" r="20" fill="#ffffff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.32" />
-                <!-- Light grey arrow -->
-                <path d="M30 20 L30 40 M22 28 L30 20 L38 28" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </button>
+      <div class="comments-shell">
+        <div class="comment-hint-smiley" role="button" tabindex="0" aria-label="Send a quick reaction" title="Send a quick reaction">
+          <svg class="smiley" width="52" height="52" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="30" cy="30" r="22" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.22" />
+            <circle cx="23" cy="26" r="2.2" fill="#9ca3af" fill-opacity="0.7" />
+            <circle cx="37" cy="26" r="2.2" fill="#9ca3af" fill-opacity="0.7" />
+            <path d="M21 36c3 4 15 4 18 0" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" stroke-opacity="0.7" />
+          </svg>
+        </div>
+        <!-- Quick Reactions UI -->
+        <div class="quick-reaction-min" data-post-id="${postId}" hidden>
+          <div class="qr-avatars" aria-label="People who reacted"></div>
+        </div>
+        <div class="quick-reaction-picker" data-post-id="${postId}" hidden>
+          <div class="qr-grid">
+            <button type="button" class="qr-emoji" data-emoji="😆">😆</button>
+            <button type="button" class="qr-emoji" data-emoji="🥹">🥹</button>
+            <button type="button" class="qr-emoji" data-emoji="😭">😭</button>
+            <button type="button" class="qr-emoji" data-emoji="🤔">🤔</button>
+            <button type="button" class="qr-emoji" data-emoji="🥳">🥳</button>
+            <button type="button" class="qr-emoji" data-emoji="❤️">❤️</button>
           </div>
-        </form>
+        </div>
+        <div class="quick-reaction-expanded" data-post-id="${postId}" hidden>
+          <div class="qr-row" role="list"></div>
+        </div>
+        <div class="comments-section studio-comments" data-post-id="${postId}">
+          <ul class="comments-list"></ul>
+          <div id="comments-load-more-${postId}" class="comments-load-more"></div>
+          <form class="comment-form" autocomplete="off">
+            <div class="form-group">
+              <textarea class="form-textarea" name="comment" placeholder="Add a comment"></textarea>
+              <button type="submit" class="submit-btn" aria-label="Post comment">
+                <svg width="36" height="36" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <!-- Translucent circle -->
+                  <circle cx="30" cy="30" r="20" fill="#ffffff" fill-opacity="0.18" stroke="#ffffff" stroke-opacity="0.32" />
+                  <!-- Light grey arrow -->
+                  <path d="M30 20 L30 40 M22 28 L30 20 L38 28" fill="none" stroke="#9ca3af" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     `;
   }
@@ -710,6 +832,61 @@ document.addEventListener('DOMContentLoaded', () => {
         try { await studioPostReply(commentId, text); await loadCommentsForCard(submitReply.closest('.studio-card'), true); } catch (_) {}
         return;
       }
+      // quick reactions: open picker via smiley
+      const smiley = e.target.closest('.comment-hint-smiley');
+      if (smiley) {
+        const shell = smiley.closest('.comments-shell');
+        if (!shell) return;
+        // close other pickers
+        document.querySelectorAll('.quick-reaction-picker').forEach(p => p.hidden = true);
+        const picker = shell.querySelector('.quick-reaction-picker');
+        if (picker) picker.hidden = !picker.hidden;
+        return;
+      }
+      // quick reactions: emoji pick
+      const emojiBtn = e.target.closest('.qr-emoji');
+      if (emojiBtn) {
+        const picker = emojiBtn.closest('.quick-reaction-picker');
+        const postId = picker?.dataset?.postId;
+        const card = emojiBtn.closest('.studio-card');
+        const emoji = emojiBtn.getAttribute('data-emoji');
+        if (!postId || !card || !emoji) return;
+        if (!currentUserId) { openLoginPopup(); return; }
+        setUserReaction(postId, { userId: String(currentUserId), avatarUrl: currentUserAvatarUrl || '/assets/default-avatar.svg', emoji });
+        updateQuickReactionUIForCard(card);
+        picker.hidden = true;
+        return;
+      }
+      // quick reactions: toggle expanded from minimized avatars
+      const minWrap = e.target.closest('.quick-reaction-min');
+      if (minWrap) {
+        const shell = minWrap.closest('.comments-shell');
+        const card = minWrap.closest('.studio-card');
+        const expanded = shell?.querySelector('.quick-reaction-expanded');
+        if (!expanded || !card) return;
+        const count = getPostReactions(card.dataset.id).length;
+        if (count <= 1) { return; }
+        if (expanded.hidden) {
+          renderQRExpanded(expanded, getPostReactions(card.dataset.id));
+          expanded.hidden = false;
+          minWrap.hidden = true; // turn the stack into a row in-place
+        } else {
+          expanded.hidden = true;
+          minWrap.hidden = false;
+        }
+        setTimeout(() => equalizeStudioRows(), 60);
+        return;
+      }
+      // quick reactions: clicking expanded row collapses back to stack
+      const expandedWrap = e.target.closest('.quick-reaction-expanded');
+      if (expandedWrap) {
+        const shell = expandedWrap.closest('.comments-shell');
+        const minAgain = shell && shell.querySelector('.quick-reaction-min');
+        expandedWrap.hidden = true;
+        if (minAgain) minAgain.hidden = false;
+        setTimeout(() => equalizeStudioRows(), 60);
+        return;
+      }
     });
   }
 
@@ -806,6 +983,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (btn) btn.setAttribute('aria-expanded','false');
       }
     });
+    // Close any open QR pickers/expanded when clicking outside their shell
+    document.querySelectorAll('.quick-reaction-picker').forEach(p => {
+      if (!p.hidden) {
+        const shell = p.closest('.comments-shell');
+        if (shell && !shell.contains(e.target)) p.hidden = true;
+      }
+    });
+    document.querySelectorAll('.quick-reaction-expanded').forEach(x => {
+      if (!x.hidden) {
+        const shell = x.closest('.comments-shell');
+        if (shell && !shell.contains(e.target)) {
+          x.hidden = true;
+          const minWrap = shell.querySelector('.quick-reaction-min');
+          if (minWrap) minWrap.hidden = false;
+        }
+      }
+    });
+  });
+  // Escape closes open QR panels
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.quick-reaction-picker').forEach(el => { el.hidden = true; });
+      document.querySelectorAll('.quick-reaction-expanded').forEach(el => { 
+        if (!el.hidden) {
+          el.hidden = true; 
+          const shell = el.closest('.comments-shell');
+          const minWrap = shell && shell.querySelector('.quick-reaction-min');
+          if (minWrap) minWrap.hidden = false;
+        }
+      });
+    }
   });
 
   function expandCard(card) {
@@ -833,6 +1041,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const btn = card.querySelector('.enlarge-btn');
     if (btn) btn.textContent = '⤡'; // indicate collapse
+    // Close any open QR panels on expand
+    const picker = card.querySelector('.quick-reaction-picker'); if (picker) picker.hidden = true;
+    const expandedQR = card.querySelector('.quick-reaction-expanded'); if (expandedQR) expandedQR.hidden = true;
+    const minWrap = card.querySelector('.quick-reaction-min'); if (minWrap) minWrap.hidden = false;
     // After expand animation, re-equalize surrounding rows
     setTimeout(() => equalizeStudioRows(), 320);
   }
@@ -867,6 +1079,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const btn = card.querySelector('.enlarge-btn');
     if (btn) btn.textContent = '⤢';
+    // Close any open QR panels on collapse
+    const picker = card.querySelector('.quick-reaction-picker'); if (picker) picker.hidden = true;
+    const expandedQR = card.querySelector('.quick-reaction-expanded'); if (expandedQR) expandedQR.hidden = true;
     // After collapse animation, re-equalize rows
     setTimeout(() => equalizeStudioRows(), 320);
   }
@@ -991,4 +1206,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
   setupAuthUI();
 });
-

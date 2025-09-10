@@ -257,6 +257,22 @@ body.party-page::after {
   .party-grass .grass-tile { width: calc(100vw / var(--tiles, 8)); }
 }
 
+/* Bottom-left cloud image (replaces grass strip) */
+.party-cloud {
+  position: relative;
+  /* Keep it slightly big by default; responsive via CSS var */
+  height: var(--cloud-h, 200px);
+  pointer-events: none;
+  z-index: 0;
+  background-image: url("/assets/cloud%201.png");
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-size: auto 100%; /* maintain aspect, keep slightly large */
+}
+@media (max-width: 680px) {
+  .party-cloud { height: var(--cloud-h, 160px); }
+}
+
 /* Toggle button next to logo */
 .logo-toggle { display: inline-flex; align-items: center; gap: 8px; }
 .logo-toggle h1 { margin: 0; transition: opacity 160ms ease; }
@@ -391,7 +407,7 @@ body.party-page::after {
 
 /* Title with uploader avatar */
 .card-title-wrap { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.uploader-avatar { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); object-fit: cover; }
+.uploader-avatar { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); object-fit: cover; }
 .uploader-link { display: inline-flex; }
 .title-block { display: flex; flex-direction: column; gap: 2px; }
 .uploader-name { font-size: 12px; color: #cbd5e1; text-decoration: none; line-height: 1; }
@@ -538,7 +554,9 @@ body.party-page::after {
 
 /* Comments UI (compact, artwork-like) */
 /* Pixel-identical comments (ported from artwork.css) */
-.studio-card .comments-section { background: transparent; border: none; border-radius: 8px; padding: 16px 16px 8px; margin-top: auto; font-family: 'Helvetica Neue', Arial, sans-serif; border-top: 1px solid #e1e1e1; padding-top: 16px; }
+/* Wrapper owns spacing/border; inner section contains just the UI */
+.studio-card .comments-shell { position: relative; background: transparent; border-top: 1px solid #e1e1e1; padding: 16px 16px 8px; border-radius: 8px; margin-top: auto; }
+.studio-card .comments-section { background: transparent; border: none; border-radius: 0; padding: 0; font-family: 'Helvetica Neue', Arial, sans-serif; position: static; }
 .studio-card .comment-form { margin-bottom: 0; padding-bottom: 0; border-bottom: none; display: flex; flex-direction: column; gap: 12px; }
 .studio-card .comment-form .form-group { position: relative; }
 .studio-card .form-group { margin-bottom: 16px; }
@@ -611,8 +629,94 @@ body.party-page::after {
 .studio-card .load-more-btn:active { transform: translateY(0); }
 .studio-card .load-more-btn:disabled { opacity: 0.6; cursor: default; transform: none; }
 
+/* Right-aligned translucent smiling face above the add comment form */
+.studio-card .comment-hint-smiley {
+  position: absolute;
+  top: 0; /* anchor to the shell's top edge (inside the border) */
+  right: 16px; /* align with comments-section horizontal padding */
+  pointer-events: auto; /* clickable for quick reactions */
+  line-height: 0; /* eliminate extra vertical gap */
+  z-index: 1;
+  transform: translateY(calc(-50% - 30px)); /* a little higher above border */
+}
+.studio-card .comment-hint-smiley .smiley { 
+  width: 40px; 
+  height: 40px; 
+  opacity: 0.9; 
+  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.18));
+}
+.studio-card .comment-hint-smiley:hover .smiley { filter: drop-shadow(0 4px 14px rgba(0,0,0,0.28)); }
+
+/* Compact alignment when card is not expanded */
+.studio-card:not(.expanded) .comment-hint-smiley { right: 8px; top: 0; transform: translateY(calc(-50% - 28px)); }
+
+/* Quick Reactions: minimized avatar stack (parallel to smiley) */
+.studio-card .quick-reaction-min {
+  position: absolute;
+  top: 0;
+  left: 16px; /* align to left edge of comments area */
+  transform: translateY(calc(-50% - 28px));
+  z-index: 1;
+}
+.studio-card:not(.expanded) .quick-reaction-min { left: 8px; transform: translateY(calc(-50% - 26px)); }
+.studio-card .quick-reaction-min .qr-avatars { display: flex; align-items: center; }
+.studio-card .quick-reaction-min .qr-avatar {
+  position: relative;
+  width: 34px; height: 34px; border-radius: 50%; overflow: visible; border: 0; /* allow emoji to protrude */
+  box-shadow: none; /* remove outer ring */
+  display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #fff; font-weight: 700; font-size: 12px;
+}
+.studio-card .quick-reaction-min .qr-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; position: relative; z-index: 1; }
+.studio-card .quick-reaction-min .qr-avatar + .qr-avatar { margin-left: -10px; }
+.studio-card .quick-reaction-min .qr-avatar.more { background: rgba(0,0,0,0.55); }
+
+/* Quick Reactions: emoji picker popover (2 rows of three) */
+.studio-card .quick-reaction-picker {
+  position: absolute;
+  top: 0;
+  right: 64px;
+  transform: translateY(calc(-50% - 28px));
+  background: rgba(23,33,58,0.96);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.38);
+  padding: 8px;
+  z-index: 2;
+}
+.studio-card:not(.expanded) .quick-reaction-picker { right: 54px; }
+.studio-card .quick-reaction-picker .qr-grid { display: grid; grid-template-columns: repeat(3, 30px); gap: 8px; }
+.studio-card .quick-reaction-picker .qr-emoji {
+  width: 30px; height: 30px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08); color: #fff; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1;
+}
+.studio-card .quick-reaction-picker .qr-emoji:hover { background: rgba(255,255,255,0.16); }
+
+/* Quick Reactions: expanded row (avatar with emoji sticker) */
+.studio-card .quick-reaction-expanded {
+  position: absolute;
+  top: 0;
+  left: 16px; /* same anchor as minimized */
+  transform: translateY(calc(-50% - 28px));
+  z-index: 1;
+}
+.studio-card:not(.expanded) .quick-reaction-expanded { left: 8px; transform: translateY(calc(-50% - 26px)); }
+.studio-card .quick-reaction-expanded .qr-row { display: flex; gap: 10px; align-items: center; }
+.studio-card .quick-reaction-expanded .qr-badge { position: relative; width: 34px; height: 34px; border-radius: 50%; }
+.studio-card .quick-reaction-expanded .qr-badge-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 0; box-shadow: none; display: block; background: transparent; }
+.studio-card .quick-reaction-expanded .qr-badge-emoji {
+  position: absolute; right: -4px; bottom: -2px; /* a little further left, slightly higher */
+  border: 0; background: transparent; box-shadow: none;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1;
+}
+/* Minimized: emoji overlay when exactly one reaction */
+.studio-card .quick-reaction-min .qr-badge-emoji {
+  position: absolute; right: -4px; bottom: -2px; /* match expanded */
+  border: 0; background: transparent; box-shadow: none;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 18px; line-height: 1; z-index: 3; pointer-events: none;
+}
+
 /* Compact comments before enlargement */
-.studio-card:not(.expanded) .comments-section { padding: 6px 8px 6px; }
+.studio-card:not(.expanded) .comments-shell { padding: 6px 8px 6px; }
 .studio-card .comment-form { margin-top: 8px; }
 .studio-card:not(.expanded) .comment-item { padding: 8px; margin-bottom: 8px; }
 .studio-card:not(.expanded) .form-textarea { min-height: 52px; padding: 10px; font-size: 14px; }
