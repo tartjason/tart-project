@@ -18,6 +18,13 @@ body.upload-page #ambient-bg {
     pointer-events: none;
 }
 
+/* Poetry mode: use a thin blur over a solid color */
+body.upload-page.poetry-mode #ambient-bg {
+    background-image: none !important;
+    filter: blur(18px) saturate(110%) brightness(1.0);
+    opacity: 0.18;
+}
+
 /* on-class retained for JS toggling; no style difference needed */
 
 /* Layout */
@@ -224,8 +231,52 @@ body.upload-page .poetry-editor-area {
     border-radius: 12px;
     padding: 16px;
     box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-    /* Match non-poetry artwork spacing above and below */
-    margin: 6rem auto;
+    /* Place directly under the picker; preserve bottom spacing */
+    margin: 0 auto 6rem;
+}
+
+/* Poetry background color picker */
+body.upload-page .poetry-bg-picker {
+    display: block; /* left-aligned container */
+    max-width: 640px;
+    /* Minimal space under the topbar */
+    margin: 12px 0; /* remove centering */
+}
+body.upload-page .poetry-bg-picker label {
+    font-size: 12px;
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #888;
+}
+/* Inline row: label on the left, swatch on the right */
+body.upload-page .poetry-bg-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+/* Color input: rounded rectangle only, remove inner rectangle */
+body.upload-page #poetry-bg-color {
+    width: 44px;
+    height: 28px;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 10px;
+    padding: 0;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    overflow: hidden; /* clip inner swatch corners */
+}
+body.upload-page #poetry-bg-color::-webkit-color-swatch-wrapper { padding: 0; }
+body.upload-page #poetry-bg-color::-webkit-color-swatch { border: none; border-radius: 10px; }
+body.upload-page #poetry-bg-hex {
+    width: 100%;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(255,255,255,0.8);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 0.95rem;
+    outline: none;
 }
 
 body.upload-page #poem-editor {
