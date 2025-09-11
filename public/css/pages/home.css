@@ -649,14 +649,47 @@ main.page-has-sidebar {
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
 }
-.artwork-card.poetry.hero .poetry-preview,
-.showcase-right .artwork-card.poetry .poetry-preview {
-    aspect-ratio: auto; /* cancel fixed ratios for poetry */
-    height: auto; /* ensure no fixed height */
+/* Faint blurred glow band (bottom third) for poetry in showcase right and gallery */
+.showcase-right .artwork-card.poetry .poetry-preview .poetry-glow,
+.gallery .artwork-card.poetry .poetry-preview .poetry-glow {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 0;
+    height: 50%;
+    background: linear-gradient(to top, var(--poetry-bg, rgba(0,0,0,0.08)) 0%, transparent 90%);
+    filter: blur(10px) saturate(110%);
+    opacity: 0.35; /* faint */
+    pointer-events: none;
+}
+/* Clip glow inside rounded corners */
+.showcase-right .artwork-card.poetry .poetry-preview,
+.gallery .artwork-card.poetry .poetry-preview {
+    position: relative;
+    overflow: hidden;
 }
 .artwork-card.poetry.hero .poetry-preview {
-    /* Add extra breathing room below for hero poems */
-    padding-bottom: 96px;
+    aspect-ratio: auto; /* allow hero to grow naturally */
+    height: auto;
+    /* Extra breathing room below for hero poems (only poetry hero) */
+    padding-bottom: 120px;
+    position: relative; /* allow absolute glow positioning */
+    overflow: hidden;   /* clip glow inside rounded corners */
+}
+/* Poetry showcase hero: faint blurred glow on the right quarter */
+.artwork-card.poetry.hero .poetry-preview .poetry-glow {
+    position: absolute;
+    top: 0; bottom: 0; right: 0;
+    width: 50%;
+    background: linear-gradient(to left, var(--poetry-bg, rgba(0,0,0,0.08)) 0%, transparent 85%);
+    filter: blur(12px) saturate(110%);
+    opacity: 0.32;
+    pointer-events: none;
+}
+/* Right column: restore square aspect ratio and clip any overflow so poetry cards match artwork cards */
+.showcase-right .artwork-card.poetry .poetry-preview {
+    aspect-ratio: 1 / 1; /* match right-column media ratio */
+    height: auto;
+    overflow: hidden; /* prevent text from bleeding outside the square */
 }
 .artwork-card.poetry .poetry-preview::before,
 .artwork-card.poetry .poetry-preview::after {

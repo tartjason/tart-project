@@ -294,6 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = document.createElement('div');
         el.classList.add('artwork-card', ...extraClasses);
         const isHero = Array.isArray(extraClasses) && extraClasses.includes('hero');
+        const isShowcaseRight = Array.isArray(extraClasses) && extraClasses.includes('in-showcase-right');
         if (artwork.medium === 'poetry') {
             console.log('Processing poetry artwork:', artwork.title);
             console.log('Poem data structure:', {
@@ -303,8 +304,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: artwork.description ? 'has description' : 'no description'
             });
             el.classList.add('poetry');
-            // Always show only 2 lines in grid view, 4 lines in hero view
-            const desiredLineCount = isHero ? 4 : 2;
+            // Provide background color to CSS for glow band (right column + gallery)
+            if (artwork && artwork.backgroundColor) {
+                el.style.setProperty('--poetry-bg', artwork.backgroundColor);
+            }
+            // Poetry line counts by placement:
+            // - Showcase hero (poetry only): 8 lines
+            // - Showcase right column (poetry only): 4 lines
+            // - Everywhere else (poetry only): 2 lines
+            const desiredLineCount = isHero ? 8 : (isShowcaseRight ? 4 : 2);
             let lines = [];
             
             // Helper to split text into lines, handling both newlines and <br> tags
@@ -436,6 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
             el.innerHTML = `
                 <div class="poetry-preview">
                     <div class="poem-viewer">${linesHtml}</div>
+                    <div class="poetry-glow" aria-hidden="true"></div>
                 </div>
                 <div class="artwork-info${artwork.source === 'ai' ? ' has-badge' : ''}">
                     <h3>${artwork.title}</h3>
@@ -481,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     stickyHero.appendChild(heroCard);
                 }
                 rightCol.forEach((a, i) => {
-                    const card = createArtworkCard(a);
+                    const card = createArtworkCard(a, ['in-showcase-right']);
                     card.classList.add('will-reveal');
                     card.style.setProperty('--stagger', `${(i + 1) * 100}ms`);
                     stickyGrid.appendChild(card);

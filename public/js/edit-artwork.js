@@ -14,6 +14,7 @@
   let poemEditor = null;
   let artworkId = null;
   let loadedArtwork = null;
+  let selectedBgColor = '#f4f4f4';
 
   function parseId(){
     const p = new URLSearchParams(window.location.search);
@@ -28,6 +29,8 @@
     const metaSection = qs('#meta-section');
     const ambient = qs('#ambient-bg');
     const overlay = qs('#upload-overlay');
+    const poetryBgPicker = qs('#poetry-bg-picker');
+    const poetryBgColor = qs('#poetry-bg-color');
 
     if (document && document.body) document.body.classList.toggle('poetry-mode', medium === 'poetry');
 
@@ -39,7 +42,13 @@
       hide(uploadSection);
       show(poetrySection);
       show(metaSection);
-      if (ambient) { ambient.style.backgroundImage = ''; ambient.classList.remove('on'); }
+      if (ambient) {
+        ambient.style.backgroundImage = '';
+        ambient.classList.remove('on');
+        // Apply selected background color in poetry mode
+        ambient.style.backgroundColor = selectedBgColor || '#f4f4f4';
+      }
+      if (poetryBgPicker) { poetryBgPicker.hidden = false; poetryBgPicker.style.display = ''; }
       if (overlay) { overlay.style.opacity = ''; overlay.style.display = ''; }
       if (!poemEditor && window.PoemEditor && qs('#poem-editor')) {
         poemEditor = new window.PoemEditor(qs('#poem-editor'), { useFloatingToolbar: false });
@@ -47,10 +56,24 @@
       if (metricsSlide) metricsSlide.style.display = '';
       if (metrics2d) metrics2d.style.display = 'none';
       if (metrics3d) metrics3d.style.display = 'none';
+      // Wire color input (idempotent)
+      if (poetryBgColor && !poetryBgColor.__wired) {
+        poetryBgColor.__wired = true;
+        on(poetryBgColor, 'input', () => {
+          const v = String(poetryBgColor.value || '').trim();
+          const isHex = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v);
+          selectedBgColor = isHex ? v : '#f4f4f4';
+          if (ambient) {
+            ambient.style.backgroundImage = '';
+            ambient.style.backgroundColor = selectedBgColor;
+          }
+        });
+      }
     } else {
       show(uploadSection);
       hide(poetrySection);
       show(metaSection);
+      if (poetryBgPicker) { poetryBgPicker.hidden = true; poetryBgPicker.style.display = 'none'; }
       // Toggle metrics variant
       if (metricsSlide) metricsSlide.style.display = '';
       if (["photography","painting","oil-painting","ink-painting","colored-pencil","sketch"].includes(medium)){
@@ -138,6 +161,16 @@
           }
         }
       }
+      // Prefill poetry background color and apply to ambient
+      const poetryBgPicker = qs('#poetry-bg-picker');
+      const poetryBgColor = qs('#poetry-bg-color');
+      selectedBgColor = art.backgroundColor || '#f4f4f4';
+      if (poetryBgColor) poetryBgColor.value = selectedBgColor;
+      if (poetryBgPicker) { poetryBgPicker.hidden = false; poetryBgPicker.style.display = ''; }
+      if (ambient) {
+        ambient.style.backgroundImage = '';
+        ambient.style.backgroundColor = selectedBgColor;
+      }
     }
 
     // Source
@@ -179,7 +212,7 @@
             lines = String(t || '').split(/\n/).map(s => ({ html: s }));
           }
         }
-        const body = Object.assign({}, common, { poem: { lines } });
+        const body = Object.assign({}, common, { poem: { lines }, backgroundColor: selectedBgColor });
         const res = await authFetch(`/api/artworks/${encodeURIComponent(artworkId)}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
