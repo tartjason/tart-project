@@ -227,10 +227,12 @@ body.upload-page .camera-icon::before {
 
 /* Poetry editor */
 body.upload-page .poetry-editor-area {
-    background: rgba(255,255,255,0.75);
+    /* Make translucent to match title/description fields without changing size */
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.8);
     border-radius: 12px;
     padding: 16px;
-    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
     /* Place directly under the picker; preserve bottom spacing */
     margin: 0 auto 6rem;
 }

@@ -210,6 +210,13 @@ function renderPoem(container, poem) {
                 poemContainer.style.display = 'block';
                 renderPoem(poemContainer, artwork.poem);
             }
+            // Apply ambient background color for poetry (match upload page behavior)
+            const bgColor = artwork.backgroundColor || '#f4f4f4';
+            const ambient = document.getElementById('ambient-bg');
+            if (ambient) {
+                ambient.style.backgroundImage = '';
+                ambient.style.backgroundColor = bgColor;
+            }
             document.body.classList.add('poetry-mode');
         } else {
             // Image rendering

@@ -216,16 +216,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- Bottom Cloud Footer (replaces grass strip) ---
   function ensureCloudFooter() {
     try {
-      let el = document.querySelector('.party-cloud');
-      if (!el) {
-        el = document.createElement('div');
-        el.className = 'party-cloud';
-        document.body.appendChild(el);
-      }
-      // Keep breathing space roughly equal to cloud height so content doesn't collide
+      // Remove/hide the visual cloud while preserving breathing space
+      const el = document.querySelector('.party-cloud');
+      if (el) { el.style.display = 'none'; }
+      // Keep breathing space so content doesn't collide with bottom
       if (appRoot) {
         const desktop = window.innerWidth > 680;
-        appRoot.style.setProperty('--breathing-extra', desktop ? '200px' : '160px');
+        // Slightly increase spacing vs prior values
+        appRoot.style.setProperty('--breathing-extra', desktop ? '240px' : '200px');
       }
     } catch(_) { /* ignore */ }
   }

@@ -257,21 +257,7 @@ body.party-page::after {
   .party-grass .grass-tile { width: calc(100vw / var(--tiles, 8)); }
 }
 
-/* Bottom-left cloud image (replaces grass strip) */
-.party-cloud {
-  position: relative;
-  /* Keep it slightly big by default; responsive via CSS var */
-  height: var(--cloud-h, 200px);
-  pointer-events: none;
-  z-index: 0;
-  background-image: url("/assets/cloud%201.png");
-  background-repeat: no-repeat;
-  background-position: left bottom;
-  background-size: auto 100%; /* maintain aspect, keep slightly large */
-}
-@media (max-width: 680px) {
-  .party-cloud { height: var(--cloud-h, 160px); }
-}
+/* Cloud image removed; spacing preserved via --breathing-extra */
 
 /* Toggle button next to logo */
 .logo-toggle { display: inline-flex; align-items: center; gap: 8px; }

@@ -411,6 +411,12 @@ router.put('/:id', [auth, uploadMiddleware], async (req, res) => {
                 spacing: clampNum(line.spacing) ?? 0
             }));
             update.poem = { lines: safeLines };
+            // Optional background color update/clear
+            if (Object.prototype.hasOwnProperty.call(body, 'backgroundColor')) {
+                const raw = typeof body.backgroundColor === 'string' ? body.backgroundColor.trim() : '';
+                const valid = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(raw) ? raw : undefined;
+                update.backgroundColor = valid; // undefined clears the field
+            }
             update.metrics2d = undefined;
             update.metrics3d = undefined;
 
@@ -894,6 +900,10 @@ router.post('/', [auth, uploadMiddleware], async (req, res) => {
                 spacing: clampNum(line.spacing) ?? 0
             }));
 
+            // Optional background color for poetry
+            const bgRaw = typeof body.backgroundColor === 'string' ? body.backgroundColor.trim() : '';
+            const bgColor = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(bgRaw) ? bgRaw : undefined;
+
             const artworkData = {
                 title,
                 description,
@@ -903,7 +913,8 @@ router.post('/', [auth, uploadMiddleware], async (req, res) => {
                 locationCountry: locationCountry || undefined,
                 locationCity: locationCity || undefined,
                 source: source && ['human', 'ai'].includes(source) ? source : undefined,
-                poem: { lines: safeLines }
+                poem: { lines: safeLines },
+                ...(bgColor ? { backgroundColor: bgColor } : {})
             };
 
             const newArtwork = new Artwork(artworkData);

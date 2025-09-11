@@ -78,6 +78,9 @@ const artworkSchema = new Schema({
         }]
     },
 
+    // Optional background color for poetry artworks (hex color like #RRGGBB or #RRGGBBAA)
+    backgroundColor: { type: String },
+
     // Visibility: when true, artwork is private (only visible to the owner in account page)
     isPrivate: { type: Boolean, default: false },
 

@@ -211,6 +211,12 @@ body.artwork-page #ambient-bg {
     pointer-events: none;
 }
 
+/* Poetry mode: use a thin blur over a solid color */
+body.artwork-page.poetry-mode #ambient-bg {
+    background-image: none !important;
+    filter: blur(18px) saturate(110%) brightness(1.0);
+}
+
 /* Fade in ambient background together with content when ready */
 body.artwork-page:not(.ready) #ambient-bg {
     opacity: 0;
@@ -218,6 +224,11 @@ body.artwork-page:not(.ready) #ambient-bg {
 body.artwork-page.ready #ambient-bg {
     opacity: 0.25;
     transition: opacity 240ms ease;
+}
+
+/* Override ready opacity in poetry mode for a softer backdrop */
+body.artwork-page.ready.poetry-mode #ambient-bg {
+    opacity: 0.18;
 }
 
 /* Lightbox overlay */

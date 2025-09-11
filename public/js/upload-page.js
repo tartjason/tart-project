@@ -5,6 +5,7 @@
   function hide(el) { if (!el) return; el.hidden = true; el.style.display = "none"; }
 
   let poemEditor = null;
+  let selectedBgColor = '#f4f4f4'; // default background color for poetry
 
   function init() {
     const mediumSelect = qs('#medium-select');
@@ -15,6 +16,9 @@
     const fileInput = qs('#artwork-file');
     const overlay = qs('#upload-overlay');
     const poemEditorMount = qs('#poem-editor');
+    // Poetry background color picker elements
+    const poetryBgPicker = qs('#poetry-bg-picker');
+    const poetryBgColor = qs('#poetry-bg-color');
     const publishBtn = qs('#publish-btn');
     const publishActions = qs('#publish-actions');
     const titleInput = qs('#artwork-title');
@@ -109,6 +113,22 @@
       msgBox.style.display = '';
       container.scrollIntoView({ behavior: 'smooth', block: 'center' });
       setTimeout(() => { if (msgBox) msgBox.style.display = 'none'; }, 2500);
+    }
+
+    // --- Poetry background color picker wiring ---
+    const isValidHex = (v) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(String(v || ''));
+    const applyBgColor = (hex) => {
+      selectedBgColor = isValidHex(hex) ? hex : '#f4f4f4';
+      if (poetryBgColor && poetryBgColor.value !== selectedBgColor) poetryBgColor.value = selectedBgColor;
+      if (ambient) {
+        ambient.style.backgroundImage = '';
+        ambient.style.backgroundColor = selectedBgColor;
+      }
+    };
+    if (poetryBgColor) {
+      on(poetryBgColor, 'input', () => applyBgColor(poetryBgColor.value));
+      // seed initial input value
+      if (poetryBgColor.value) selectedBgColor = poetryBgColor.value;
     }
 
     // Wheel gesture state for horizontal scrolling (one slide per gesture)
@@ -224,6 +244,13 @@
         show(poetrySection);
         show(metaSection);
         show(publishActions);
+        // Show poetry background picker
+        if (poetryBgPicker) { poetryBgPicker.hidden = false; poetryBgPicker.style.display = ''; }
+        // Initialize ambient background color
+        if (ambient) {
+          ambient.style.backgroundImage = '';
+          ambient.style.backgroundColor = selectedBgColor || '#f4f4f4';
+        }
         goTo(0);
         if (!poemEditor && window.PoemEditor && poemEditorMount) {
           poemEditor = new window.PoemEditor(poemEditorMount, { useFloatingToolbar: false });
@@ -239,6 +266,9 @@
         hide(metaSection);
         // Show Publish actions even before image selection to allow inline guidance
         show(publishActions);
+        // Hide poetry background picker and clear ambient color
+        if (poetryBgPicker) { poetryBgPicker.hidden = true; poetryBgPicker.style.display = 'none'; }
+        if (ambient) { ambient.style.backgroundColor = ''; }
       }
       buildDots();
       updateCarousel();
@@ -401,7 +431,7 @@
               'Content-Type': 'application/json',
               'x-auth-token': token
             },
-            body: JSON.stringify({ title, description, medium, locationCountry, locationCity, source, poem })
+            body: JSON.stringify({ title, description, medium, locationCountry, locationCity, source, poem, backgroundColor: selectedBgColor })
           });
         } else {
           const fd = new FormData();

@@ -49,6 +49,13 @@
         </section>
 
         <!-- Poetry flow: embedded editor -->
+        <!-- Background color picker (poetry only) outside the editor box -->
+        <div id="poetry-bg-picker" class="poetry-bg-picker" aria-label="Background color" hidden>
+            <div class="poetry-bg-row">
+                <label for="poetry-bg-color">Background color</label>
+                <input id="poetry-bg-color" type="color" value="#f4f4f4" aria-label="Pick background color" />
+            </div>
+        </div>
         <section id="poetry-section" class="poetry-editor-area" hidden>
             <!-- Editor mount -->
             <div id="poem-editor" aria-label="Poem editor"></div>
@@ -125,7 +132,7 @@
         </div>
     </main>
     <script src="/js/poem-editor.js?v=1.0"></script>
-    <script src="/js/upload-page.js?v=1.3"></script>
+    <script src="/js/upload-page.js?v=1.4"></script>
     <script>
       (function(){
         const back = document.querySelector('.header-back-link');
