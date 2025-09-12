@@ -641,36 +641,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!res.ok && res.status !== 204) throw new Error('Failed to delete');
   }
 
-  // --- Quick Reactions (client-side, local persistence) ---
+  // --- Quick Reactions (server-backed) ---
+  // Legacy local helpers retained for back-compat but unused
   const QR_STORAGE_KEY = 'partyQuickReactions:v1';
-  function readQRStore() {
-    try { return JSON.parse(localStorage.getItem(QR_STORAGE_KEY) || '{}') || {}; } catch(_) { return {}; }
+  function readQRStore() { try { return JSON.parse(localStorage.getItem(QR_STORAGE_KEY) || '{}') || {}; } catch(_) { return {}; } }
+  function writeQRStore(store) { try { localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(store || {})); } catch(_) {} }
+
+  async function studioFetchReactions(postId) {
+    try {
+      const res = await fetch(`/api/studio/posts/${encodeURIComponent(String(postId))}/reactions`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      const arr = Array.isArray(data.reactions) ? data.reactions : [];
+      // De-dup by userId keeping last
+      const byU = new Map();
+      arr.forEach(r => { if (r && r.userId) byU.set(String(r.userId), r); });
+      return Array.from(byU.values());
+    } catch (_) { return []; }
   }
-  function writeQRStore(store) {
-    try { localStorage.setItem(QR_STORAGE_KEY, JSON.stringify(store || {})); } catch(_) {}
+  async function studioSetReaction(postId, emoji) {
+    const t = localStorage.getItem('token');
+    const res = await fetch(`/api/studio/posts/${encodeURIComponent(String(postId))}/reactions`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-auth-token': t }, body: JSON.stringify({ emoji })
+    });
+    if (!res.ok) throw new Error('Failed to react');
+    return res.json();
   }
-  function getPostReactions(postId) {
-    const s = readQRStore();
-    const arr = Array.isArray(s[postId]) ? s[postId] : [];
-    // de-dup by userId keeping last
-    const byU = new Map();
-    arr.forEach(it => { if (it && it.userId) byU.set(String(it.userId), it); });
-    return Array.from(byU.values());
-  }
-  function setUserReaction(postId, user) {
-    // user = { userId, avatarUrl, emoji }
-    const s = readQRStore();
-    const arr = Array.isArray(s[postId]) ? s[postId] : [];
-    const idx = arr.findIndex(it => String(it.userId) === String(user.userId));
-    if (idx >= 0) arr[idx] = user; else arr.push(user);
-    s[postId] = arr;
-    writeQRStore(s);
-  }
-  function clearUserReaction(postId, userId) {
-    const s = readQRStore();
-    const arr = Array.isArray(s[postId]) ? s[postId] : [];
-    s[postId] = arr.filter(it => String(it.userId) !== String(userId));
-    writeQRStore(s);
+  async function studioClearReaction(postId) {
+    const t = localStorage.getItem('token');
+    const res = await fetch(`/api/studio/posts/${encodeURIComponent(String(postId))}/reactions`, {
+      method: 'DELETE', headers: { 'x-auth-token': t }
+    });
+    if (!res.ok && res.status !== 204) throw new Error('Failed to clear reaction');
   }
 
   function renderQRMin(container, reactions) {
@@ -714,10 +716,12 @@ document.addEventListener('DOMContentLoaded', () => {
       </span>
     `).join('');
   }
-  function updateQuickReactionUIForCard(card) {
+  async function updateQuickReactionUIForCard(card) {
     const postId = card?.dataset?.id;
     if (!postId) return;
-    const reactions = getPostReactions(postId);
+    const reactions = await studioFetchReactions(postId);
+    // cache on card for toggle use
+    card._qrReactions = reactions;
     renderQRMin(card.querySelector('.quick-reaction-min'), reactions);
     const expanded = card.querySelector('.quick-reaction-expanded');
     if (expanded && !expanded.hidden) renderQRExpanded(expanded, reactions);
@@ -988,8 +992,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const emoji = emojiBtn.getAttribute('data-emoji');
         if (!postId || !card || !emoji) return;
         if (!currentUserId) { openLoginPopup(); return; }
-        setUserReaction(postId, { userId: String(currentUserId), avatarUrl: currentUserAvatarUrl || '/assets/default-avatar.svg', emoji });
-        updateQuickReactionUIForCard(card);
+        try {
+          const existingMine = Array.isArray(card._qrReactions) ? card._qrReactions.find(r => String(r.userId) === String(currentUserId)) : null;
+          if (existingMine && existingMine.emoji === emoji) {
+            await studioClearReaction(postId);
+          } else {
+            await studioSetReaction(postId, emoji);
+          }
+        } catch (_) { /* ignore for now */ }
+        await updateQuickReactionUIForCard(card);
         picker.hidden = true;
         return;
       }
@@ -1000,10 +1011,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const card = minWrap.closest('.studio-card');
         const expanded = shell?.querySelector('.quick-reaction-expanded');
         if (!expanded || !card) return;
-        const count = getPostReactions(card.dataset.id).length;
+        const count = Array.isArray(card._qrReactions) ? card._qrReactions.length : 0;
         if (count <= 1) { return; }
         if (expanded.hidden) {
-          renderQRExpanded(expanded, getPostReactions(card.dataset.id));
+          renderQRExpanded(expanded, Array.isArray(card._qrReactions) ? card._qrReactions : []);
           expanded.hidden = false;
           minWrap.hidden = true; // turn the stack into a row in-place
         } else {

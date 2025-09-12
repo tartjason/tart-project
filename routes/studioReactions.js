@@ -21,8 +21,7 @@ router.get('/posts/:postId/reactions', async (req, res) => {
     if (!mongoose.isValidObjectId(postId)) return res.status(404).json({ msg: 'Not found' });
     const docs = await QuickReaction.find({ postId })
       .populate('userId', 'profilePictureUrl')
-      // Deterministic ordering for consistent avatar stacks across devices
-      .sort({ userId: 1 })
+      .sort({ updatedAt: -1 })
       .limit(60);
     return res.json({ reactions: docs.map(toReactionShape) });
   } catch (e) {

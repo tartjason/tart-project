@@ -44,6 +44,7 @@ app.use('/api/comments', require('./routes/comments'));
 // Studio: server-backed posts and comments
 app.use('/api/studio-posts', require('./routes/studioPosts'));
 app.use('/api/studio', require('./routes/studioComments'));
+app.use('/api/studio', require('./routes/studioReactions'));
 // Uploads (images to S3/CDN)
 app.use('/api/uploads', require('./routes/uploads'));
 // Analytics events

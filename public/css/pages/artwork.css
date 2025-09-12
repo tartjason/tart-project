@@ -565,4 +565,18 @@ body.artwork-page .load-more-btn:disabled { opacity: 0.6; cursor: default; trans
   body.artwork-page .reply-comment .comment-avatar { width: 20px; height: 20px; font-size: 9px; }
   /* Avoid iOS zoom on focus by keeping textarea >=16px on mobile */
   body.artwork-page .reply-form .form-textarea { font-size: 16px; }
+
+  /* Disable focus/immersive mode on phones */
+  /* Hide ambient background blur layer for mobile to reduce distraction */
+  body.artwork-page #ambient-bg { display: none !important; }
+
+  /* Keep page chrome fully visible and remove fading on mobile */
+  body.artwork-page header,
+  body.artwork-page .artwork-meta,
+  body.artwork-page .artwork-metrics,
+  body.artwork-page .section-divider,
+  body.artwork-page .artwork-footer {
+    opacity: 1 !important;
+    transition: none !important;
+  }
 }

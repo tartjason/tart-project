@@ -753,13 +753,17 @@ body.party-page::after {
 .studio-card .quick-reaction-min .qr-avatars { display: flex; align-items: center; }
 .studio-card .quick-reaction-min .qr-avatar {
   position: relative;
-  width: 34px; height: 34px; border-radius: 50%; overflow: visible; border: 0; /* allow emoji to protrude */
+  /* Use a single source of truth for avatar size */
+  --qr-size: 34px;
+  width: var(--qr-size); height: var(--qr-size);
+  flex: 0 0 var(--qr-size);
+  border-radius: 50%; overflow: visible; border: 0; /* allow emoji to protrude */
   box-shadow: none; /* remove outer ring */
   display: inline-flex; align-items: center; justify-content: center; background: transparent; color: #fff; font-weight: 700; font-size: 12px;
 }
 .studio-card .quick-reaction-min .qr-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; position: relative; z-index: 1; }
 .studio-card .quick-reaction-min .qr-avatar + .qr-avatar { margin-left: -10px; }
-.studio-card .quick-reaction-min .qr-avatar.more { background: rgba(0,0,0,0.55); }
+.studio-card .quick-reaction-min .qr-avatar.more { background: rgba(0,0,0,0.55); width: var(--qr-size); height: var(--qr-size); flex: 0 0 var(--qr-size); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
 
 /* Quick Reactions: emoji picker popover (2 rows of three) */
 .studio-card .quick-reaction-picker {
@@ -792,7 +796,7 @@ body.party-page::after {
 }
 .studio-card:not(.expanded) .quick-reaction-expanded { left: 8px; transform: translateY(calc(-50% - 26px)); }
 .studio-card .quick-reaction-expanded .qr-row { display: flex; gap: 10px; align-items: center; }
-.studio-card .quick-reaction-expanded .qr-badge { position: relative; width: 34px; height: 34px; border-radius: 50%; }
+.studio-card .quick-reaction-expanded .qr-badge { position: relative; --qr-size: 34px; width: var(--qr-size); height: var(--qr-size); flex: 0 0 var(--qr-size); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
 .studio-card .quick-reaction-expanded .qr-badge-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; border: 0; box-shadow: none; display: block; background: transparent; }
 .studio-card .quick-reaction-expanded .qr-badge-emoji {
   position: absolute; right: -4px; bottom: -2px; /* a little further left, slightly higher */
