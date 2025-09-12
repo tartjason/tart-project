@@ -203,3 +203,62 @@ router.delete('/:id', auth, async (req, res) => {
 });
 
 module.exports = router;
+// PUT /api/studio-posts/:id
+router.put('/:id', auth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return res.status(404).json({ msg: 'Not found' });
+    const post = await StudioPost.findById(id);
+    if (!post) return res.status(404).json({ msg: 'Not found' });
+    if (String(post.artist) !== String(req.artist.id)) return res.status(403).json({ msg: 'Forbidden' });
+
+    const body = req.body || {};
+    // Do not allow changing kind
+    if (body.kind && String(body.kind).toLowerCase() !== String(post.kind)) {
+      return res.status(400).json({ msg: 'Cannot change post kind' });
+    }
+
+    // Common fields
+    if (typeof body.title === 'string') {
+      post.title = body.title.slice(0, 200);
+    }
+    if (typeof body.description === 'string') {
+      post.description = body.description.slice(0, 1000);
+    }
+    if (typeof body.status === 'string' && ['in-progress', 'finished'].includes(body.status)) {
+      post.status = body.status;
+    }
+
+    // Kind-specific updates
+    if (post.kind === 'poetry') {
+      if (body.poem && Array.isArray(body.poem.lines)) {
+        // Very light validation for poem lines
+        const lines = body.poem.lines.map((l) => ({
+          html: typeof l.html === 'string' ? l.html : '',
+          color: typeof l.color === 'string' ? l.color : '',
+          indent: Number.isFinite(l.indent) ? l.indent : 0,
+          spacing: Number.isFinite(l.spacing) ? l.spacing : (Number.isFinite(l.gap) ? l.gap : 0),
+        }));
+        post.poem = { lines };
+      }
+    } else if (post.kind === 'media') {
+      if (body.media && (typeof body.media === 'object')) {
+        const type = typeof body.media.type === 'string' ? body.media.type : (post.media?.type || '');
+        const src = typeof body.media.src === 'string' ? body.media.src : undefined;
+        // If src provided, replace; otherwise leave as-is
+        if (src) {
+          post.media = { type, src };
+        } else if (type && post.media) {
+          post.media.type = type;
+        }
+      }
+    }
+
+    await post.save();
+    const saved = await StudioPost.findById(id).populate('artist', 'name username profilePictureUrl');
+    return res.json(toPostShape(saved));
+  } catch (e) {
+    console.error('Update studio post error:', e);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});

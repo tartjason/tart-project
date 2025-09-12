@@ -50,6 +50,7 @@ router.get('/posts/:postId/comments', async (req, res) => {
     const cursor = req.query.cursor ? new Date(req.query.cursor) : null;
     const q = { studioPostId: postId };
     if (cursor) q.createdAt = { $lt: cursor };
+    // Fetch a page of comments
     const docs = await StudioComment.find(q)
       .populate('author', 'name username profilePictureUrl')
       .populate('replies.author', 'name username profilePictureUrl')
@@ -57,7 +58,9 @@ router.get('/posts/:postId/comments', async (req, res) => {
       .limit(limit + 1);
     const items = docs.slice(0, limit).map(d => toCommentShape(d, req.artist && req.artist.id));
     const nextCursor = docs.length > limit ? docs[limit].createdAt : null;
-    return res.json({ comments: items, nextCursor });
+    // Also return the total number of top-level comments for this post so UI can show a count badge
+    const totalCount = await StudioComment.countDocuments({ studioPostId: postId });
+    return res.json({ comments: items, nextCursor, totalCount });
   } catch (e) {
     console.error('List studio comments error:', e);
     return res.status(500).json({ msg: 'Server error' });

@@ -374,9 +374,15 @@ body.party-page::after {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  /* Prevent neighbors from stretching to the tallest card in the row */
+  align-items: start;
+  /* Baseline preview height used to keep rows consistent */
+  --card-preview-h: 280px;
+  /* Reserved space for the card header (avatar, name, title) */
+  --card-info-h: 64px;
 }
 @media (max-width: 900px) { .studio-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 520px) { .studio-grid { grid-template-columns: 1fr; } }
+@media (max-width: 520px) { .studio-grid { grid-template-columns: 1fr; --card-preview-h: 220px; --card-info-h: 60px; } }
 
 .studio-card {
   background: rgba(255,255,255,0.06);
@@ -387,17 +393,30 @@ body.party-page::after {
   flex-direction: column;
 }
 .studio-card .media { aspect-ratio: 4/3; width: 100%; object-fit: cover; display: block; }
-.studio-card .info { padding: 10px; }
-.studio-card .info h4 { margin: 0 0 6px; font-size: 14px; color: #e5e7eb; }
-.studio-card .info p { margin: 0; font-size: 12px; color: #cbd5e1; }
+/* Consistent preview height for non-expanded media */
+.studio-card:not(.expanded) .media {
+  height: var(--card-preview-h);
+  aspect-ratio: auto;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  /* Match poetry preview's separation line so total heights align exactly */
+  border-top: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.03);
+}
+.studio-card .info { padding: 10px; height: var(--card-info-h); flex: 0 0 auto; }
+.studio-card .info h4 { margin: 0 0 4px; font-size: 14px; color: #e5e7eb; display: -webkit-box; -webkit-line-clamp: 1; line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.studio-card .info p { margin: 0; font-size: 12px; color: #cbd5e1; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
 /* Title with uploader avatar */
 .card-title-wrap { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.uploader-avatar { width: 24px; height: 24px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); object-fit: cover; }
+.uploader-avatar { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2); object-fit: cover; }
 .uploader-link { display: inline-flex; }
-.title-block { display: flex; flex-direction: column; gap: 2px; }
-.uploader-name { font-size: 12px; color: #cbd5e1; text-decoration: none; line-height: 1; }
+.title-block { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.uploader-name { font-size: 12px; color: #cbd5e1; text-decoration: none; line-height: 1; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .uploader-name:hover { text-decoration: underline; }
+/* Subtle timestamp under uploader name */
+.title-block .upload-time { font-size: 11px; color: #9ca3af; line-height: 1; white-space: nowrap; }
 
 /* Studio modal topbar (medium selector) */
 .studio-topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
@@ -424,25 +443,24 @@ body.party-page::after {
 /* Poetry card preview snippet */
 .studio-card.poetry { display: flex; flex-direction: column; }
 .poetry-preview-mini { padding: 10px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.03); }
+/* Consistent preview height for non-expanded poetry */
+.studio-card:not(.expanded) .poetry-preview-mini {
+  height: var(--card-preview-h);
+  overflow: hidden;
+  margin-bottom: 0;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
 .poetry-preview-mini .po-line { color: #e5e7eb; font-size: 13px; line-height: 1.5; }
 
-/* Adjustable preview heights for non-expanded cards (no fake padding) */
-/* Media: by default uses aspect-ratio. When a height var is set, we crop via overflow hidden */
-.studio-card:not(.expanded) .media {
-  height: var(--media-h, auto);
-  /* when height is set, remove aspect-ratio influence */
-}
+/* Compatibility: if older code sets --media-h inline, still force a fixed
+   preview height so rows remain consistent. */
 .studio-card:not(.expanded)[style*="--media-h"] .media {
   aspect-ratio: auto;
   display: block;
   width: 100%;
   object-fit: cover;
-}
-
-/* Poetry: reveal more/less lines by clamping container height */
-.studio-card:not(.expanded) .poetry-preview-mini {
-  max-height: var(--poetry-max-h, none);
-  overflow: hidden;
+  height: var(--card-preview-h) !important;
 }
 
 /* Enlarge button on cards */
@@ -469,8 +487,8 @@ body.party-page::after {
 .viewer-title { font-size: 18px; font-weight: 700; color: #e5e7eb; }
 .viewer-desc { font-size: 14px; color: #cbd5e1; }
 .viewer-media { width: 100%; max-height: 70vh; object-fit: contain; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: #0a0f1d; }
-.viewer-poem { border: 1px solid rgba(255,255,255,0.16); border-radius: 10px; padding: 12px; background: rgba(255,255,255,0.04); }
-.viewer-poem .po-line { color: #e5e7eb; line-height: 1.6; white-space: pre-wrap; }
+.viewer-poem { border: 1px solid rgba(255,255,255,0.16); border-radius: 10px; padding: 12px; padding-bottom: 80px; background: rgba(255,255,255,0.04); }
+.viewer-poem .po-line { color: #e5e7eb; line-height: 1.7; white-space: pre-wrap; }
 
 /* In-place expanded card */
 .studio-card { transition: box-shadow 160ms ease, transform 160ms ease; }
@@ -478,6 +496,10 @@ body.party-page::after {
   grid-column: span 2;
   box-shadow: 0 14px 40px rgba(0,0,0,0.35);
   transform: translateZ(0);
+}
+/* When the rightmost card expands, make it expand leftward occupying cols 2-3 */
+@media (min-width: 901px) {
+  .studio-card.expanded.expand-leftward { grid-column: 2 / span 2; }
 }
 @media (max-width: 900px) {
   .studio-card.expanded { grid-column: 1 / -1; }
@@ -488,6 +510,11 @@ body.party-page::after {
 .studio-card .poetry-full { display: none; }
 .studio-card.expanded .media-full-wrap,
 .studio-card.expanded .poetry-full { display: block; padding: 10px; border-top: 1px solid rgba(255,255,255,0.12); }
+/* Slightly wider line spacing for poetry content when expanded */
+.studio-card.expanded .poetry-full .po-line { line-height: 2; }
+/* Add space below expanded content before comments */
+.studio-card.expanded .media-full-wrap,
+.studio-card.expanded .poetry-full { margin-bottom: 56px; }
 .studio-card.expanded .media { display: none !important; }
 .studio-card.expanded .poetry-preview-mini { display: none !important; }
 
@@ -542,11 +569,14 @@ body.party-page::after {
 /* Pixel-identical comments (ported from artwork.css) */
 /* Wrapper owns spacing/border; inner section contains just the UI */
 .studio-card .comments-shell { position: relative; background: transparent; border-top: 1px solid #e1e1e1; padding: 16px 16px 8px; border-radius: 8px; margin-top: auto; }
+.studio-card.expanded .comments-shell { padding: 10px 12px 6px; }
 .studio-card .comments-section { background: transparent; border: none; border-radius: 0; padding: 0; font-family: 'Helvetica Neue', Arial, sans-serif; position: static; }
 .studio-card .comment-form { margin-bottom: 0; padding-bottom: 0; border-bottom: none; display: flex; flex-direction: column; gap: 12px; }
+.studio-card.expanded .comment-form { gap: 10px; }
 .studio-card .comment-form .form-group { position: relative; }
 .studio-card .form-group { margin-bottom: 16px; }
 .studio-card .form-textarea { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid rgba(0,0,0,0.06); border-radius: 6px; font-family: inherit; font-size: 16px; line-height: 1.6; letter-spacing: -0.01em; color: #111; background: rgba(255,255,255,0.9); transition: all .2s ease; min-height: 80px; resize: vertical; }
+.studio-card.expanded .form-textarea { min-height: 68px; }
 .studio-card .form-textarea:focus { outline: none; border-color: #000; background: #fff; }
 .studio-card .comment-form .form-textarea { padding-right: 92px; }
 /* Submit button inside textarea container */
@@ -572,8 +602,20 @@ body.party-page::after {
 .studio-card:not(.expanded) .submit-btn { padding: 0; }
 .studio-card .comments-list { list-style: none; padding-left: 0; margin: 0 0 8px 0; }
 .studio-card .comment-item { padding: 20px; border: 1px solid rgba(0,0,0,0.06); border-radius: 6px; margin-bottom: 16px; background: rgba(255,255,255,0.9); position: relative; }
+.studio-card.expanded .comment-item { padding: 14px; margin-bottom: 12px; --comment-pad-x: 14px; }
+.studio-card.expanded .comment-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "header header"
+    "content actions";
+  grid-column-gap: 10px;
+  align-items: start;
+}
 .studio-card .comment-item:last-child { margin-bottom: 0; }
 .studio-card .comment-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.studio-card.expanded .comment-header { gap: 10px; margin-bottom: 8px; grid-area: header; }
 .studio-card .comment-avatar { width: 32px; height: 32px; border-radius: 50%; background: #333; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; text-transform: uppercase; background-size: cover; background-position: center; }
 .studio-card .comment-info { flex: 1; min-width: 0; }
 .studio-card .comment-author { font-size: 14px; font-weight: 500; color: #000; display: block; margin-bottom: 2px; }
@@ -586,8 +628,10 @@ body.party-page::after {
 .studio-card .comment-heart .heart-shape { fill: currentColor; stroke: none; }
 .studio-card .comment-heart.liked .heart-shape { fill: currentColor; }
 .studio-card .heart-count { font-size: 10px; color: #999; min-height: 12px; line-height: 1; font-weight: 400; letter-spacing: 0; font-family: 'Helvetica Neue', Arial, sans-serif; }
-.studio-card .comment-content { font-size: 16px; color: #333; line-height: 1.5; letter-spacing: -0.01em; margin-bottom: 12px; }
+.studio-card .comment-content { font-size: 16px; color: #333; line-height: 1.5; letter-spacing: -0.01em; margin-bottom: 12px; margin-left: 44px; }
+.studio-card.expanded .comment-content { margin-bottom: 0; grid-area: content; }
 .studio-card .comment-actions { display: flex; gap: 16px; }
+.studio-card.expanded .comment-actions { gap: 12px; grid-area: actions; justify-self: end; align-self: start; margin: 0; }
 .studio-card .comment-action { background: transparent; color: #666; border: none; padding: 0; font-size: 12px; cursor: pointer; transition: all .2s ease; }
 .studio-card .comment-action:hover { color: #000; transform: translateY(-1px); }
 .studio-card .comment-action:active { transform: translateY(0); }
@@ -596,14 +640,41 @@ body.party-page::after {
 .studio-card .reply-form .form-textarea { min-height: 60px; background: rgba(255,255,255,0.9); font-size: 14px; }
 .studio-card .reply-form .submit-btn { padding: 8px 16px; font-size: 14px; }
 .studio-card .replies-container { margin-top: 16px; margin-left: 24px; padding-left: 16px; border-left: 2px solid #f0f0f0; }
+.studio-card.expanded .replies-container { margin-left: 18px; padding-left: 12px; padding-right: 0; border-left-width: 1px; grid-column: 1 / -1; width: 100%; }
 .studio-card .reply-comment { padding: 16px 0; border-bottom: 1px solid #f8f8f8; }
+.studio-card.expanded .reply-comment {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "header header"
+    "content actions";
+  grid-column-gap: 10px;
+  grid-row-gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding-right: var(--comment-pad-x, 14px); /* match top-level .comment-item padding */
+}
 .studio-card .reply-comment:last-child { border-bottom: none; padding-bottom: 0; }
-.studio-card .reply-comment .comment-header { margin-bottom: 8px; }
+.studio-card .reply-comment .comment-header { margin-bottom: 8px; grid-area: header; }
+.studio-card.expanded .reply-comment .comment-header { padding-right: var(--comment-pad-x, 14px); box-sizing: border-box; }
+.studio-card.expanded .reply-comment .comment-header .comment-heart { margin-left: auto; margin-right: 0; }
 .studio-card .reply-comment .comment-avatar { width: 24px; height: 24px; font-size: 10px; }
 .studio-card .reply-comment .comment-author { font-size: 13px; color: #666; }
 .studio-card .reply-comment .comment-date { font-size: 11px; color: #999; }
 .studio-card .reply-comment .comment-content { font-size: 14px; color: #444; margin-bottom: 8px; margin-left: 36px; }
+.studio-card.expanded .reply-comment .comment-content { margin-bottom: 0; grid-area: content; }
 .studio-card .reply-comment .comment-actions { gap: 12px; margin-left: 36px; }
+.studio-card.expanded .reply-comment .comment-actions {
+  justify-self: end;
+  align-self: start;
+  grid-area: actions;
+  margin-left: 0;
+  margin-right: 0;
+  position: relative;
+  right: var(--comment-pad-x, 14px);
+}
+.studio-card.expanded .reply-comment .comment-actions { justify-self: end; align-self: start; grid-area: actions; margin-left: 0; margin-right: 0; }
 .studio-card .reply-comment .comment-action { font-size: 11px; }
 .studio-card .reply-comment .comment-heart { font-size: 14px; }
 .studio-card .reply-comment .heart-count { font-size: 9px; }
@@ -633,8 +704,42 @@ body.party-page::after {
 }
 .studio-card .comment-hint-smiley:hover .smiley { filter: drop-shadow(0 4px 14px rgba(0,0,0,0.28)); }
 
+/* Chat icon directly above the smiling face */
+.studio-card .comment-chat-icon {
+  position: absolute;
+  top: 0;
+  right: 16px; /* align with smiley */
+  transform: translate(4px, calc(-50% - 78px)); /* nudge right a bit */
+  z-index: 1;
+  line-height: 0;
+  width: 44px; /* match svg size */
+  height: 44px;
+}
+.studio-card .comment-chat-icon .chat {
+  width: 44px;
+  height: 44px;
+  opacity: 0.95;
+  filter: drop-shadow(0 2px 10px rgba(0,0,0,0.18));
+  position: relative;
+  z-index: 1;
+}
+.studio-card .comment-chat-icon .count-badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  color: #e5e7eb; /* light grey to match theme */
+  font-size: 13px;
+  font-weight: 700;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  pointer-events: none;
+  z-index: 2; /* above svg */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+}
+
 /* Compact alignment when card is not expanded */
 .studio-card:not(.expanded) .comment-hint-smiley { right: 8px; top: 0; transform: translateY(calc(-50% - 28px)); }
+.studio-card:not(.expanded) .comment-chat-icon { right: 8px; transform: translate(4px, calc(-50% - 78px)); }
 
 /* Quick Reactions: minimized avatar stack (parallel to smiley) */
 .studio-card .quick-reaction-min {

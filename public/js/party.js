@@ -43,6 +43,76 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // --- Grid leftward expansion logic for rightmost cards ---
+  function getGridColumnsCount() {
+    try {
+      const cs = window.getComputedStyle(studioGrid);
+      const cols = cs.gridTemplateColumns;
+      if (!cols) return 1;
+      // Count track definitions by splitting on spaces outside parentheses
+      const parts = cols.split(/\s+(?![^()]*\))/).filter(Boolean);
+      return Math.max(1, parts.length);
+    } catch(_) { return 3; }
+  }
+  function clearGridOverrides() {
+    if (!studioGrid) return;
+    studioGrid.classList.remove('has-leftward-expand');
+    studioGrid.querySelectorAll('.studio-card').forEach((c) => {
+      c.classList.remove('expand-leftward');
+      c.style.removeProperty('grid-column');
+      c.style.removeProperty('grid-row-start');
+    });
+  }
+  function applyLeftwardExpandLayout(expandedCard) {
+    if (!studioGrid || !expandedCard) return;
+    // Only in desktop 3-column layout
+    const cols = getGridColumnsCount();
+    if (cols < 3 || window.innerWidth <= 900) { clearGridOverrides(); return; }
+    const cards = Array.from(studioGrid.querySelectorAll('.studio-card'));
+    const idx = cards.indexOf(expandedCard);
+    if (idx < 0) { clearGridOverrides(); return; }
+    const rowIdx = Math.floor(idx / 3); // zero-based
+    const left = cards[rowIdx * 3 + 0];
+    const middle = cards[rowIdx * 3 + 1];
+    const right = cards[rowIdx * 3 + 2];
+    if (right !== expandedCard) { clearGridOverrides(); return; }
+    // Apply overrides: expand to cols 2-3, move middle to col 1 of same row, push left to next row col 1
+    expandedCard.classList.add('expand-leftward');
+    studioGrid.classList.add('has-leftward-expand');
+    const gridRowThis = rowIdx + 1; // grid rows are 1-based when specified
+    if (middle) {
+      middle.style.gridColumn = '1';
+      middle.style.gridRowStart = String(gridRowThis);
+    }
+    if (left) {
+      left.style.gridColumn = '1';
+      left.style.gridRowStart = String(gridRowThis + 1);
+    }
+  }
+
+  // Match the artwork detail page formatting for timestamps
+  function relativeTime(dateInput) {
+    try {
+      const ts = typeof dateInput === 'string' || typeof dateInput === 'number' ? new Date(dateInput).getTime() : (dateInput?.getTime?.() || Date.now());
+      const now = Date.now();
+      const diff = Math.max(0, now - ts);
+      const s = Math.floor(diff / 1000);
+      if (s < 60) return `${s}s ago`;
+      const m = Math.floor(s / 60);
+      if (m < 60) return `${m}m ago`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}h ago`;
+      const d = Math.floor(h / 24);
+      if (d < 7) return `${d}d ago`;
+      const w = Math.floor(d / 7);
+      if (w < 4) return `${w}w ago`;
+      const months = Math.floor(d / 30);
+      if (months < 12) return `${months}mo ago`;
+      const years = Math.floor(d / 365);
+      return `${years}y ago`;
+    } catch (_) { return ''; }
+  }
+
   // --- Equal height without padding: reveal more/less content ---
   let _eqResizeHandlerBound = false;
   function debounce(fn, wait = 120) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(null, args), wait); }; }
@@ -69,38 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function equalizeRow(row) {
     if (!row || !row.length) return;
-    // reset first to measure natural collapsed heights
+    // With fixed CSS preview heights, only clear any previous custom vars
     row.forEach(clearEqualizeVars);
-    const target = Math.max(...row.map(c => c.offsetHeight));
-    row.forEach((card) => {
-      const cur = card.offsetHeight;
-      const need = target - cur;
-      if (need <= 0) return;
-      // Prefer to reveal in media/poetry preview blocks
-      const img = card.querySelector('.media');
-      const poem = card.querySelector('.poetry-preview-mini');
-      if (img && !card.classList.contains('expanded')) {
-        const baseH = img.clientHeight || 0;
-        const newH = Math.max(120, baseH + need);
-        card.style.setProperty('--media-h', newH + 'px');
-      } else if (poem && !card.classList.contains('expanded')) {
-        const visible = poem.clientHeight || 0;
-        const total = poem.scrollHeight || visible + need;
-        const newMax = Math.min(total, visible + need);
-        card.style.setProperty('--poetry-max-h', newMax + 'px');
-      }
-    });
   }
 
   function equalizeStudioRows() {
     if (!studioGrid) return;
-    const expanded = studioGrid.querySelector('.studio-card.expanded');
-    // Skip equalization when a card is expanded to avoid fighting layout
-    if (expanded) return;
+    // Always clear any inline equalization; rely on CSS --card-preview-h for consistency
     const cards = Array.from(studioGrid.querySelectorAll('.studio-card'));
-    if (!cards.length) return;
-    const rows = groupCardsByRow(cards);
-    rows.forEach(equalizeRow);
+    cards.forEach(clearEqualizeVars);
   }
 
   function setupEqualizeObservers() {
@@ -255,6 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let poemEditor = null;
   let currentUserId = null;
   let currentUserAvatarUrl = null;
+  // Edit mode state
+  let editingPostId = null;
+  let editOriginalMedia = null; // { type, src }
 
   // --- Server-backed Studio Posts ---
   async function studioFetchPosts({ cursor, limit = 20 } = {}) {
@@ -345,6 +395,7 @@ document.addEventListener('DOMContentLoaded', () => {
               <a class="uploader-link" href="${profileHref}" title="View profile"><img class="uploader-avatar" src="${avatar}" alt="Uploader"/></a>
               <div class="title-block">
                 <a class="uploader-name" href="${profileHref}">${escapeHtml(artistName)}</a>
+                ${p.createdAt ? `<span class="upload-time">${relativeTime(p.createdAt)}</span>` : ''}
                 <h4>${p.title ? escapeHtml(p.title) : 'Untitled Poem'}</h4>
               </div>
             </div>
@@ -376,6 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <a class="uploader-link" href="${profileHref}" title="View profile"><img class="uploader-avatar" src="${avatar}" alt="Uploader"/></a>
             <div class="title-block">
               <a class="uploader-name" href="${profileHref}">${escapeHtml(artistName)}</a>
+              ${p.createdAt ? `<span class=\"upload-time\">${relativeTime(p.createdAt)}</span>` : ''}
               <h4>${p.title ? escapeHtml(p.title) : 'Untitled'}</h4>
             </div>
           </div>
@@ -397,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class=\"card-menu-wrap\">
         <button type=\"button\" class=\"card-menu-btn\" aria-haspopup=\"true\" aria-expanded=\"false\" title=\"More\">⋯</button>
         <div class=\"card-menu\" role=\"menu\" hidden>
+          <button type=\"button\" class=\"menu-item edit-post\" role=\"menuitem\">Edit</button>
           <button type=\"button\" class=\"menu-item delete-post\" role=\"menuitem\">Delete</button>
         </div>
       </div>
@@ -414,6 +467,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!modal) return;
     // reset state
     pendingFile = null;
+    editingPostId = null;
+    editOriginalMedia = null;
     if (preview) { preview.hidden = true; }
     if (drop) { drop.style.display = 'flex'; }
     if (fileInput) fileInput.value = '';
@@ -422,11 +477,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (statusSelect) statusSelect.value = 'in-progress';
     // default medium to poetry
     if (mediumSelect) mediumSelect.value = 'poetry';
+    if (mediumSelect) mediumSelect.disabled = false;
     toggleMediumUI('poetry');
     // init poem editor lazily
     if (poemMount && !poemEditor && window.PoemEditor) {
       poemEditor = new window.PoemEditor(poemMount, { useFloatingToolbar: true });
     }
+    // Reset titles/buttons for create
+    const titleEl = document.getElementById('studio-modal-title');
+    if (titleEl) titleEl.textContent = 'Upload to Studio';
+    if (saveBtn) saveBtn.textContent = 'Upload to Studio';
     modal.style.display = 'block';
     modal.setAttribute('aria-hidden', 'false');
   };
@@ -436,13 +496,58 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.style.display = 'none';
     // Reset upload UI so no stale preview persists on next open
     pendingFile = null;
+    editingPostId = null;
+    editOriginalMedia = null;
     try {
       if (fileInput) fileInput.value = '';
       if (previewImg) previewImg.src = '';
       if (preview) preview.hidden = true;
       if (drop) drop.style.display = 'flex';
+      if (mediumSelect) mediumSelect.disabled = false;
+      const titleEl = document.getElementById('studio-modal-title');
+      if (titleEl) titleEl.textContent = 'Upload to Studio';
+      if (saveBtn) saveBtn.textContent = 'Upload to Studio';
     } catch (_) { /* ignore */ }
   };
+
+  function openEditModal(post) {
+    if (!modal || !post) return;
+    // Baseline open
+    openStudioModal();
+    // Switch to edit mode UI
+    editingPostId = String(post._id || post.id || '');
+    const titleEl = document.getElementById('studio-modal-title');
+    if (titleEl) titleEl.textContent = 'Edit My Post';
+    if (saveBtn) saveBtn.textContent = 'Save and Update';
+    if (mediumSelect) mediumSelect.disabled = true; // cannot change kind
+    // Prefill shared fields
+    if (statusSelect) statusSelect.value = post.status || 'in-progress';
+    if (titleInput) titleInput.value = post.title || '';
+    if (descInput) descInput.value = post.description || post.desc || '';
+    // Kind-specific prefill
+    if (post.kind === 'poetry') {
+      if (mediumSelect) mediumSelect.value = 'poetry';
+      toggleMediumUI('poetry');
+      if (poemMount && !poemEditor && window.PoemEditor) {
+        poemEditor = new window.PoemEditor(poemMount, { useFloatingToolbar: true });
+      }
+      if (poemEditor && post.poem && Array.isArray(post.poem.lines)) {
+        poemEditor.setLines(post.poem.lines);
+      }
+    } else {
+      // media post
+      if (mediumSelect) mediumSelect.value = 'photography';
+      toggleMediumUI('photography');
+      const media = post.media || {};
+      const src = media.fullUrl || media.src || media.thumbUrl || '';
+      editOriginalMedia = { type: media.type || '', src: src };
+      if (src) {
+        if (previewImg) previewImg.src = src;
+        if (preview) preview.hidden = false;
+        if (drop) drop.style.display = 'none';
+      }
+    }
+  }
 
   const handleFiles = async (files) => {
     if (!files || !files.length) return;
@@ -625,6 +730,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Artwork-like shell
     return `
       <div class="comments-shell">
+        <div class="comment-chat-icon" role="button" tabindex="0" aria-label="Open comments" title="Open comments">
+          <svg class="chat" width="44" height="44" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Translucent chat bubble: rounded rect with tail; stretch only the shape -->
+            <g class="chat-shape" transform="translate(30,30) scale(0.9,1.16) translate(-30,-30)">
+              <path d="M12 14 h30 a6 6 0 0 1 6 6 v12 a6 6 0 0 1 -6 6 h-14 l-8 8 v-8 h-8 a6 6 0 0 1 -6 -6 v-12 a6 6 0 0 1 6 -6 z"
+                    fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1" stroke-linejoin="round"/>
+            </g>
+            <!-- Centered count number inside the bubble (not scaled) -->
+            <text class="count-text" x="28" y="30" dy=".12em" text-anchor="middle"
+                  fill="#e5e7eb" font-size="15" font-weight="700" style="pointer-events:none;">0</text>
+          </svg>
+        </div>
         <div class="comment-hint-smiley" role="button" tabindex="0" aria-label="Send a quick reaction" title="Send a quick reaction">
           <svg class="smiley" width="52" height="52" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
             <circle cx="30" cy="30" r="22" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.22" />
@@ -684,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="comment-avatar" style="background-image:url('${av}')"></div>
           <div class="comment-info">
             <div class="comment-author">${escapeHtml(name)}</div>
-            <div class="comment-date"></div>
+            <div class="comment-date">${relativeTime(c.createdAt)}</div>
           </div>
           <button class="comment-heart ${liked ? 'liked' : ''}" data-action="like">
             <span class="heart-icon">
@@ -714,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="comment-avatar" style="background-image:url('${av}')"></div>
           <div class="comment-info">
             <div class="comment-author">${escapeHtml(name)}</div>
-            <div class="comment-date"></div>
+            <div class="comment-date">${relativeTime(r.createdAt)}</div>
           </div>
           <button class="comment-heart ${liked ? 'liked' : ''}" data-action="like">
           <span class="heart-icon">
@@ -742,22 +859,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextCursor = res.nextCursor || null;
     const ctx = { currentUserId, postArtistId: (cardEl._postArtistId || '') };
     const isExpanded = cardEl.classList.contains('expanded');
+    // Update chat icon count badge (fallback if API lacks totalCount)
+    try {
+      let n;
+      if (typeof res.totalCount === 'number') {
+        n = res.totalCount;
+      } else if (initial && !nextCursor) {
+        // All comments loaded in one page; safe to use current page length
+        n = comments.length;
+      } else if (typeof cardEl._comments.totalCount === 'number') {
+        n = cardEl._comments.totalCount;
+      } else {
+        n = 0;
+      }
+      cardEl._comments.totalCount = n;
+      const textEl = cardEl.querySelector('.comment-chat-icon .count-text');
+      if (textEl) {
+        textEl.textContent = n > 0 ? String(n) : '';
+      }
+    } catch (_) { /* ignore */ }
     if (initial) list.innerHTML = '';
-    const toRender = isExpanded ? comments : comments.slice(0, 2);
-    list.insertAdjacentHTML('beforeend', toRender.map(c => renderCommentItemHTML(c, ctx)).join(''));
+    if (isExpanded) {
+      const toRender = comments;
+      list.insertAdjacentHTML('beforeend', toRender.map(c => renderCommentItemHTML(c, ctx)).join(''));
+    }
     cardEl._comments.cursor = nextCursor;
     cardEl._comments.hasMore = !!nextCursor && comments.length > 0;
     // render/clear load more
     if (loadMore) loadMore.innerHTML = '';
-    // When not expanded, show a simple View all button instead of pagination
+    // When not expanded, do not render comments at all
     if (!isExpanded) {
-      const shouldShowViewAll = (comments.length > 2) || !!nextCursor;
-      if (shouldShowViewAll && loadMore) {
-        const btn = document.createElement('button');
-        btn.type = 'button'; btn.className = 'load-more-btn'; btn.textContent = 'View all comments';
-        btn.addEventListener('click', () => { const card = btn.closest('.studio-card'); if (!card) return; expandCard(card); loadCommentsForCard(card, true); });
-        loadMore.appendChild(btn);
-      }
       return;
     }
     if (cardEl._comments.hasMore) {
@@ -785,6 +916,13 @@ document.addEventListener('DOMContentLoaded', () => {
       try { await studioPostComment(postId, text); input.value = ''; await loadCommentsForCard(form.closest('.studio-card'), true); } catch (err) { alert(err.message || 'Failed'); }
     });
     studioGrid.addEventListener('click', async (e) => {
+      // open comments by clicking chat icon
+      const chatIcon = e.target.closest('.comment-chat-icon');
+      if (chatIcon) {
+        const card = chatIcon.closest('.studio-card');
+        if (card) { expandCard(card); await loadCommentsForCard(card, true); }
+        return;
+      }
       // like
       const likeBtn = e.target.closest('.comment-heart');
       if (likeBtn) {
@@ -898,19 +1036,38 @@ document.addEventListener('DOMContentLoaded', () => {
       const title = (titleInput && titleInput.value) || '';
       const desc = (descInput && descInput.value) || '';
       const posts = _feed.items.slice();
-      if (medium === 'poetry') {
-        if (!poemEditor) {
-          alert('Poem editor not ready.');
-          return;
+      // Edit flow
+      if (editingPostId) {
+        try {
+          const existing = _feed.items.find((p) => String(p._id || p.id) === String(editingPostId));
+          const kind = existing && existing.kind;
+          let payload = { title, description: desc, status: (statusSelect && statusSelect.value) || 'in-progress' };
+          if (kind === 'poetry') {
+            if (!poemEditor) { alert('Poem editor not ready.'); return; }
+            payload.poem = { lines: poemEditor.getLines() };
+          } else {
+            if (pendingFile && pendingFile.dataUrl) {
+              payload.media = { type: pendingFile.type || (editOriginalMedia?.type || ''), src: pendingFile.dataUrl };
+            }
+          }
+          const updated = await studioUpdatePost(editingPostId, payload);
+          const idx = _feed.items.findIndex((p) => String(p._id || p.id) === String(editingPostId));
+          if (idx >= 0) _feed.items[idx] = updated;
+          closeStudioModal();
+          await renderStudioGrid(true);
+        } catch (err) {
+          alert(err && err.message ? err.message : 'Failed to update');
         }
+        return;
+      }
+      // Create flow
+      if (medium === 'poetry') {
+        if (!poemEditor) { alert('Poem editor not ready.'); return; }
         const poem = { lines: poemEditor.getLines() };
         const created = await studioCreatePost({ kind: 'poetry', poem, title, description: desc, status: (statusSelect && statusSelect.value) || 'in-progress' });
         posts.unshift(created);
       } else {
-        if (!pendingFile || !pendingFile.dataUrl) {
-          alert('Please select a file first.');
-          return;
-        }
+        if (!pendingFile || !pendingFile.dataUrl) { alert('Please select a file first.'); return; }
         const created = await studioCreatePost({ kind: 'media', media: { type: pendingFile.type, src: pendingFile.dataUrl }, title, description: desc, status: (statusSelect && statusSelect.value) || 'in-progress' });
         posts.unshift(created);
       }
@@ -959,6 +1116,16 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         return;
       }
+      const editBtn = e.target.closest('.menu-item.edit-post');
+      if (editBtn) {
+        const card = editBtn.closest('.studio-card');
+        const id = card && card.dataset.id;
+        if (!id) return;
+        const post = _feed.items.find((p) => String(p._id || p.id) === String(id));
+        if (!post) return;
+        openEditModal(post);
+        return;
+      }
       const delBtn = e.target.closest('.menu-item.delete-post');
       if (delBtn) {
         const card = delBtn.closest('.studio-card');
@@ -969,6 +1136,19 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
     });
+  }
+
+  async function studioUpdatePost(id, payload) {
+    const t = localStorage.getItem('token');
+    const res = await fetch(`/api/studio-posts/${encodeURIComponent(String(id))}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'x-auth-token': t }, body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      let msg = 'Failed to update';
+      try { const e = await res.json(); if (e && e.msg) msg = e.msg; } catch(_) {}
+      throw new Error(msg);
+    }
+    return res.json();
   }
 
   // Close any open card menus when clicking outside
@@ -1043,6 +1223,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const picker = card.querySelector('.quick-reaction-picker'); if (picker) picker.hidden = true;
     const expandedQR = card.querySelector('.quick-reaction-expanded'); if (expandedQR) expandedQR.hidden = true;
     const minWrap = card.querySelector('.quick-reaction-min'); if (minWrap) minWrap.hidden = false;
+    // Apply special grid layout if this is the rightmost card in a 3-col grid
+    applyLeftwardExpandLayout(card);
     // After expand animation, re-equalize surrounding rows
     setTimeout(() => equalizeStudioRows(), 320);
   }
@@ -1068,12 +1250,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const onEnd = (e) => {
         if (e.propertyName === 'max-height') {
           card.classList.remove('expanded');
+          clearGridOverrides();
+          // Clear rendered comments so preview stays clean when collapsed
+          try {
+            const list = card.querySelector('.studio-comments .comments-list');
+            if (list) list.innerHTML = '';
+            const loadMore = card.querySelector('.studio-comments .comments-load-more');
+            if (loadMore) loadMore.innerHTML = '';
+          } catch(_) {}
           last.removeEventListener('transitionend', onEnd);
         }
       };
       last.addEventListener('transitionend', onEnd);
     } else {
       card.classList.remove('expanded');
+      clearGridOverrides();
+      try {
+        const list = card.querySelector('.studio-comments .comments-list');
+        if (list) list.innerHTML = '';
+        const loadMore = card.querySelector('.studio-comments .comments-load-more');
+        if (loadMore) loadMore.innerHTML = '';
+      } catch(_) {}
     }
     const btn = card.querySelector('.enlarge-btn');
     if (btn) btn.textContent = '⤢';
@@ -1083,6 +1280,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // After collapse animation, re-equalize rows
     setTimeout(() => equalizeStudioRows(), 320);
   }
+
+  // Re-evaluate leftward layout on resize
+  window.addEventListener('resize', debounce(() => {
+    const open = studioGrid && studioGrid.querySelector('.studio-card.expanded');
+    if (open) applyLeftwardExpandLayout(open); else clearGridOverrides();
+  }, 120));
 
   // Toggle button behavior
   if (sidebarToggleBtn) {
