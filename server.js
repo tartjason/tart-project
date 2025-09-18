@@ -47,6 +47,8 @@ app.use('/api/studio', require('./routes/studioComments'));
 app.use('/api/studio', require('./routes/studioReactions'));
 // Uploads (images to S3/CDN)
 app.use('/api/uploads', require('./routes/uploads'));
+// Lili posts (separate from Studio)
+app.use('/api/lili-posts', require('./routes/liliPosts'));
 // Analytics events
 app.use('/api/analytics', require('./routes/analytics'));
 // Image proxy/resizer (thumbnails)
@@ -104,6 +106,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Party page route: explicit to avoid being captured by "/:slug"
 app.get('/party', (req, res) => {
     return res.sendFile(path.join(__dirname, 'public', 'party.html'));
+});
+
+// Lili page route: explicit mapping to serve public/lili.html
+app.get('/lili', (req, res) => {
+    return res.sendFile(path.join(__dirname, 'public', 'lili.html'));
 });
 
 // Back-compat: redirect /s/:slug to root-level /:slug

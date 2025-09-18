@@ -103,3 +103,31 @@ router.post('/logo', [auth, uploadMiddleware], async (req, res) => {
 });
 
 module.exports = router;
+ 
+// --- Lili image upload (<=1MB) ---
+// Note: we keep the same multer middleware but enforce size here for a 1MB cap
+router.post('/lili-image', [auth, uploadMiddleware], async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ msg: 'Please upload an image file' });
+    }
+    if ((req.file.size || 0) > 1024 * 1024) {
+      return res.status(400).json({ msg: 'Image must be under 1 MB' });
+    }
+
+    const Bucket = process.env.S3_BUCKET;
+    if (!Bucket) {
+      return res.status(500).json({ msg: 'S3 is not configured' });
+    }
+
+    const folder = 'lili-images';
+    const Key = getUploadsKey(req.artist.id, req.file.originalname, folder);
+    await putBuffer({ Bucket, Key, Body: req.file.buffer, ContentType: req.file.mimetype });
+    const url = getPublicUrl(Bucket, Key);
+
+    return res.json({ url, key: Key });
+  } catch (err) {
+    console.error('Lili image upload error:', err);
+    return res.status(500).json({ msg: 'Server error during upload' });
+  }
+});

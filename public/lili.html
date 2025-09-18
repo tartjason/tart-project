@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tart Lili</title>
+  <link rel="stylesheet" href="/css/style.css?v=1.2" />
+  <style>
+    /* Page-specific styles for Lili */
+    body { background: #FDF8F3; }
+    .lili-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #eee;
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 10;
+    }
+    .lili-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .lili-title a {
+      text-decoration: none;
+      color: inherit;
+      font-size: 22px;
+      font-weight: 600;
+    }
+    .lili-title .lili-accent {
+      color: #A3C6A8; /* distinct color for Lili */
+    }
+
+    /* Auth header items mimic main site */
+    #auth-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .header-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #ddd;
+      cursor: pointer;
+    }
+    .avatar-wrapper { position: relative; }
+    .avatar-wrapper .avatar-dropdown {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 6px);
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      min-width: 160px;
+      padding: 6px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+      display: none;
+      z-index: 20;
+    }
+    .avatar-wrapper.open .avatar-dropdown { display: block; }
+    .avatar-dropdown .dropdown-item {
+      display: block;
+      padding: 8px 10px;
+      color: #111;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .avatar-dropdown .dropdown-item:hover {
+      background: #f5f5f5;
+    }
+    .pill-dark-btn {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 0;
+      background: #111;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    /* Floating Add button */
+    .floating-add {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: #000;
+      color: #fff;
+      display: flex; /* more consistent centering across iOS Safari */
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      z-index: 15;
+    }
+    .floating-add .plus-icon { display: block; line-height: 1; font-size: 28px; font-weight: 600; }
+    @media (min-width: 681px) {
+      .floating-add .plus-icon { font-size: 30px; font-weight: 400; }
+    }
+    .floating-menu {
+      position: fixed;
+      right: 24px;
+      bottom: 90px;
+      background: #fff;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.14);
+      overflow: hidden;
+      display: none;
+      z-index: 16;
+      min-width: 160px;
+    }
+    .floating-menu.open { display: block; }
+    .floating-menu button {
+      width: 100%;
+      background: #fff;
+      border: none;
+      text-align: left;
+      padding: 10px 12px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .floating-menu button:hover { background: #f6f6f6; }
+
+    /* Simple container for page content placeholder */
+    .lili-content { padding: 24px; }
+
+    /* Feed container */
+    .lili-feed {
+      max-width: 720px;
+      margin: 24px auto;
+      background: rgba(255,255,255,0.25);
+      border: 1px solid #eee;
+      border-radius: 16px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.06);
+      padding: 16px;
+    }
+    .lili-post { position: relative; border-bottom: 1px solid #f0f0f0; padding: 20px 8px 28px; }
+    article.lili-post:last-of-type { border-bottom: none; }
+    .lili-post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .lili-post-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd; }
+    .lili-post-meta { display: flex; align-items: baseline; gap: 8px; }
+    .lili-post-name { font-weight: 600; color: #111; }
+    .lili-post-time { font-size: 12px; color: #777; }
+    .lili-post-title { font-size: 18px; font-weight: 600; margin: 6px 0 8px; }
+    .lili-post-text { white-space: pre-wrap; line-height: 1.6; color: #222; }
+    .lili-post-img { width: 100%; height: auto; border-radius: 12px; display: block; margin: 8px 0; }
+
+    /* Post actions (ellipsis) */
+    .post-menu-btn {
+      position: absolute;
+      top: 12px;
+      right: 8px;
+      background: transparent;
+      border: none;
+      color: #333;
+      padding: 4px; /* keep a tappable area without visible circle */
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 1;
+      z-index: 6;
+    }
+    .post-menu {
+      position: absolute;
+      top: 44px;
+      right: 8px;
+      background: #fff;
+      border: 1px solid #eaeaea;
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+      overflow: hidden;
+      display: none;
+      z-index: 5;
+      min-width: 140px;
+    }
+    .post-menu.open { display: block; }
+    .post-menu button {
+      display: block;
+      width: 100%;
+      background: #fff;
+      border: 0;
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .post-menu button:hover { background: #f6f6f6; }
+
+    /* Mobile: no frame box, edge-to-edge like Instagram */
+    @media (max-width: 680px) {
+      .lili-feed {
+        max-width: none;
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+      .lili-post { padding: 20px 16px 28px; border-bottom: 10px solid #f5f5f5; }
+      article.lili-post:last-of-type { border-bottom: none; }
+      .floating-add { right: 16px; bottom: 16px; width: 48px; height: 48px; }
+      .floating-add .plus-icon { font-size: 24px; }
+    }
+
+    /* Authors strip (row of profile photos) */
+    .lili-authors-strip {
+      max-width: 720px;
+      margin: 12px auto 0;
+      padding: 10px 0; /* extra vertical space prevents visual clipping */
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      overflow: visible; /* do not clip inner focus/selection rings */
+    }
+    .lili-authors-scroll {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      overflow-x: auto;
+      overflow-y: visible; /* ensure rings/outlines are not cut off */
+      padding-block: 6px; /* breathing room for focus/selected outlines */
+      scrollbar-width: thin;
+      -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
+    }
+    .lili-author-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex: 0 0 auto;
+      min-width: 56px; /* ensure some space for name */
+      padding: 2px 0; /* extra vertical room to avoid clipping */
+    }
+    .lili-author-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #ddd;
+      flex: 0 0 auto;
+      background: #fff;
+      display: block; /* avoids line-height clipping in some browsers */
+    }
+    .lili-author-name {
+      max-width: 64px;
+      font-size: 12px;
+      line-height: 1.2;
+      color: #444;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lili-author-avatar.selected {
+      outline: 2px solid #111;
+      outline-offset: 2px; /* keep outline away from edges to avoid clipping */
+      box-shadow: 0 0 0 3px rgba(0,0,0,0.08);
+    }
+    @media (max-width: 680px) {
+      .lili-authors-strip { max-width: none; margin: 8px 0 0; }
+      .lili-author-avatar { width: 44px; height: 44px; }
+      .lili-author-name { max-width: 56px; }
+    }
+
+    /* Modal styles */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      width: min(720px, calc(100vw - 40px));
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 18px;
+      max-height: calc(100vh - 80px); /* scroll if too tall */
+      overflow: auto; /* allow scrolling for tall content */
+    }
+    .modal h2 { margin: 0 0 12px; font-size: 18px; }
+    .form-row { display: grid; gap: 8px; margin-bottom: 12px; }
+    .form-row label { font-size: 13px; color: #555; }
+    .form-row input[type="text"], .form-row textarea {
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box; /* prevent visual overflow */
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-family: inherit; /* ensure same font family */
+      font-size: 16px; /* match title box font size */
+      line-height: 1.5;
+      color: #111;
+      background: #fff;
+    }
+    .form-row textarea { min-height: 160px; resize: vertical; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
+    .btn {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: #fff;
+      color: #111; /* ensure text visible on white background */
+      cursor: pointer;
+    }
+    .btn-primary { background: #000; color: #fff; border-color: #000; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #bbb;
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+      color: #666;
+      cursor: pointer;
+    }
+    .drop-zone.dragover { border-color: #000; color: #000; background: #fafafa; }
+    .preview-img {
+      max-width: 100%;
+      max-height: 50vh; /* prevent modal overflow */
+      object-fit: contain;
+      border-radius: 10px;
+      display: none;
+      cursor: pointer;
+    }
+    .error-msg { color: #b00020; font-size: 13px; margin-top: 6px; display: none; }
+  </style>
+</head>
+<body>
+  <header class="lili-header">
+    <div class="lili-title">
+      <h1 style="margin:0; font-weight:600; font-size:22px;">
+        <a href="/" id="tart-logo-home">Tart</a>
+        <span class="lili-accent">Lili</span>
+      </h1>
+    </div>
+    <div id="auth-container"></div>
+  </header>
+
+  <main class="lili-content">
+    <!-- Authors strip: shows unique artists who have posted -->
+    <div class="lili-authors-strip" id="lili-authors-strip" aria-label="Artists who posted">
+      <div class="lili-authors-scroll" id="lili-authors-scroll">
+        <!-- Avatars will be inserted here -->
+      </div>
+    </div>
+
+    <!-- Placeholder content area for Lili page -->
+    <div class="lili-feed" id="lili-feed">
+      <!-- Posts will be stacked here -->
+      <div id="lili-feed-end" aria-hidden="true" style="height:1px;"></div>
+    </div>
+  </main>
+
+  <!-- Floating Add button and dropdown -->
+  <button class="floating-add" id="lili-add-btn" aria-label="Add"><span class="plus-icon" aria-hidden="true">+</span></button>
+  <div class="floating-menu" id="lili-menu" role="menu" aria-hidden="true">
+    <button id="menu-text" role="menuitem">Text</button>
+    <button id="menu-media" role="menuitem">Media</button>
+  </div>
+
+  <!-- Text Modal -->
+  <div class="modal-overlay" id="text-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="text-modal-title">
+      <h2 id="text-modal-title">New Text</h2>
+      <div class="form-row">
+        <label for="text-title">Title</label>
+        <input type="text" id="text-title" placeholder="Enter a title" />
+      </div>
+      <div class="form-row">
+        <label for="text-editor">Text</label>
+        <textarea id="text-editor" placeholder="Write something..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="text-cancel">Cancel</button>
+        <button class="btn btn-primary" id="text-upload">Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Media Modal -->
+  <div class="modal-overlay" id="media-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
+      <h2 id="media-modal-title">New Media</h2>
+      <div class="form-row">
+        <label>Image (under 1 MB)</label>
+        <div class="drop-zone" id="media-drop">Drop image here or click to choose</div>
+        <img id="media-preview" class="preview-img" alt="Preview" />
+        <input type="file" id="media-file" accept="image/*" style="display:none;" />
+        <div class="error-msg" id="media-error">File must be an image under 1 MB.</div>
+      </div>
+      <div class="form-row">
+        <label for="media-title">Title</label>
+        <input type="text" id="media-title" placeholder="Enter a title" />
+      </div>
+      <div class="form-row">
+        <label for="media-desc">Description</label>
+        <textarea id="media-desc" placeholder="Describe your media..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="media-cancel">Cancel</button>
+        <button class="btn btn-primary" id="media-upload">Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/lili.js"></script>
+</body>
+</html>
