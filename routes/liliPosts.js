@@ -15,6 +15,7 @@ function toDto(doc, artist) {
     imageUrl: doc.imageUrl || '',
     description: doc.description || '',
     createdAt: doc.createdAt,
+    likesCount: typeof doc.likesCount === 'number' ? doc.likesCount : 0,
     author: {
       id: artist ? artist._id.toString() : (doc.artist && doc.artist.toString ? doc.artist.toString() : ''),
       name: artist ? artist.name : 'Artist',
@@ -63,6 +64,28 @@ router.get('/', async (req, res) => {
     return res.json({ items, nextCursor });
   } catch (err) {
     console.error('LiliPosts GET error:', err);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// POST /api/lili-posts/:id/like  (public)
+// Increments likesCount atomically; no auth required. Idempotency is enforced client-side per device.
+router.post('/:id/like', async (req, res) => {
+  try {
+    const id = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ msg: 'Invalid id' });
+    }
+    const updated = await LiliPost.findOneAndUpdate(
+      { _id: id },
+      { $inc: { likesCount: 1 } },
+      { new: true }
+    ).lean();
+    if (!updated) return res.status(404).json({ msg: 'Not found' });
+    // Return the new count
+    return res.json({ likesCount: updated.likesCount || 0 });
+  } catch (err) {
+    console.error('LiliPosts LIKE error:', err);
     return res.status(500).json({ msg: 'Server error' });
   }
 });

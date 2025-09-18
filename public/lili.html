@@ -196,6 +196,32 @@
     }
     .post-menu button:hover { background: #f6f6f6; }
 
+    /* Like button footer */
+    .lili-post-footer {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      z-index: 2;
+    }
+    .lili-like-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+      line-height: 1;
+      background: #fff;
+      color: #555;
+      border: 1px solid #eee;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+    .lili-like-btn .heart-shape { fill: currentColor; display: block; }
+    .lili-like-btn:hover { background: #f9f9f9; }
+    .lili-like-btn.liked { color: #e0245e; border-color: #f5c2d3; background: #fff; }
+    .lili-like-count { min-width: 1ch; }
+
     /* Mobile: no frame box, edge-to-edge like Instagram */
     @media (max-width: 680px) {
       .lili-feed {
@@ -205,8 +231,22 @@
         border: none;
         box-shadow: none;
         padding: 0;
+        /* Make feed slightly more opaque on mobile for better contrast */
+        background: rgba(255,255,255,0.6);
       }
-      .lili-post { padding: 20px 16px 28px; border-bottom: 10px solid #f5f5f5; }
+      .lili-post {
+        padding: 20px 16px 28px;
+        /* Slimmer divider, like desktop */
+        border-bottom: 1px solid #eaeaea;
+        /* Rounded card frame on mobile */
+        border-radius: 12px;
+        overflow: hidden; /* ensures media corners follow rounding */
+        /* Slight separation from edges/siblings to reveal rounding */
+        margin: 12px 12px 0 12px;
+        /* Keep the clearer card feel on mobile */
+        background: rgba(255,255,255,0.75);
+      }
+      .lili-like-btn { padding: 8px 12px; font-size: 14px; }
       article.lili-post:last-of-type { border-bottom: none; }
       .floating-add { right: 16px; bottom: 16px; width: 48px; height: 48px; }
       .floating-add .plus-icon { font-size: 24px; }

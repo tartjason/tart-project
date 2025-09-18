@@ -329,7 +329,21 @@ document.addEventListener('DOMContentLoaded', () => {
       const descHtml = post.description ? `<div class="lili-post-text">${escapeHtml(post.description)}</div>` : '';
       bodyHtml = imgHtml + descHtml;
     }
-    el.innerHTML = headerHtml + titleHtml + bodyHtml;
+    // Footer: like button (no login required, per-device single like)
+    const likes = typeof post.likesCount === 'number' ? post.likesCount : 0;
+    const likedKey = `lili_liked_${post.id || ''}`;
+    const isLiked = (() => { try { return localStorage.getItem(likedKey) === '1'; } catch(_) { return false; } })();
+    const likeBtnHtml = `
+      <div class="lili-post-footer">
+        <button class="lili-like-btn${isLiked ? ' liked' : ''}" data-action="like-post" aria-label="Like" title="Like">
+          <svg class="heart-icon" viewBox="0 0 24 24" width="1em" height="1em" aria-hidden="true">
+            <path class="heart-shape" d="M12 21c-.3 0-.6-.1-.8-.3C6.1 16.2 3 13.4 3 9.9 3 7.3 5.1 5.2 7.7 5.2c1.7 0 3.2.9 4.3 2.3 1.1-1.5 2.6-2.3 4.3-2.3 2.6 0 4.7 2.1 4.7 4.7 0 3.5-3.1 6.3-8.2 10.8-.2.2-.5.3-.8.3z"/>
+          </svg>
+          <span class="lili-like-count">${likes}</span>
+        </button>
+      </div>`;
+
+    el.innerHTML = headerHtml + titleHtml + bodyHtml + likeBtnHtml;
     return el;
   }
 
@@ -360,6 +374,36 @@ document.addEventListener('DOMContentLoaded', () => {
         const isOpen = menu.classList.contains('open');
         closeAllPostMenus();
         if (!isOpen) menu.classList.add('open');
+      }
+      return;
+    }
+    if (action === 'like-post') {
+      // Per-device single-like enforcement using localStorage
+      const likedKey = `lili_liked_${postId}`;
+      try {
+        if (localStorage.getItem(likedKey) === '1') {
+          return; // already liked on this device
+        }
+      } catch (_) { /* ignore storage errors */ }
+
+      const countEl = btn.querySelector('.lili-like-count');
+      const prev = parseInt((countEl && countEl.textContent) || '0', 10) || 0;
+      // Optimistic UI update
+      btn.classList.add('liked');
+      if (countEl) countEl.textContent = String(prev + 1);
+      try {
+        const res = await fetch(`/api/lili-posts/${encodeURIComponent(postId)}/like`, { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to like');
+        const data = await res.json().catch(() => ({}));
+        if (typeof data.likesCount === 'number' && countEl) {
+          countEl.textContent = String(data.likesCount);
+        }
+        try { localStorage.setItem(likedKey, '1'); } catch (_) { /* ignore */ }
+      } catch (err) {
+        // Revert UI on failure
+        btn.classList.remove('liked');
+        if (countEl) countEl.textContent = String(prev);
+        console.error('Like error:', err);
       }
       return;
     }
