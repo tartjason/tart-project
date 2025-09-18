@@ -104,15 +104,15 @@ router.post('/logo', [auth, uploadMiddleware], async (req, res) => {
 
 module.exports = router;
  
-// --- Lili image upload (<=1MB) ---
-// Note: we keep the same multer middleware but enforce size here for a 1MB cap
+// --- Lili image upload (<=5MB) ---
+// Note: we keep the same multer middleware but enforce size here for a 5MB cap
 router.post('/lili-image', [auth, uploadMiddleware], async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ msg: 'Please upload an image file' });
     }
-    if ((req.file.size || 0) > 1024 * 1024) {
-      return res.status(400).json({ msg: 'Image must be under 1 MB' });
+    if ((req.file.size || 0) > 5 * 1024 * 1024) {
+      return res.status(400).json({ msg: 'Image must be under 5 MB' });
     }
 
     const Bucket = process.env.S3_BUCKET;

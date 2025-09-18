@@ -113,7 +113,6 @@ document.addEventListener('DOMContentLoaded', () => {
           <img src="${initialAvatarUrl}" alt="Account" class="header-avatar" id="header-avatar" />
           <div class="avatar-dropdown" id="avatar-dropdown">
             <a href="/account.html" class="dropdown-item">My account</a>
-            <a href="/upload.html" class="dropdown-item">Upload</a>
             <button class="dropdown-item btn-link" id="header-logout">Log out</button>
           </div>
         </div>
@@ -592,12 +591,12 @@ document.addEventListener('DOMContentLoaded', () => {
   if (textUpload) textUpload.addEventListener('click', handleCreateText);
 
   // ---- Media modal: drag/drop and file selection ----
-  const ONE_MB = 1024 * 1024;
+  const ONE_MB = 5 * 1024 * 1024; // increased to 5MB
   let selectedFile = null;
 
   function setMediaError(msg) {
     if (!mediaError) return;
-    mediaError.textContent = msg || 'File must be an image under 1 MB.';
+    mediaError.textContent = msg || 'File must be an image under 5 MB.';
     mediaError.style.display = msg ? 'block' : 'none';
   }
 
@@ -627,7 +626,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (file.size > ONE_MB) {
-      setMediaError('Image must be under 1 MB.');
+      setMediaError('Image must be under 5 MB.');
       return;
     }
     setMediaError('');
@@ -673,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const t = localStorage.getItem('token');
       if (!selectedFile) {
-        alert('Please select an image under 1 MB.');
+        alert('Please select an image under 5 MB.');
         return;
       }
       // 1) Upload image to S3 via backend
