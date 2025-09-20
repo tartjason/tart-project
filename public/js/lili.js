@@ -147,11 +147,22 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.style.zIndex = '1000';
 
     const logo = document.createElement('div');
-    logo.textContent = 'lili';
     logo.style.fontSize = '48px';
     logo.style.fontWeight = '700';
     logo.style.letterSpacing = '0.5px';
     logo.style.color = '#111';
+
+    const logoLead = document.createElement('span');
+    logoLead.textContent = 'l';
+
+    const logoAccent = document.createElement('span');
+    logoAccent.textContent = 'i';
+    logoAccent.style.color = '#A3C6A8';
+
+    const logoTrail = document.createElement('span');
+    logoTrail.textContent = 'li';
+
+    logo.append(logoLead, logoAccent, logoTrail);
 
     const slogan = document.createElement('div');
     slogan.textContent = 'To live is the first art.'; // easily adjustable
