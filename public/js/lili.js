@@ -95,9 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const mediaModal = document.getElementById('media-modal');
   const mediaDrop = document.getElementById('media-drop');
-  const mediaPreview = document.getElementById('media-preview');
+  const mediaPreviews = document.getElementById('media-previews');
   const mediaFileInput = document.getElementById('media-file');
   const mediaError = document.getElementById('media-error');
+  const mediaCount = document.getElementById('media-count');
   const mediaTitle = document.getElementById('media-title');
   const mediaDesc = document.getElementById('media-desc');
   const mediaCancel = document.getElementById('media-cancel');
@@ -445,9 +446,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (post.type === 'text') {
       bodyHtml = `<div class="lili-post-text">${escapeHtml(post.text)}</div>`;
     } else if (post.type === 'media') {
-      const imgHtml = post.imageUrl ? `<img class="lili-post-img" src="${post.imageUrl}" alt="${escapeHtml(post.title || 'image')}" />` : '';
+      const images = Array.isArray(post.images) && post.images.length ? post.images : (post.imageUrl ? [post.imageUrl] : []);
+      let mediaHtml = '';
+      if (images.length <= 1) {
+        const src = images[0] || '';
+        mediaHtml = src ? `<img class="lili-post-img" src="${src}" alt="${escapeHtml(post.title || 'image')}" />` : '';
+      } else {
+        const main = images[0];
+        const dots = images.map((_, i) => `<div class="lili-media-dot${i===0?' active':''}" data-index="${i}"></div>`).join('');
+        mediaHtml = `
+          <div class="lili-media" data-images='${JSON.stringify(images)}' data-active-index="0">
+            <div class="lili-media-main"><img class="lili-slide-img" src="${main}" alt="${escapeHtml(post.title || 'image')}" /></div>
+            <div class="lili-media-nav">
+              <button class="lili-media-btn" data-action="media-prev" aria-label="Previous">‹</button>
+              <button class="lili-media-btn" data-action="media-next" aria-label="Next">›</button>
+            </div>
+            <div class="lili-media-dots">${dots}</div>
+          </div>`;
+      }
       const descHtml = post.description ? `<div class="lili-post-text">${escapeHtml(post.description)}</div>` : '';
-      bodyHtml = imgHtml + descHtml;
+      bodyHtml = mediaHtml + descHtml;
     }
     // Footer: like button (no login required, per-device single like)
     const likes = typeof post.likesCount === 'number' ? post.likesCount : 0;
@@ -464,6 +482,13 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
 
     el.innerHTML = headerHtml + titleHtml + bodyHtml + likeBtnHtml;
+    // Initialize desktop nav visibility for multi-image posts
+    if (post.type === 'media') {
+      const media = el.querySelector('.lili-media');
+      if (media) {
+        try { updateNavVisibility(media); } catch (_) { /* function defined later; hoisted */ }
+      }
+    }
     return el;
   }
 
@@ -487,6 +512,34 @@ document.addEventListener('DOMContentLoaded', () => {
       e.stopPropagation();
       const src = imgClick.getAttribute('src');
       openImageLightbox(src);
+      return;
+    }
+
+    // Carousel main image click -> lightbox
+    const mediaMainImg = e.target.closest('.lili-media .lili-media-main img');
+    if (mediaMainImg) {
+      e.preventDefault(); e.stopPropagation();
+      openImageLightbox(mediaMainImg.getAttribute('src'));
+      return;
+    }
+
+    // Carousel navigation
+    const navBtn = e.target.closest('.lili-media-btn');
+    if (navBtn) {
+      const media = navBtn.closest('.lili-media');
+      if (media) {
+        const action = navBtn.getAttribute('data-action');
+        updateCarousel(media, action === 'media-next' ? 1 : -1);
+      }
+      return;
+    }
+
+    // Carousel dot click
+    const dot = e.target.closest('.lili-media-dot');
+    if (dot) {
+      const media = dot.closest('.lili-media');
+      const idx = parseInt(dot.getAttribute('data-index') || '0', 10) || 0;
+      setCarouselIndex(media, idx);
       return;
     }
 
@@ -612,46 +665,53 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = postEl.querySelector('.lili-post-title')?.textContent || '';
         const descEl = postEl.querySelector('.lili-post-text');
         const desc = descEl ? descEl.textContent : '';
-        const imgEl = postEl.querySelector('.lili-post-img');
-        const currentUrl = imgEl ? imgEl.getAttribute('src') : '';
+        // Determine existing images from DOM
+        let existingImages = [];
+        const carousel = postEl.querySelector('.lili-media');
+        if (carousel && carousel.getAttribute('data-images')) {
+          try { existingImages = JSON.parse(carousel.getAttribute('data-images')) || []; } catch (_) { existingImages = []; }
+        } else {
+          const imgEl = postEl.querySelector('.lili-post-img');
+          const currentUrl = imgEl ? imgEl.getAttribute('src') : '';
+          if (currentUrl) existingImages = [currentUrl];
+        }
 
         document.getElementById('media-modal-title').textContent = 'Edit My Post';
         _editingMedia = true;
         document.getElementById('media-title').value = title;
         document.getElementById('media-desc').value = desc;
-        const preview = document.getElementById('media-preview');
-        const drop = document.getElementById('media-drop');
-        if (preview) { preview.src = currentUrl; preview.style.display = 'block'; }
-        if (drop) { drop.style.display = 'none'; }
+        clearPreview(); // start with empty selection; user can add up to 4 new images to replace
 
         const btnSave = document.getElementById('media-upload');
         const originalLabel = btnSave.textContent;
         btnSave.textContent = 'Save and Update';
-        let replaceUrl = null; // if user picks a new one, upload will set this
         // Prevent default create handler from firing while editing
         btnSave.removeEventListener('click', handleCreateMedia);
 
-        // Intercept pick to allow replacement via existing handlers (selectedFile set in module scope)
+        // On save: if user selected new files, upload and replace images; otherwise keep existingImages
         const onSave = async () => {
           const t = localStorage.getItem('token');
-          let imageUrl = currentUrl;
           try {
-            // If user selected a new file, the create flow's selectedFile would be set
-            if (typeof selectedFile === 'object' && selectedFile) {
-              const fd = new FormData();
-              fd.append('image', selectedFile, selectedFile.name);
-              const upRes = await fetch('/api/uploads/lili-image', { method: 'POST', headers: { ...(t ? { 'x-auth-token': t } : {}) }, body: fd });
-              if (!upRes.ok) {
-                const err = await upRes.json().catch(() => ({}));
-                throw new Error(err.msg || 'Upload failed');
+            let imagesToUse = existingImages;
+            if (selectedFiles && selectedFiles.length) {
+              const uploaded = [];
+              for (const file of selectedFiles) {
+                const fd = new FormData();
+                fd.append('image', file, file.name);
+                const upRes = await fetch('/api/uploads/lili-image', { method: 'POST', headers: { ...(t ? { 'x-auth-token': t } : {}) }, body: fd });
+                if (!upRes.ok) {
+                  const err = await upRes.json().catch(() => ({}));
+                  throw new Error(err.msg || 'Upload failed');
+                }
+                const up = await upRes.json();
+                if (up && up.url) uploaded.push(up.url);
               }
-              const up = await upRes.json();
-              imageUrl = up.url || imageUrl;
+              if (uploaded.length) imagesToUse = uploaded.slice(0, 4);
             }
             const payload = {
               title: document.getElementById('media-title').value.trim(),
               description: document.getElementById('media-desc').value.trim(),
-              imageUrl
+              images: imagesToUse
             };
             const res = await fetch(`/api/lili-posts/${encodeURIComponent(postId)}`, {
               method: 'PUT', headers: { 'Content-Type': 'application/json', ...(t ? { 'x-auth-token': t } : {}) }, body: JSON.stringify(payload)
@@ -824,7 +884,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ---- Media modal: drag/drop and file selection ----
   const ONE_MB = 5 * 1024 * 1024; // increased to 5MB
-  let selectedFile = null;
+  let selectedFiles = [];
 
   function setMediaError(msg) {
     if (!mediaError) return;
@@ -832,38 +892,67 @@ document.addEventListener('DOMContentLoaded', () => {
     mediaError.style.display = msg ? 'block' : 'none';
   }
 
-  function showPreview(file) {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    if (mediaPreview) {
-      mediaPreview.src = url;
-      mediaPreview.style.display = 'block';
+  function renderPreviews() {
+    if (!mediaPreviews) return;
+    mediaPreviews.innerHTML = '';
+    selectedFiles.forEach((file, idx) => {
+      const url = URL.createObjectURL(file);
+      const wrap = document.createElement('div');
+      wrap.className = 'preview-thumb';
+      wrap.innerHTML = `<img src="${url}" alt="preview ${idx+1}"/><button class="remove" data-index="${idx}" aria-label="Remove">×</button>`;
+      mediaPreviews.appendChild(wrap);
+    });
+    // Add plus tile if fewer than 4 selected
+    if (selectedFiles.length < 4) {
+      const add = document.createElement('div');
+      add.className = 'preview-thumb preview-add';
+      add.style.display = 'grid';
+      add.style.placeItems = 'center';
+      add.style.border = '2px dashed #bbb';
+      add.style.color = '#666';
+      add.style.fontSize = '28px';
+      add.style.cursor = 'pointer';
+      add.setAttribute('role', 'button');
+      add.setAttribute('tabindex', '0');
+      add.innerHTML = '<span aria-hidden="true">+</span>';
+      add.addEventListener('click', () => mediaFileInput && mediaFileInput.click());
+      add.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mediaFileInput && mediaFileInput.click(); } });
+      mediaPreviews.appendChild(add);
     }
-    if (mediaDrop) mediaDrop.style.display = 'none';
+    if (selectedFiles.length) {
+      mediaPreviews.classList.add('show');
+      if (mediaDrop) mediaDrop.style.display = 'none';
+    } else {
+      mediaPreviews.classList.remove('show');
+      if (mediaDrop) mediaDrop.style.display = 'block';
+    }
+    if (mediaCount) mediaCount.textContent = `${selectedFiles.length} / 4 images`;
   }
 
   function clearPreview() {
-    selectedFile = null;
-    if (mediaPreview) {
-      mediaPreview.removeAttribute('src');
-      mediaPreview.style.display = 'none';
+    selectedFiles = [];
+    if (mediaPreviews) {
+      mediaPreviews.innerHTML = '';
+      mediaPreviews.classList.remove('show');
     }
     if (mediaDrop) mediaDrop.style.display = 'block';
+    if (mediaCount) mediaCount.textContent = '';
   }
 
-  function acceptFile(file) {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setMediaError('Please upload an image file.');
-      return;
+  function acceptFiles(files) {
+    if (!files || !files.length) return;
+    const arr = Array.from(files);
+    const next = [];
+    const remaining = Math.max(0, 4 - selectedFiles.length);
+    for (const f of arr) {
+      if (!f.type.startsWith('image/')) { setMediaError('Please upload image files only.'); continue; }
+      if (f.size > ONE_MB) { setMediaError('Each image must be under 5 MB.'); continue; }
+      if (next.length < remaining) next.push(f);
     }
-    if (file.size > ONE_MB) {
-      setMediaError('Image must be under 5 MB.');
-      return;
-    }
+    const combined = [...selectedFiles, ...next].slice(0, 4);
+    selectedFiles = combined;
     setMediaError('');
-    selectedFile = file;
-    showPreview(file);
+    renderPreviews();
   }
 
   if (mediaDrop) {
@@ -873,8 +962,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }));
     ;['dragleave', 'drop'].forEach(evt => mediaDrop.addEventListener(evt, (e) => {
       e.preventDefault(); e.stopPropagation();
-      if (evt === 'drop' && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
-        acceptFile(e.dataTransfer.files[0]);
+      if (evt === 'drop' && e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        acceptFiles(e.dataTransfer.files);
       }
       mediaDrop.classList.remove('dragover');
     }));
@@ -883,13 +972,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (mediaFileInput) {
     mediaFileInput.addEventListener('change', () => {
-      const file = mediaFileInput.files && mediaFileInput.files[0];
-      acceptFile(file);
+      const files = mediaFileInput.files;
+      acceptFiles(files);
     });
   }
 
-  if (mediaPreview) {
-    mediaPreview.addEventListener('click', () => mediaFileInput && mediaFileInput.click());
+  if (mediaPreviews) {
+    mediaPreviews.addEventListener('click', (e) => {
+      const btn = e.target.closest('button.remove');
+      if (!btn) return;
+      const idx = parseInt(btn.getAttribute('data-index') || '0', 10) || 0;
+      selectedFiles.splice(idx, 1);
+      renderPreviews();
+    });
   }
 
   if (mediaCancel) mediaCancel.addEventListener('click', () => {
@@ -903,30 +998,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (_editingMedia) return; // guard: do not create while editing
     try {
       const t = localStorage.getItem('token');
-      if (!selectedFile) {
-        alert('Please select an image under 5 MB.');
+      if (!selectedFiles || selectedFiles.length === 0) {
+        alert('Please select up to 4 images (under 5 MB each).');
         return;
       }
-      // 1) Upload image to S3 via backend
-      const fd = new FormData();
-      fd.append('image', selectedFile, selectedFile.name);
-      const upRes = await fetch('/api/uploads/lili-image', {
-        method: 'POST',
-        headers: { ...(t ? { 'x-auth-token': t } : {}) },
-        body: fd
-      });
-      if (!upRes.ok) {
-        const err = await upRes.json().catch(() => ({}));
-        throw new Error(err.msg || 'Upload failed');
+      // 1) Upload images to S3 via backend
+      const uploaded = [];
+      for (const file of selectedFiles) {
+        const fd = new FormData();
+        fd.append('image', file, file.name);
+        const upRes = await fetch('/api/uploads/lili-image', { method: 'POST', headers: { ...(t ? { 'x-auth-token': t } : {}) }, body: fd });
+        if (!upRes.ok) {
+          const err = await upRes.json().catch(() => ({}));
+          throw new Error(err.msg || 'Upload failed');
+        }
+        const up = await upRes.json();
+        if (up && up.url) uploaded.push(up.url);
       }
-      const up = await upRes.json();
-      const imageUrl = up && up.url;
-      if (!imageUrl) throw new Error('No image URL returned');
+      if (!uploaded.length) throw new Error('No image URL returned');
 
-      // 2) Create media post
-      const payload = {
-        type: 'media', title: mediaTitle.value.trim(), description: mediaDesc.value.trim(), imageUrl
-      };
+      // 2) Create media post with images array
+      const payload = { type: 'media', title: mediaTitle.value.trim(), description: mediaDesc.value.trim(), images: uploaded };
       const postRes = await fetch('/api/lili-posts', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(t ? { 'x-auth-token': t } : {}) }, body: JSON.stringify(payload)
       });
@@ -950,4 +1042,126 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   if (mediaUpload) mediaUpload.addEventListener('click', handleCreateMedia);
+
+  function updateCarousel(mediaEl, delta) {
+    if (!mediaEl) return;
+    const images = JSON.parse(mediaEl.getAttribute('data-images') || '[]');
+    if (!images.length) return;
+    const total = images.length;
+    let idx = parseInt(mediaEl.getAttribute('data-active-index') || '0', 10) || 0;
+    idx = (idx + delta + total) % total;
+    setCarouselIndex(mediaEl, idx);
+  }
+
+  function setCarouselIndex(mediaEl, idx) {
+    if (!mediaEl) return;
+    const images = JSON.parse(mediaEl.getAttribute('data-images') || '[]');
+    if (!images.length) return;
+    const current = parseInt(mediaEl.getAttribute('data-active-index') || '0', 10) || 0;
+    const clamped = Math.max(0, Math.min(idx, images.length - 1));
+    if (clamped === current) return;
+    const dir = clamped > current ? 1 : -1;
+    animateCarousel(mediaEl, clamped, dir);
+  }
+
+  function animateCarousel(mediaEl, newIdx, dir) {
+    if (!mediaEl) return;
+    if (mediaEl.dataset.animating === '1') return;
+    const images = JSON.parse(mediaEl.getAttribute('data-images') || '[]');
+    const main = mediaEl.querySelector('.lili-media-main');
+    if (!main || !images.length) return;
+    const fromImg = main.querySelector('.lili-slide-img');
+    const toImg = document.createElement('img');
+    toImg.className = 'lili-slide-img';
+    toImg.alt = fromImg ? fromImg.alt : '';
+    toImg.src = images[newIdx];
+    // place offscreen based on direction
+    toImg.style.transform = `translateX(${dir > 0 ? '100%' : '-100%'})`;
+    main.appendChild(toImg);
+    // force reflow
+    void toImg.offsetWidth;
+    // animate
+    mediaEl.dataset.animating = '1';
+    toImg.style.transform = 'translateX(0)';
+    if (fromImg) fromImg.style.transform = `translateX(${dir > 0 ? '-100%' : '100%'})`;
+    const onDone = () => {
+      toImg.removeEventListener('transitionend', onDone);
+      // cleanup old image
+      if (fromImg && fromImg.parentNode === main) main.removeChild(fromImg);
+      mediaEl.setAttribute('data-active-index', String(newIdx));
+      // update dots
+      mediaEl.querySelectorAll('.lili-media-dot').forEach((d, i) => {
+        if (i === newIdx) d.classList.add('active'); else d.classList.remove('active');
+      });
+      updateNavVisibility(mediaEl);
+      mediaEl.dataset.animating = '0';
+    };
+    toImg.addEventListener('transitionend', onDone);
+  }
+
+  function updateNavVisibility(mediaEl) {
+    if (!mediaEl) return;
+    const images = JSON.parse(mediaEl.getAttribute('data-images') || '[]');
+    const total = images.length;
+    const idx = parseInt(mediaEl.getAttribute('data-active-index') || '0', 10) || 0;
+    const nav = mediaEl.querySelector('.lili-media-nav');
+    if (!nav) return;
+    const [btnPrev, btnNext] = nav.querySelectorAll('.lili-media-btn');
+    if (btnPrev) btnPrev.style.display = (idx <= 0 ? 'none' : 'grid');
+    if (btnNext) btnNext.style.display = (idx >= total - 1 ? 'none' : 'grid');
+    // Align container depending on which button is visible
+    nav.classList.remove('only-prev', 'only-next', 'both');
+    const prevVisible = btnPrev && btnPrev.style.display !== 'none';
+    const nextVisible = btnNext && btnNext.style.display !== 'none';
+    if (prevVisible && nextVisible) {
+      nav.classList.add('both');
+    } else if (prevVisible) {
+      nav.classList.add('only-prev');
+    } else if (nextVisible) {
+      nav.classList.add('only-next');
+    }
+  }
+
+  // Touch swipe navigation for mobile
+  let _touchX = null, _touchY = null, _touchingMedia = null, _swiping = false;
+  const SWIPE_THRESHOLD = 50;
+  const SWIPE_LOCK = 10; // require horizontal dominance over vertical
+
+  if (feedEl) {
+    feedEl.addEventListener('touchstart', (e) => {
+      const media = e.target.closest('.lili-media');
+      if (!media) { _touchingMedia = null; return; }
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      _touchingMedia = media;
+      _touchX = t.clientX;
+      _touchY = t.clientY;
+      _swiping = false;
+    }, { passive: true });
+
+    feedEl.addEventListener('touchmove', (e) => {
+      if (!_touchingMedia) return;
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      const dx = t.clientX - _touchX;
+      const dy = t.clientY - _touchY;
+      if (Math.abs(dx) > Math.abs(dy) + SWIPE_LOCK) {
+        // horizontal swipe, prevent vertical scroll interference
+        e.preventDefault();
+        _swiping = true;
+      }
+    }, { passive: false });
+
+    feedEl.addEventListener('touchend', (e) => {
+      if (!_touchingMedia) return;
+      const media = _touchingMedia;
+      const t = e.changedTouches && e.changedTouches[0];
+      _touchingMedia = null;
+      if (!t || !_swiping) return;
+      const dx = t.clientX - _touchX;
+      if (Math.abs(dx) >= SWIPE_THRESHOLD) {
+        updateCarousel(media, dx < 0 ? 1 : -1);
+      }
+    }, { passive: true });
+  }
 });

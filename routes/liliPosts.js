@@ -13,11 +13,12 @@ function toDto(doc, artist) {
     title: doc.title || '',
     text: doc.text || '',
     imageUrl: doc.imageUrl || '',
+    images: Array.isArray(doc.images) && doc.images.length ? doc.images : (doc.imageUrl ? [doc.imageUrl] : []),
     description: doc.description || '',
     createdAt: doc.createdAt,
     likesCount: typeof doc.likesCount === 'number' ? doc.likesCount : 0,
     author: {
-      id: artist ? artist._id.toString() : (doc.artist && doc.artist.toString ? doc.artist.toString() : ''),
+      id: artist ? artist._id.toString() : (doc.artist && (doc.artist.toString ? doc.artist.toString() : String(doc.artist)) ),
       name: artist ? artist.name : 'Artist',
       profilePictureUrl: artist && artist.profilePictureUrl ? artist.profilePictureUrl : '/assets/default-avatar.svg'
     }
@@ -91,10 +92,10 @@ router.post('/:id/like', async (req, res) => {
 });
 
 // POST /api/lili-posts  (private)
-// Body: { type: 'text'|'media', title, text?, imageUrl?, description? }
+// Body: { type: 'text'|'media', title, text?, imageUrl?, images?: string[], description? }
 router.post('/', auth, async (req, res) => {
   try {
-    const { type, title, text, imageUrl, description } = req.body || {};
+    const { type, title, text, imageUrl, images, description } = req.body || {};
     if (!type || !['text','media'].includes(type)) return res.status(400).json({ msg: 'Invalid type' });
 
     const payload = {
@@ -105,9 +106,19 @@ router.post('/', auth, async (req, res) => {
     if (type === 'text') {
       payload.text = String(text || '').slice(0, 5000);
     } else {
-      payload.imageUrl = String(imageUrl || '').trim();
+      let imgs = [];
+      if (Array.isArray(images)) {
+        imgs = images.map(u => String(u || '').trim()).filter(Boolean);
+      }
+      // fallback to single imageUrl if provided
+      const single = String(imageUrl || '').trim();
+      if (!imgs.length && single) imgs = [single];
+      // enforce max 4
+      imgs = imgs.slice(0, 4);
+      payload.images = imgs;
+      payload.imageUrl = imgs[0] || '';
       payload.description = String(description || '').slice(0, 5000);
-      if (!payload.imageUrl) return res.status(400).json({ msg: 'imageUrl required for media post' });
+      if (!payload.imageUrl) return res.status(400).json({ msg: 'At least one image URL is required for media post' });
     }
 
     const doc = await LiliPost.create(payload);
@@ -135,8 +146,15 @@ router.put('/:id', auth, async (req, res) => {
     if (doc.type === 'text') {
       doc.text = String(req.body.text ?? doc.text).slice(0, 5000);
     } else if (doc.type === 'media') {
-      if (typeof req.body.imageUrl === 'string' && req.body.imageUrl.trim()) {
+      // Optional: support updating images array (max 4)
+      if (Array.isArray(req.body.images)) {
+        const imgs = req.body.images.map(u => String(u || '').trim()).filter(Boolean).slice(0, 4);
+        doc.images = imgs;
+        if (imgs.length) doc.imageUrl = imgs[0];
+      } else if (typeof req.body.imageUrl === 'string' && req.body.imageUrl.trim()) {
+        // Backward-compat single replacement
         doc.imageUrl = req.body.imageUrl.trim();
+        doc.images = [doc.imageUrl];
       }
       doc.description = String(req.body.description ?? doc.description).slice(0, 5000);
     }

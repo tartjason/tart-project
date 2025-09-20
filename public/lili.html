@@ -371,20 +371,60 @@
     .preview-grid.show { display: flex; }
     .preview-thumb { width: 92px; height: 92px; border-radius: 10px; overflow: hidden; position: relative; flex: 0 0 auto; }
     .preview-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .preview-thumb .remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; border: 0; border-radius: 50%; width: 22px; height: 22px; line-height: 22px; font-size: 14px; cursor: pointer; }
+    .preview-thumb .remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: 0;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      aspect-ratio: 1 / 1;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      line-height: 1;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      -webkit-appearance: none;
+      appearance: none;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      z-index: 1;
+    }
+    .preview-thumb .remove:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .preview-thumb .remove:hover { background: rgba(0,0,0,0.7); }
+    @media (max-width: 680px) {
+      .preview-thumb .remove { width: 32px; height: 32px; font-size: 18px; }
+    }
     .preview-meta { font-size: 12px; color: #666; margin-top: 6px; }
 
     /* Post media carousel */
     .lili-media { position: relative; margin: 8px 0; }
-    .lili-media-main { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: #f3f3f3; }
+    .lili-media-main { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: #f3f3f3; }
     .lili-media-main img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .lili-media-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-top: 8px; }
-    .lili-media-thumb { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; flex: 0 0 auto; border: 2px solid transparent; cursor: pointer; }
-    .lili-media-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .lili-media-thumb.active { border-color: #111; }
-    .lili-media-nav { position: absolute; top: 50%; transform: translateY(-50%); display: flex; justify-content: space-between; width: 100%; pointer-events: none; }
+    .lili-slide-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: translateX(0); transition: transform 300ms ease; }
+    /* Dots pagination (Instagram style) */
+    .lili-media-dots { display: flex; gap: 6px; justify-content: center; padding-top: 8px; }
+    .lili-media-dot { width: 8px; height: 8px; border-radius: 50%; background: #cfcfcf; cursor: pointer; }
+    .lili-media-dot.active { background: #111; }
+    @media (max-width: 680px) {
+      .lili-media-dot { width: 6px; height: 6px; }
+    }
+    .lili-media-nav { position: absolute; top: 50%; transform: translateY(-50%); display: none; justify-content: space-between; width: 100%; pointer-events: none; }
+    .lili-media-nav.only-prev { justify-content: flex-start; }
+    .lili-media-nav.only-next { justify-content: flex-end; }
+    .lili-media-nav.both { justify-content: space-between; }
     .lili-media-btn { pointer-events: all; background: rgba(0,0,0,0.4); color: #fff; border: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
     .lili-media-btn:hover { background: rgba(0,0,0,0.55); }
+    @media (min-width: 681px) {
+      .lili-media:hover .lili-media-nav { display: flex; }
+    }
     .error-msg { color: #b00020; font-size: 13px; margin-top: 6px; display: none; }
   </style>
 </head>
