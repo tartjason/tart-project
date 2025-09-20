@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+  // Variant mode: when served at /livedlife, we hide auth/login and upload UI
+  const isLivedLife = (window.location && window.location.pathname === '/livedlife');
   const authContainer = document.getElementById('auth-container');
   const feedEl = document.getElementById('lili-feed');
   const addBtn = document.getElementById('lili-add-btn');
@@ -101,10 +103,105 @@ document.addEventListener('DOMContentLoaded', () => {
   const mediaCancel = document.getElementById('media-cancel');
   const mediaUpload = document.getElementById('media-upload');
 
+  // ---- LivedLife landing countdown (until Sept 22, 8pm Beijing time) ----
+  // Target time in UTC: Beijing is UTC+8, so 20:00 CST -> 12:00 UTC
+  const livedLifeTargetUTC = Date.UTC(2025, 8, 22, 12, 0, 0); // months are 0-based (8 = September)
+  let _landingActive = false;
+  let _countdownTimer = null;
+  let _feedInitialized = false;
+
+  function msUntilTarget() {
+    return Math.max(0, livedLifeTargetUTC - Date.now());
+  }
+
+  function formatDuration(ms) {
+    let s = Math.floor(ms / 1000);
+    const days = Math.floor(s / 86400); s -= days * 86400;
+    const hours = Math.floor(s / 3600); s -= hours * 3600;
+    const minutes = Math.floor(s / 60); s -= minutes * 60;
+    const seconds = s;
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${days}d ${pad(hours)}h ${pad(minutes)}m ${pad(seconds)}s`;
+  }
+
+  function showLivedLifeLanding(onFinish) {
+    _landingActive = true;
+    // Hide main content while landing is active
+    const main = document.querySelector('main.lili-content');
+    if (main) main.style.display = 'none';
+    // Also ensure floating elements remain hidden (already handled above for livedlife)
+
+    // Build overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'livedlife-landing';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-live', 'polite');
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = '#FDF8F3';
+    overlay.style.display = 'flex';
+    overlay.style.flexDirection = 'column';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.textAlign = 'center';
+    overlay.style.zIndex = '1000';
+
+    const logo = document.createElement('div');
+    logo.textContent = 'lili';
+    logo.style.fontSize = '48px';
+    logo.style.fontWeight = '700';
+    logo.style.letterSpacing = '0.5px';
+    logo.style.color = '#111';
+
+    const slogan = document.createElement('div');
+    slogan.textContent = 'To live is the first art.'; // easily adjustable
+    slogan.style.marginTop = '10px';
+    slogan.style.marginBottom = '80px';
+    slogan.style.fontSize = '18px';
+    slogan.style.color = '#555';
+
+    const countdown = document.createElement('div');
+    countdown.id = 'livedlife-countdown';
+    countdown.style.marginTop = '16px';
+    countdown.style.fontSize = '20px';
+    countdown.style.fontVariantNumeric = 'tabular-nums';
+    countdown.style.color = '#333';
+
+    overlay.appendChild(logo);
+    overlay.appendChild(slogan);
+    overlay.appendChild(countdown);
+    document.body.appendChild(overlay);
+
+    // Tick function
+    const tick = () => {
+      const ms = msUntilTarget();
+      if (ms <= 0) {
+        clearInterval(_countdownTimer);
+        _countdownTimer = null;
+        // Finish: remove overlay, show main, run callback
+        overlay.remove();
+        if (main) main.style.display = '';
+        _landingActive = false;
+        if (typeof onFinish === 'function') onFinish();
+        return;
+      }
+      if (countdown) countdown.textContent = formatDuration(ms);
+    };
+
+    // Initial render and start interval
+    tick();
+    _countdownTimer = setInterval(tick, 1000);
+  }
+
   // ---- Auth header UI (copied from main.js, simplified) ----
   let currentUser = { id: null, name: 'Guest', profilePictureUrl: '/assets/default-avatar.svg' };
 
   async function setupAuthUI() {
+    // In livedlife mode we do not show auth UI (no login/avatar)
+    if (isLivedLife) {
+      if (authContainer) authContainer.style.display = 'none';
+      return;
+    }
     const t = localStorage.getItem('token');
     if (t) {
       const initialAvatarUrl = '/assets/default-avatar.svg';
@@ -183,8 +280,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize after auth resolves to avoid race (so ownership menus render)
   setupAuthUI().finally(() => {
+    // If livedlife and before target, show landing and delay feed init until countdown completes
+    if (isLivedLife && msUntilTarget() > 0) {
+      showLivedLifeLanding(() => {
+        if (!_feedInitialized) {
+          initFeed();
+          _feedInitialized = true;
+          ensureMenusForOwnedPosts();
+        }
+      });
+      return;
+    }
+    // Else, initialize feed immediately
     initFeed();
-    // Backfill menus for any posts rendered by cache/preload
+    _feedInitialized = true;
     ensureMenusForOwnedPosts();
   });
 
@@ -360,6 +469,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeAllPostMenus(); });
 
   feedEl && feedEl.addEventListener('click', async (e) => {
+    // Image click -> open lightbox with original src
+    const imgClick = e.target.closest('img.lili-post-img');
+    if (imgClick) {
+      e.preventDefault();
+      e.stopPropagation();
+      const src = imgClick.getAttribute('src');
+      openImageLightbox(src);
+      return;
+    }
+
     const btn = e.target.closest('button');
     if (!btn) return;
     const action = btn.getAttribute('data-action');
@@ -556,7 +675,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ---- Floating add menu ----
-  if (addBtn && menu) {
+  // In livedlife mode, hide the floating add button and menu entirely
+  if (isLivedLife) {
+    if (addBtn) addBtn.style.display = 'none';
+    if (menu) menu.style.display = 'none';
+  }
+
+  if (addBtn && menu && !isLivedLife) {
     addBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       menu.classList.toggle('open');
@@ -590,6 +715,58 @@ document.addEventListener('DOMContentLoaded', () => {
       if (menu) menu.classList.remove('open');
     }
   });
+
+  // ---- Image lightbox for post images ----
+  let _lightboxEl = null;
+  let _lightboxKeyHandler = null;
+  function openImageLightbox(src) {
+    if (!src) return;
+    if (_lightboxEl) {
+      // If already open, just update src
+      const img = _lightboxEl.querySelector('img');
+      if (img) img.src = src;
+      return;
+    }
+    const overlay = document.createElement('div');
+    overlay.id = 'lili-image-lightbox';
+    overlay.style.position = 'fixed';
+    overlay.style.inset = '0';
+    overlay.style.background = 'rgba(0,0,0,0.85)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = '1001';
+    overlay.style.cursor = 'zoom-out';
+
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = '';
+    img.style.maxWidth = '95vw';
+    img.style.maxHeight = '95vh';
+    img.style.objectFit = 'contain';
+    img.style.boxShadow = '0 10px 40px rgba(0,0,0,0.6)';
+    img.style.borderRadius = '8px';
+
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+    _lightboxEl = overlay;
+
+    const close = () => closeImageLightbox();
+    overlay.addEventListener('click', close);
+    _lightboxKeyHandler = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', _lightboxKeyHandler);
+  }
+
+  function closeImageLightbox() {
+    if (_lightboxEl) {
+      _lightboxEl.remove();
+      _lightboxEl = null;
+    }
+    if (_lightboxKeyHandler) {
+      document.removeEventListener('keydown', _lightboxKeyHandler);
+      _lightboxKeyHandler = null;
+    }
+  }
 
   // ---- Text modal events ----
   let _editingText = false;

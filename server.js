@@ -113,6 +113,11 @@ app.get('/lili', (req, res) => {
     return res.sendFile(path.join(__dirname, 'public', 'lili.html'));
 });
 
+// LivedLife variant: serves the same lili.html and JS will hide login/upload UI
+app.get('/livedlife', (req, res) => {
+    return res.sendFile(path.join(__dirname, 'public', 'lili.html'));
+});
+
 // Back-compat: redirect /s/:slug to root-level /:slug
 app.get('/s/:slug', (req, res) => {
     const slug = String(req.params.slug || '');

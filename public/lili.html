@@ -231,20 +231,15 @@
         border: none;
         box-shadow: none;
         padding: 0;
-        /* Make feed slightly more opaque on mobile for better contrast */
-        background: rgba(255,255,255,0.6);
+        background: transparent; /* keep page background, lines belong to posts */
       }
       .lili-post {
-        padding: 20px 16px 28px;
-        /* Slimmer divider, like desktop */
-        border-bottom: 1px solid #eaeaea;
-        /* Rounded card frame on mobile */
-        border-radius: 12px;
-        overflow: hidden; /* ensures media corners follow rounding */
-        /* Slight separation from edges/siblings to reveal rounding */
-        margin: 12px 12px 0 12px;
-        /* Keep the clearer card feel on mobile */
-        background: rgba(255,255,255,0.75);
+        padding: 20px 16px 56px; /* extra bottom space so like button never overlaps text */
+        border-bottom: 1px solid #eaeaea; /* simple straight gray divider */
+        border-radius: 0; /* no rounding so divider ends are straight */
+        overflow: visible; /* avoid curved clipping at ends */
+        margin: 0; /* edge-to-edge posts with straight dividers */
+        background: transparent; /* no card background to avoid curved look */
       }
       .lili-like-btn { padding: 8px 12px; font-size: 14px; }
       article.lili-post:last-of-type { border-bottom: none; }
