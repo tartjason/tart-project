@@ -366,14 +366,25 @@
       cursor: pointer;
     }
     .drop-zone.dragover { border-color: #000; color: #000; background: #fafafa; }
-    .preview-img {
-      max-width: 100%;
-      max-height: 50vh; /* prevent modal overflow */
-      object-fit: contain;
-      border-radius: 10px;
-      display: none;
-      cursor: pointer;
-    }
+    /* Modal multi-image previews */
+    .preview-grid { display: none; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding: 6px 0; }
+    .preview-grid.show { display: flex; }
+    .preview-thumb { width: 92px; height: 92px; border-radius: 10px; overflow: hidden; position: relative; flex: 0 0 auto; }
+    .preview-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .preview-thumb .remove { position: absolute; top: 4px; right: 4px; background: rgba(0,0,0,0.6); color: #fff; border: 0; border-radius: 50%; width: 22px; height: 22px; line-height: 22px; font-size: 14px; cursor: pointer; }
+    .preview-meta { font-size: 12px; color: #666; margin-top: 6px; }
+
+    /* Post media carousel */
+    .lili-media { position: relative; margin: 8px 0; }
+    .lili-media-main { width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; overflow: hidden; background: #f3f3f3; }
+    .lili-media-main img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .lili-media-thumbs { display: flex; gap: 8px; overflow-x: auto; padding-top: 8px; }
+    .lili-media-thumb { width: 64px; height: 64px; border-radius: 8px; overflow: hidden; flex: 0 0 auto; border: 2px solid transparent; cursor: pointer; }
+    .lili-media-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .lili-media-thumb.active { border-color: #111; }
+    .lili-media-nav { position: absolute; top: 50%; transform: translateY(-50%); display: flex; justify-content: space-between; width: 100%; pointer-events: none; }
+    .lili-media-btn { pointer-events: all; background: rgba(0,0,0,0.4); color: #fff; border: 0; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; cursor: pointer; }
+    .lili-media-btn:hover { background: rgba(0,0,0,0.55); }
     .error-msg { color: #b00020; font-size: 13px; margin-top: 6px; display: none; }
   </style>
 </head>
@@ -434,11 +445,12 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="media-modal-title">
       <h2 id="media-modal-title">New Media</h2>
       <div class="form-row">
-        <label>Image (under 5 MB)</label>
-        <div class="drop-zone" id="media-drop">Drop image here or click to choose</div>
-        <img id="media-preview" class="preview-img" alt="Preview" />
-        <input type="file" id="media-file" accept="image/*" style="display:none;" />
-        <div class="error-msg" id="media-error">File must be an image under 5 MB.</div>
+        <label>Images (up to 4, each under 5 MB)</label>
+        <div class="drop-zone" id="media-drop">Drop images here or click to choose</div>
+        <div id="media-previews" class="preview-grid" aria-live="polite"></div>
+        <div class="preview-meta" id="media-count" aria-live="polite"></div>
+        <input type="file" id="media-file" accept="image/*" multiple style="display:none;" />
+        <div class="error-msg" id="media-error">File must be images under 5 MB each.</div>
       </div>
       <div class="form-row">
         <label for="media-title">Title</label>
