@@ -1049,8 +1049,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!images.length) return;
     const total = images.length;
     let idx = parseInt(mediaEl.getAttribute('data-active-index') || '0', 10) || 0;
-    idx = (idx + delta + total) % total;
-    setCarouselIndex(mediaEl, idx);
+    // Non-circular: clamp at bounds
+    const next = Math.max(0, Math.min(idx + delta, total - 1));
+    if (next === idx) return; // already at the edge; no wrap
+    setCarouselIndex(mediaEl, next);
   }
 
   function setCarouselIndex(mediaEl, idx) {
