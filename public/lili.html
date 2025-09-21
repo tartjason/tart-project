@@ -246,11 +246,13 @@
       .lili-post-header,
       .lili-post-title,
       .lili-post-text { padding: 0 16px; }
-      /* Make media edge-to-edge */
-      .lili-post-img { border-radius: 0; margin-left: 0; margin-right: 0; width: 100vw; max-width: 100vw; margin-left: 50%; transform: translateX(-50%); }
-      .lili-media { margin-left: 50%; transform: translateX(-50%); width: 100vw; max-width: 100vw; }
-      .lili-media-main { border-radius: 0; width: 100vw; max-width: 100vw; }
-      .lili-media-main img { width: 100vw; max-width: 100vw; }
+      /* Make media edge-to-edge within the feed container (no left offset) */
+      .lili-post-img { border-radius: 0; display: block; width: 100%; max-width: 100%; margin: 8px 0; }
+      .lili-media { width: 100%; max-width: 100%; margin: 8px 0; transform: none; }
+      .lili-media-main { border-radius: 0; width: 100%; max-width: 100%; }
+      .lili-media-main img { width: 100%; max-width: 100%; object-fit: contain; object-position: center center; }
+      /* Override desktop slide rule: show full image centered in viewport */
+      .lili-slide-img { object-fit: contain; object-position: center center; }
       .lili-like-btn { padding: 8px 12px; font-size: 14px; }
       article.lili-post:last-of-type { border-bottom: none; }
       .floating-add { right: 16px; bottom: 16px; width: 48px; height: 48px; }
