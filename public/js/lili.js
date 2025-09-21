@@ -12,6 +12,51 @@ document.addEventListener('DOMContentLoaded', () => {
   const textCancel = document.getElementById('text-cancel');
   const textUpload = document.getElementById('text-upload');
 
+  // ---- Theme (dark/light) ----
+  const THEME_KEY = 'lili_theme';
+  function getPreferredTheme() {
+    try {
+      const saved = localStorage.getItem(THEME_KEY);
+      if (saved === 'dark' || saved === 'light') return saved;
+    } catch (_) {}
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return prefersDark ? 'dark' : 'light';
+  }
+  function applyTheme(theme) {
+    const isDark = theme === 'dark';
+    document.body.classList.toggle('dark', isDark);
+  }
+  function ensureThemeToggle() {
+    try {
+      const header = document.querySelector('.lili-header');
+      if (!header) return;
+      let btn = document.getElementById('theme-toggle');
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'theme-toggle';
+        btn.className = 'theme-toggle';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Toggle dark mode');
+        const place = (authContainer && authContainer.style.display !== 'none') ? authContainer : header;
+        if (place === authContainer) {
+          authContainer.prepend(btn);
+        } else {
+          header.appendChild(btn);
+        }
+      }
+      const setLabel = () => { btn.textContent = document.body.classList.contains('dark') ? 'Light' : 'Dark'; };
+      setLabel();
+      btn.onclick = () => {
+        const next = document.body.classList.contains('dark') ? 'light' : 'dark';
+        applyTheme(next);
+        try { localStorage.setItem(THEME_KEY, next); } catch (_) {}
+        setLabel();
+      };
+    } catch (_) {}
+  }
+  // Apply initial theme ASAP to avoid flash
+  applyTheme(getPreferredTheme());
+
   // Authors strip DOM and state
   const authorsScroll = document.getElementById('lili-authors-scroll');
   const authorsSeen = new Set(); // store String(authorId)
@@ -292,6 +337,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Initialize after auth resolves to avoid race (so ownership menus render)
   setupAuthUI().finally(() => {
+    // Ensure theme toggle is visible once header/auth have been laid out
+    ensureThemeToggle();
     // If livedlife and before target, show landing and delay feed init until countdown completes
     if (isLivedLife && msUntilTarget() > 0) {
       showLivedLifeLanding(() => {
