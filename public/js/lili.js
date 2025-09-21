@@ -109,6 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
         el.style.display = 'none';
       }
     });
+    // Mark the last visible post so we can hide its divider line
+    let lastVisible = null;
+    posts.forEach(el => {
+      if (el.style.display !== 'none') lastVisible = el;
+      el.classList.remove('is-last-visible');
+    });
+    if (lastVisible) lastVisible.classList.add('is-last-visible');
   }
   if (authorsScroll) {
     authorsScroll.addEventListener('click', (e) => {
