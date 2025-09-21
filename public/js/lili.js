@@ -5,12 +5,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const feedEl = document.getElementById('lili-feed');
   const addBtn = document.getElementById('lili-add-btn');
   const menu = document.getElementById('lili-menu');
+  const logoLink = document.getElementById('tart-logo-home');
 
   const textModal = document.getElementById('text-modal');
   const textTitle = document.getElementById('text-title');
   const textEditor = document.getElementById('text-editor');
   const textCancel = document.getElementById('text-cancel');
   const textUpload = document.getElementById('text-upload');
+
+  // Disable logo navigation on Lili (including /livedlife variant)
+  if (logoLink) {
+    logoLink.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
+    // Remove href to avoid long-press open in new tab on mobile
+    logoLink.removeAttribute('href');
+    // Make it non-interactive visually and for a11y
+    logoLink.setAttribute('aria-disabled', 'true');
+    logoLink.style.pointerEvents = 'none';
+    logoLink.style.cursor = 'default';
+    logoLink.tabIndex = -1;
+  }
 
   // ---- Theme (dark/light) ----
   const THEME_KEY = 'lili_theme';
