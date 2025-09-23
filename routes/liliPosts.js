@@ -69,6 +69,46 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/lili-posts/authors (public)
+// Returns all unique artists who have at least one Lili post.
+router.get('/authors', async (req, res) => {
+  try {
+    // Aggregate to compute most recent post per artist, sort by recency desc
+    const agg = await LiliPost.aggregate([
+      { $group: { _id: '$artist', lastPostAt: { $max: '$createdAt' } } },
+      { $sort: { lastPostAt: -1 } }
+    ]);
+    if (!agg || agg.length === 0) return res.json({ items: [] });
+
+    const orderedIds = agg
+      .map(a => a._id)
+      .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+      .map(id => new mongoose.Types.ObjectId(id));
+
+    const artists = await Artist.find(
+      { _id: { $in: orderedIds } },
+      { name: 1, profilePictureUrl: 1 }
+    ).lean();
+    const artistMap = new Map(artists.map(a => [String(a._id), a]));
+
+    const items = orderedIds
+      .map(idObj => {
+        const a = artistMap.get(String(idObj));
+        return a ? {
+          id: String(a._id),
+          name: a.name || 'Artist',
+          profilePictureUrl: a.profilePictureUrl || '/assets/default-avatar.svg'
+        } : null;
+      })
+      .filter(Boolean);
+
+    return res.json({ items });
+  } catch (err) {
+    console.error('LiliPosts AUTHORS error:', err);
+    return res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 // POST /api/lili-posts/:id/like  (public)
 // Increments likesCount atomically; no auth required. Idempotency is enforced client-side per device.
 router.post('/:id/like', async (req, res) => {

@@ -25,6 +25,18 @@ document.addEventListener('DOMContentLoaded', () => {
     logoLink.tabIndex = -1;
   }
 
+  async function loadAllAuthors() {
+    try {
+      const res = await fetch('/api/lili-posts/authors');
+      if (!res.ok) throw new Error('Failed to load authors');
+      const data = await res.json();
+      const items = Array.isArray(data.items) ? data.items : [];
+      items.forEach(addAuthorFromArtist);
+    } catch (e) {
+      console.error('[Lili] loadAllAuthors error:', e);
+    }
+  }
+
   // ---- Theme (dark/light) ----
   const THEME_KEY = 'lili_theme';
   function getPreferredTheme() {
@@ -73,6 +85,36 @@ document.addEventListener('DOMContentLoaded', () => {
   // Authors strip DOM and state
   const authorsScroll = document.getElementById('lili-authors-scroll');
   const authorsSeen = new Set(); // store String(authorId)
+  function addAuthorFromArtist(artist) {
+    try {
+      if (!artist) return;
+      const id = String(artist.id || artist._id || '');
+      if (!id || authorsSeen.has(id)) return;
+      authorsSeen.add(id);
+      if (!authorsScroll) return;
+      const item = document.createElement('div');
+      item.className = 'lili-author-item';
+
+      const img = document.createElement('img');
+      img.className = 'lili-author-avatar';
+      img.src = artist.profilePictureUrl || '/assets/default-avatar.svg';
+      img.alt = artist.name ? `${artist.name}` : 'Artist';
+      img.title = artist.name || 'Artist';
+      img.setAttribute('loading', 'lazy');
+      img.setAttribute('role', 'button');
+      img.setAttribute('tabindex', '0');
+      img.setAttribute('aria-pressed', 'false');
+      img.dataset.authorId = id;
+
+      const name = document.createElement('div');
+      name.className = 'lili-author-name';
+      name.textContent = artist.name || 'Artist';
+
+      item.appendChild(img);
+      item.appendChild(name);
+      authorsScroll.appendChild(item);
+    } catch (_) {}
+  }
   function addAuthorFromPost(post) {
     try {
       if (!post || !post.author) return;
@@ -359,21 +401,30 @@ document.addEventListener('DOMContentLoaded', () => {
   setupAuthUI().finally(() => {
     // Ensure theme toggle is visible once header/auth have been laid out
     ensureThemeToggle();
+    // Eagerly load authors for filter strip so avatars are present immediately
+    // We don't await this for UX responsiveness, but it usually completes quickly.
+    const authorsPromise = loadAllAuthors();
     // If livedlife and before target, show landing and delay feed init until countdown completes
     if (isLivedLife && msUntilTarget() > 0) {
       showLivedLifeLanding(() => {
         if (!_feedInitialized) {
-          initFeed();
+          // Ensure authors are loaded before feed init completes
+          authorsPromise.finally(() => {
+            initFeed();
+            _feedInitialized = true;
+            ensureMenusForOwnedPosts();
+          });
           _feedInitialized = true;
-          ensureMenusForOwnedPosts();
         }
       });
       return;
     }
     // Else, initialize feed immediately
-    initFeed();
-    _feedInitialized = true;
-    ensureMenusForOwnedPosts();
+    authorsPromise.finally(() => {
+      initFeed();
+      _feedInitialized = true;
+      ensureMenusForOwnedPosts();
+    });
   });
 
   // ---- Feed loading (pagination) ----
